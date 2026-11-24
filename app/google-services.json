@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "97446297234-fqlihh18rtth05rquhe5aq0g2hbvtdkm.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.aistudio.afterglow.kxpqzm",
+            "certificate_hash": "e9ced06c5ea5e1f890146dfffd6d87ffe2409673"
+          }
+        },
+        {
           "client_id": "97446297234-gd8vijpsl2irn2duplbsui4ctn80flvp.apps.googleusercontent.com",
           "client_type": 3
         }
