@@ -1,0 +1,6 @@
+{
+  "name": "Afterglow",
+  "description": "Personal movie, web series, anime, and K-drama tracking platform with watchlists, ratings, reviews, rankings, and analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

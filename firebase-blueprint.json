@@ -1,0 +1,177 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile, theme preferences, and annual watching goals.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Authenticated Firebase UID" },
+        "displayName": { "type": "string", "description": "Custom display name (1-60 chars)" },
+        "bio": { "type": "string", "description": "Optional user bio (0-250 chars)" },
+        "accentColorKey": {
+          "type": "string",
+          "enum": ["AFTERGLOW_PURPLE", "MIDNIGHT_ROSE", "CELESTIAL_INDIGO", "NEON_AMETHYST"],
+          "description": "Selected dark-luxury accent theme"
+        },
+        "compactMode": { "type": "boolean", "description": "Compact card density preference" },
+        "yearlyMovieGoal": { "type": "integer", "description": "Annual completed movies target" },
+        "yearlySeriesGoal": { "type": "integer", "description": "Annual completed series target" },
+        "yearlyEpisodeGoal": { "type": "integer", "description": "Annual episodes watched target" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": [
+        "userId",
+        "displayName",
+        "bio",
+        "accentColorKey",
+        "compactMode",
+        "yearlyMovieGoal",
+        "yearlySeriesGoal",
+        "yearlyEpisodeGoal",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "MediaItem": {
+      "title": "MediaItem",
+      "description": "Tracked movie, web series, anime, K-drama, or watchlist entry.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner UID" },
+        "title": { "type": "string", "description": "Title name (1-160 chars)" },
+        "mediaCategory": {
+          "type": "string",
+          "enum": ["MOVIE", "WEB_SERIES", "ANIME", "K_DRAMA"],
+          "description": "Media category"
+        },
+        "posterUrl": { "type": "string", "description": "Optional poster URL" },
+        "genre": { "type": "string", "description": "Comma-separated genres" },
+        "language": { "type": "string", "description": "Primary audio language" },
+        "releaseYear": { "type": "integer", "description": "Release year" },
+        "streamingPlatform": { "type": "string", "description": "Streaming service or venue" },
+        "imdbRating": { "type": "number", "description": "IMDb rating (0.0-10.0)" },
+        "personalRating": { "type": "number", "description": "Personal rating (0.0-10.0)" },
+        "runtimeMinutes": { "type": "integer", "description": "Movie runtime or avg episode runtime in minutes" },
+        "director": { "type": "string", "description": "Director or creator" },
+        "mainCast": { "type": "string", "description": "Main cast list" },
+        "country": { "type": "string", "description": "Country of origin" },
+        "watchStatus": {
+          "type": "string",
+          "enum": ["COMPLETED", "WATCHING", "PLAN_TO_WATCH", "ON_HOLD", "DROPPED"],
+          "description": "Current watch status"
+        },
+        "startDate": { "type": "string", "description": "Start date YYYY-MM-DD" },
+        "completionDate": { "type": "string", "description": "Completion date YYYY-MM-DD" },
+        "rewatchCount": { "type": "integer", "description": "Number of rewatches" },
+        "rewatchFlag": { "type": "boolean", "description": "Marked in rewatch collection" },
+        "trailerLink": { "type": "string", "description": "Trailer URL" },
+        "imdbLink": { "type": "string", "description": "IMDb URL" },
+        "personalReview": { "type": "string", "description": "Personal review text" },
+        "notes": { "type": "string", "description": "Personal notes" },
+        "totalSeasons": { "type": "integer", "description": "Total seasons" },
+        "currentSeason": { "type": "integer", "description": "Current season" },
+        "totalEpisodes": { "type": "integer", "description": "Total episodes" },
+        "episodesWatched": { "type": "integer", "description": "Episodes watched" },
+        "currentEpisode": { "type": "integer", "description": "Current episode number" },
+        "watchlistItem": { "type": "boolean", "description": "Whether listed in future watchlist" },
+        "priority": {
+          "type": "string",
+          "enum": ["HIGH", "MEDIUM", "LOW"],
+          "description": "Watchlist priority"
+        },
+        "dateAdded": { "type": "string", "description": "Date added YYYY-MM-DD" },
+        "favourite": { "type": "boolean", "description": "Marked as favourite" },
+        "allTimeFavourite": { "type": "boolean", "description": "Marked as all-time favourite" },
+        "manualRank": { "type": "integer", "description": "Manual ranking position (0 if unranked)" },
+        "hiddenGem": { "type": "boolean", "description": "Marked as hidden gem" },
+        "moodTags": { "type": "array", "description": "Mood tags (max 6)" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": [
+        "userId",
+        "title",
+        "mediaCategory",
+        "posterUrl",
+        "genre",
+        "language",
+        "releaseYear",
+        "streamingPlatform",
+        "imdbRating",
+        "personalRating",
+        "runtimeMinutes",
+        "director",
+        "mainCast",
+        "country",
+        "watchStatus",
+        "startDate",
+        "completionDate",
+        "rewatchCount",
+        "rewatchFlag",
+        "trailerLink",
+        "imdbLink",
+        "personalReview",
+        "notes",
+        "totalSeasons",
+        "currentSeason",
+        "totalEpisodes",
+        "episodesWatched",
+        "currentEpisode",
+        "watchlistItem",
+        "priority",
+        "dateAdded",
+        "favourite",
+        "allTimeFavourite",
+        "manualRank",
+        "hiddenGem",
+        "moodTags",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "QuoteItem": {
+      "title": "QuoteItem",
+      "description": "Saved favourite quote from a movie or series.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner UID" },
+        "quoteText": { "type": "string", "description": "Quote body (1-600 chars)" },
+        "sourceTitle": { "type": "string", "description": "Movie or series title (1-160 chars)" },
+        "characterName": { "type": "string", "description": "Character or speaker name" },
+        "mediaItemId": { "type": "string", "description": "Optional linked media item ID" },
+        "mediaCategory": {
+          "type": "string",
+          "enum": ["MOVIE", "WEB_SERIES", "ANIME", "K_DRAMA"],
+          "description": "Source media category"
+        },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": [
+        "userId",
+        "quoteText",
+        "sourceTitle",
+        "characterName",
+        "mediaItemId",
+        "mediaCategory",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Per-user profile, accent theme, and annual watching goals."
+    },
+    "/users/{userId}/media_items/{itemId}": {
+      "schema": { "$ref": "#/entities/MediaItem" },
+      "description": "Per-user collection of movies, web series, anime, K-dramas, and watchlist entries."
+    },
+    "/users/{userId}/quotes/{quoteId}": {
+      "schema": { "$ref": "#/entities/QuoteItem" },
+      "description": "Per-user favourite quotes collection."
+    }
+  }
+}

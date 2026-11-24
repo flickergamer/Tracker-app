@@ -1,0 +1,749 @@
+package com.example.ui.components
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableDoubleStateOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.example.data.model.AVAILABLE_MOODS
+import com.example.data.model.MediaCategory
+import com.example.data.model.MediaItem
+import com.example.data.model.POPULAR_GENRES
+import com.example.data.model.POPULAR_PLATFORMS
+import com.example.data.model.WatchStatus
+import com.example.data.model.WatchlistPriority
+import com.example.data.tmdb.TmdbMultiResult
+import com.example.data.tmdb.TmdbPreferences
+import com.example.data.tmdb.TmdbPrefillResult
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import kotlin.math.roundToInt
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun MediaEditorDialog(
+    initialItem: MediaItem?,
+    defaultCategory: MediaCategory,
+    defaultWatchlist: Boolean,
+    onSearchTmdb: suspend (String, String) -> Result<List<TmdbMultiResult>>,
+    onFetchTmdbDetails: suspend (String, TmdbMultiResult) -> Result<TmdbPrefillResult>,
+    onDismiss: () -> Unit,
+    onSave: (MediaItem, Boolean) -> Unit
+) {
+    val isEdit = initialItem != null && initialItem.id.isNotBlank()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val today = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) }
+
+    var title by remember { mutableStateOf(initialItem?.title ?: "") }
+    var category by remember { mutableStateOf(initialItem?.categoryEnum ?: defaultCategory) }
+    var status by remember {
+        mutableStateOf(
+            initialItem?.statusEnum ?: if (defaultWatchlist) WatchStatus.PLAN_TO_WATCH else WatchStatus.WATCHING
+        )
+    }
+    var posterUrl by remember { mutableStateOf(initialItem?.posterUrl ?: "") }
+    var genre by remember { mutableStateOf(initialItem?.genre ?: "") }
+    var language by remember { mutableStateOf(initialItem?.language ?: if (defaultCategory == MediaCategory.ANIME) "Japanese" else if (defaultCategory == MediaCategory.K_DRAMA) "Korean" else "English") }
+    var releaseYear by remember { mutableStateOf((initialItem?.releaseYear ?: 2024L).toString()) }
+    var platform by remember { mutableStateOf(initialItem?.streamingPlatform ?: "Netflix") }
+    var imdbRating by remember { mutableStateOf(if ((initialItem?.imdbRating ?: 0.0) > 0.0) initialItem!!.imdbRating.toString() else "") }
+    var personalRating by remember { mutableDoubleStateOf(initialItem?.personalRating ?: 0.0) }
+    var runtimeMinutes by remember { mutableStateOf((initialItem?.runtimeMinutes ?: if (defaultCategory == MediaCategory.MOVIE) 120L else 45L).toString()) }
+    var director by remember { mutableStateOf(initialItem?.director ?: "") }
+    var mainCast by remember { mutableStateOf(initialItem?.mainCast ?: "") }
+    var country by remember { mutableStateOf(initialItem?.country ?: "") }
+    var startDate by remember { mutableStateOf(initialItem?.startDate ?: "") }
+    var completionDate by remember { mutableStateOf(initialItem?.completionDate ?: "") }
+    var rewatchCount by remember { mutableStateOf((initialItem?.rewatchCount ?: 0L).toString()) }
+    var rewatchFlag by remember { mutableStateOf(initialItem?.rewatchFlag ?: false) }
+    var trailerLink by remember { mutableStateOf(initialItem?.trailerLink ?: "") }
+    var imdbLink by remember { mutableStateOf(initialItem?.imdbLink ?: "") }
+    var personalReview by remember { mutableStateOf(initialItem?.personalReview ?: "") }
+    var notes by remember { mutableStateOf(initialItem?.notes ?: "") }
+
+    // Episodic fields
+    var totalSeasons by remember { mutableStateOf((initialItem?.totalSeasons ?: 1L).toString()) }
+    var currentSeason by remember { mutableStateOf((initialItem?.currentSeason ?: 1L).toString()) }
+    var totalEpisodes by remember { mutableStateOf((initialItem?.totalEpisodes ?: 10L).toString()) }
+    var episodesWatched by remember { mutableStateOf((initialItem?.episodesWatched ?: 0L).toString()) }
+
+    // Watchlist & Flags
+    var watchlistItem by remember { mutableStateOf(initialItem?.watchlistItem ?: defaultWatchlist) }
+    var priority by remember { mutableStateOf(initialItem?.priorityEnum ?: WatchlistPriority.MEDIUM) }
+    var favourite by remember { mutableStateOf(initialItem?.favourite ?: false) }
+    var allTimeFavourite by remember { mutableStateOf(initialItem?.allTimeFavourite ?: false) }
+    var hiddenGem by remember { mutableStateOf(initialItem?.hiddenGem ?: false) }
+    val selectedMoods = remember { mutableStateListOf<String>().apply { addAll(initialItem?.moodTags ?: emptyList()) } }
+
+    // TMDB state
+    var tmdbQuery by remember { mutableStateOf("") }
+    var tmdbLoading by remember { mutableStateOf(false) }
+    var tmdbResults by remember { mutableStateOf<List<TmdbMultiResult>>(emptyList()) }
+    var tmdbMessage by remember { mutableStateOf<String?>(null) }
+    var validationError by remember { mutableStateOf<String?>(null) }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+            color = MaterialTheme.colorScheme.background
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = onDismiss) {
+                            Icon(Icons.Rounded.Close, contentDescription = "Close editor")
+                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (isEdit) "Edit ${category.label}" else "Add to Afterglow",
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
+                    Button(
+                        onClick = {
+                            val cleanTitle = title.trim()
+                            if (cleanTitle.isBlank()) {
+                                validationError = "Title is required."
+                                return@Button
+                            }
+                            val parsedYear = releaseYear.toLongOrNull() ?: 2024L
+                            if (parsedYear !in 1880L..2040L) {
+                                validationError = "Release year must be between 1880 and 2040."
+                                return@Button
+                            }
+                            val parsedImdb = imdbRating.toDoubleOrNull() ?: 0.0
+                            if (parsedImdb !in 0.0..10.0) {
+                                validationError = "IMDb rating must be between 0.0 and 10.0."
+                                return@Button
+                            }
+                            val parsedRuntime = (runtimeMinutes.toLongOrNull() ?: 0L).coerceIn(0L, 2000L)
+                            val parsedSeasons = (totalSeasons.toLongOrNull() ?: 1L).coerceIn(0L, 200L)
+                            val parsedCurrSeason = (currentSeason.toLongOrNull() ?: 1L).coerceIn(0L, 200L)
+                            val parsedTotalEps = (totalEpisodes.toLongOrNull() ?: 1L).coerceIn(0L, 10000L)
+                            val parsedWatchedEps = (episodesWatched.toLongOrNull() ?: 0L).coerceIn(0L, 10000L)
+                            val parsedRewatches = (rewatchCount.toLongOrNull() ?: 0L).coerceIn(0L, 500L)
+
+                            val finalItem = (initialItem ?: MediaItem()).copy(
+                                title = cleanTitle.take(160),
+                                mediaCategory = category.name,
+                                posterUrl = posterUrl.trim().take(1000),
+                                genre = genre.trim().take(160),
+                                language = language.trim().take(60),
+                                releaseYear = parsedYear,
+                                streamingPlatform = platform.trim().take(80),
+                                imdbRating = parsedImdb,
+                                personalRating = (personalRating * 10.0).roundToInt() / 10.0,
+                                runtimeMinutes = parsedRuntime,
+                                director = director.trim().take(160),
+                                mainCast = mainCast.trim().take(400),
+                                country = country.trim().take(80),
+                                watchStatus = status.name,
+                                startDate = startDate.trim().take(20),
+                                completionDate = if (status == WatchStatus.COMPLETED && completionDate.isBlank()) today else completionDate.trim().take(20),
+                                rewatchCount = parsedRewatches,
+                                rewatchFlag = rewatchFlag || parsedRewatches > 0L,
+                                trailerLink = trailerLink.trim().take(500),
+                                imdbLink = imdbLink.trim().take(500),
+                                personalReview = personalReview.trim().take(3000),
+                                notes = notes.trim().take(2000),
+                                totalSeasons = parsedSeasons,
+                                currentSeason = parsedCurrSeason,
+                                totalEpisodes = parsedTotalEps,
+                                episodesWatched = if (status == WatchStatus.COMPLETED && category.isEpisodic && parsedWatchedEps == 0L) parsedTotalEps else parsedWatchedEps,
+                                currentEpisode = parsedWatchedEps,
+                                watchlistItem = watchlistItem || status == WatchStatus.PLAN_TO_WATCH,
+                                priority = priority.name,
+                                dateAdded = initialItem?.dateAdded?.ifBlank { today } ?: today,
+                                favourite = favourite || allTimeFavourite,
+                                allTimeFavourite = allTimeFavourite,
+                                hiddenGem = hiddenGem,
+                                moodTags = selectedMoods.toList().take(6)
+                            )
+                            onSave(finalItem, isEdit)
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.testTag("save_media_button")
+                    ) {
+                        Text("Save")
+                    }
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    if (validationError != null) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.error.copy(alpha = 0.14f),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = validationError!!,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                    }
+
+                    // Optional TMDB Quick Lookup
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Text(
+                                text = "Auto-Fill via TMDB (Optional)",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                OutlinedTextField(
+                                    value = tmdbQuery,
+                                    onValueChange = { tmdbQuery = it },
+                                    placeholder = { Text("Search movie or TV title...") },
+                                    singleLine = true,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                OutlinedButton(
+                                    onClick = {
+                                        val q = tmdbQuery.trim().ifBlank { title.trim() }
+                                        if (q.isBlank()) {
+                                            tmdbMessage = "Enter a title to search TMDB."
+                                            return@OutlinedButton
+                                        }
+                                        scope.launch {
+                                            tmdbLoading = true
+                                            tmdbMessage = null
+                                            val key = TmdbPreferences.resolveEffectiveKey(context)
+                                            if (key.isBlank()) {
+                                                tmdbLoading = false
+                                                tmdbMessage = "No TMDB API key configured. Add TMDB_API_KEY in Settings or continue manually below."
+                                                return@launch
+                                            }
+                                            onSearchTmdb(key, q)
+                                                .onSuccess { list ->
+                                                    tmdbResults = list.take(5)
+                                                    if (list.isEmpty()) tmdbMessage = "No matches found. You can enter details manually."
+                                                }
+                                                .onFailure {
+                                                    tmdbMessage = "TMDB lookup failed: ${it.localizedMessage}"
+                                                }
+                                            tmdbLoading = false
+                                        }
+                                    },
+                                    enabled = !tmdbLoading
+                                ) {
+                                    if (tmdbLoading) {
+                                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                    } else {
+                                        Icon(Icons.Rounded.Search, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Lookup")
+                                    }
+                                }
+                            }
+                            if (tmdbMessage != null) {
+                                Text(
+                                    text = tmdbMessage!!,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            tmdbResults.forEach { res ->
+                                val label = res.title ?: res.name ?: "Untitled"
+                                val yr = (res.releaseDate ?: res.firstAirDate)?.take(4) ?: ""
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .clickable {
+                                            scope.launch {
+                                                tmdbLoading = true
+                                                val key = TmdbPreferences.resolveEffectiveKey(context)
+                                                onFetchTmdbDetails(key, res).onSuccess { d ->
+                                                    title = d.title
+                                                    category = d.category
+                                                    posterUrl = d.posterUrl
+                                                    genre = d.genre
+                                                    language = d.language
+                                                    releaseYear = d.releaseYear.toString()
+                                                    runtimeMinutes = d.runtimeMinutes.toString()
+                                                    director = d.director
+                                                    mainCast = d.mainCast
+                                                    country = d.country
+                                                    if (d.imdbRating > 0) imdbRating = d.imdbRating.toString()
+                                                    platform = d.streamingPlatform
+                                                    trailerLink = d.trailerLink
+                                                    imdbLink = d.imdbLink
+                                                    totalSeasons = d.totalSeasons.toString()
+                                                    totalEpisodes = d.totalEpisodes.toString()
+                                                    if (notes.isBlank()) notes = d.notes
+                                                    tmdbResults = emptyList()
+                                                    tmdbMessage = "Pre-filled from TMDB!"
+                                                }.onFailure {
+                                                    tmdbMessage = "Could not load details: ${it.localizedMessage}"
+                                                }
+                                                tmdbLoading = false
+                                            }
+                                        }
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(10.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "$label ${if (yr.isNotBlank()) "($yr)" else ""}",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        Text(
+                                            text = res.mediaType?.uppercase() ?: "",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.secondary
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Category & Watch Status
+                    Text("Category", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        MediaCategory.entries.forEach { cat ->
+                            FilterChip(
+                                selected = category == cat,
+                                onClick = { category = cat },
+                                label = { Text(cat.label) }
+                            )
+                        }
+                    }
+
+                    Text("Watch Status", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        WatchStatus.entries.forEach { st ->
+                            FilterChip(
+                                selected = status == st,
+                                onClick = {
+                                    status = st
+                                    if (st == WatchStatus.PLAN_TO_WATCH) watchlistItem = true
+                                    if (st == WatchStatus.COMPLETED && category.isEpisodic) {
+                                        episodesWatched = totalEpisodes
+                                    }
+                                },
+                                label = { Text(st.label) }
+                            )
+                        }
+                    }
+
+                    // Core Metadata
+                    OutlinedTextField(
+                        value = title,
+                        onValueChange = { title = it; validationError = null },
+                        label = { Text("Title *") },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("editor_title_input")
+                    )
+
+                    OutlinedTextField(
+                        value = posterUrl,
+                        onValueChange = { posterUrl = it },
+                        label = { Text("Poster Image URL") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = genre,
+                        onValueChange = { genre = it },
+                        label = { Text("Genres (comma-separated)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        POPULAR_GENRES.take(10).forEach { g ->
+                            val currentList = genre.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                            val selected = currentList.any { it.equals(g, ignoreCase = true) }
+                            FilterChip(
+                                selected = selected,
+                                onClick = {
+                                    val updated = if (selected) currentList.filterNot { it.equals(g, true) } else currentList + g
+                                    genre = updated.joinToString(", ")
+                                },
+                                label = { Text(g, style = MaterialTheme.typography.labelSmall) }
+                            )
+                        }
+                    }
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedTextField(
+                            value = releaseYear,
+                            onValueChange = { releaseYear = it.filter(Char::isDigit).take(4) },
+                            label = { Text("Release Year") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = language,
+                            onValueChange = { language = it },
+                            label = { Text("Language") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedTextField(
+                            value = runtimeMinutes,
+                            onValueChange = { runtimeMinutes = it.filter(Char::isDigit).take(4) },
+                            label = { Text(if (category.isEpisodic) "Avg Ep Min" else "Runtime (min)") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = imdbRating,
+                            onValueChange = { imdbRating = it },
+                            label = { Text("IMDb (0-10)") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    // Personal Rating Slider
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Personal Rating", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary)
+                            Text(
+                                text = if (personalRating <= 0.0) "Unrated" else String.format(Locale.US, "%.1f / 10", personalRating),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Slider(
+                            value = personalRating.toFloat(),
+                            onValueChange = { personalRating = ((it * 2f).roundToInt() / 2.0) },
+                            valueRange = 0f..10f,
+                            steps = 19
+                        )
+                    }
+
+                    // Platform chips + input
+                    OutlinedTextField(
+                        value = platform,
+                        onValueChange = { platform = it },
+                        label = { Text("Streaming Platform") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        POPULAR_PLATFORMS.take(7).forEach { p ->
+                            FilterChip(
+                                selected = platform.equals(p, ignoreCase = true),
+                                onClick = { platform = p },
+                                label = { Text(p, style = MaterialTheme.typography.labelSmall) }
+                            )
+                        }
+                    }
+
+                    // Series / Anime / K-Drama Episode Tracking
+                    if (category.isEpisodic) {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Text("Season & Episode Progress", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary)
+                                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    OutlinedTextField(
+                                        value = currentSeason,
+                                        onValueChange = { currentSeason = it.filter(Char::isDigit).take(3) },
+                                        label = { Text("Curr Season") },
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                        singleLine = true,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    OutlinedTextField(
+                                        value = totalSeasons,
+                                        onValueChange = { totalSeasons = it.filter(Char::isDigit).take(3) },
+                                        label = { Text("Total Seasons") },
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                        singleLine = true,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    OutlinedTextField(
+                                        value = episodesWatched,
+                                        onValueChange = { episodesWatched = it.filter(Char::isDigit).take(4) },
+                                        label = { Text("Eps Watched") },
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                        singleLine = true,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    OutlinedTextField(
+                                        value = totalEpisodes,
+                                        onValueChange = { totalEpisodes = it.filter(Char::isDigit).take(4) },
+                                        label = { Text("Total Eps") },
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                        singleLine = true,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Cast, Crew, Country, Dates, Links
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedTextField(
+                            value = director,
+                            onValueChange = { director = it },
+                            label = { Text("Director / Creator") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = country,
+                            onValueChange = { country = it },
+                            label = { Text("Country") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    OutlinedTextField(
+                        value = mainCast,
+                        onValueChange = { mainCast = it },
+                        label = { Text("Main Cast") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedTextField(
+                            value = startDate,
+                            onValueChange = { startDate = it },
+                            label = { Text("Start (YYYY-MM-DD)") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = completionDate,
+                            onValueChange = { completionDate = it },
+                            label = { Text("Finish (YYYY-MM-DD)") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedTextField(
+                            value = trailerLink,
+                            onValueChange = { trailerLink = it },
+                            label = { Text("Trailer URL") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = imdbLink,
+                            onValueChange = { imdbLink = it },
+                            label = { Text("IMDb URL") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    // Watchlist Priority & Collections
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            ToggleRow("Include in Watchlist", watchlistItem) { watchlistItem = it }
+                            if (watchlistItem) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    WatchlistPriority.entries.forEach { p ->
+                                        FilterChip(
+                                            selected = priority == p,
+                                            onClick = { priority = p },
+                                            label = { Text("${p.label} Priority") }
+                                        )
+                                    }
+                                }
+                            }
+                            ToggleRow("Favourite", favourite) { favourite = it }
+                            ToggleRow("All-Time Favourite", allTimeFavourite) { allTimeFavourite = it }
+                            ToggleRow("Hidden Gem", hiddenGem) { hiddenGem = it }
+                            ToggleRow("Rewatch Collection", rewatchFlag) { rewatchFlag = it }
+                            if (rewatchFlag) {
+                                OutlinedTextField(
+                                    value = rewatchCount,
+                                    onValueChange = { rewatchCount = it.filter(Char::isDigit).take(3) },
+                                    label = { Text("Rewatch Count") },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+                    }
+
+                    // Mood Tags
+                    Text("Mood Tags (up to 6)", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        AVAILABLE_MOODS.forEach { mood ->
+                            val isSelected = selectedMoods.contains(mood)
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = {
+                                    if (isSelected) selectedMoods.remove(mood)
+                                    else if (selectedMoods.size < 6) selectedMoods.add(mood)
+                                },
+                                label = { Text(mood) }
+                            )
+                        }
+                    }
+
+                    // Review & Notes
+                    OutlinedTextField(
+                        value = personalReview,
+                        onValueChange = { personalReview = it },
+                        label = { Text("Personal Review") },
+                        minLines = 3,
+                        maxLines = 6,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = notes,
+                        onValueChange = { notes = it },
+                        label = { Text("Personal Notes") },
+                        minLines = 2,
+                        maxLines = 4,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ToggleRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
