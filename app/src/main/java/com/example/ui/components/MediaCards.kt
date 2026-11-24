@@ -8,6 +8,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -30,14 +31,10 @@ import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Tv
-import androidx.compose.material3.Button
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -45,7 +42,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
@@ -62,6 +58,13 @@ import com.example.data.model.WatchStatus
 import com.example.data.model.WatchlistPriority
 import com.example.data.model.formatWatchTime
 import com.example.ui.theme.GoldRating
+import com.example.ui.theme.MutedGreyText
+import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.NeonFuchsia
+import com.example.ui.theme.NeonGreen
+import com.example.ui.theme.NeonPink
+import com.example.ui.theme.NeonPurple
+import com.example.ui.theme.OffWhiteText
 import com.example.ui.theme.StatusCompleted
 import com.example.ui.theme.StatusDropped
 import com.example.ui.theme.StatusOnHold
@@ -80,9 +83,9 @@ fun statusColor(status: WatchStatus): Color = when (status) {
 
 @Composable
 fun priorityColor(priority: WatchlistPriority): Color = when (priority) {
-    WatchlistPriority.HIGH -> StatusDropped
+    WatchlistPriority.HIGH -> NeonPink
     WatchlistPriority.MEDIUM -> StatusOnHold
-    WatchlistPriority.LOW -> StatusPlanToWatch
+    WatchlistPriority.LOW -> NeonCyan
 }
 
 @Composable
@@ -92,17 +95,19 @@ fun PosterArtwork(
     category: MediaCategory,
     modifier: Modifier = Modifier
 ) {
+    val neon = categoryNeonColor(category)
     val fallbackBrush = Brush.linearGradient(
         colors = listOf(
-            MaterialTheme.colorScheme.surfaceVariant,
-            MaterialTheme.colorScheme.primaryContainer,
-            MaterialTheme.colorScheme.surface
+            Color(0xFF1A1032),
+            neon.copy(alpha = 0.25f),
+            Color(0xFF0E091B)
         )
     )
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(14.dp))
-            .background(fallbackBrush),
+            .clip(RoundedCornerShape(16.dp))
+            .background(fallbackBrush)
+            .border(1.dp, Color.White.copy(alpha = 0.22f), RoundedCornerShape(16.dp)),
         contentAlignment = Alignment.Center
     ) {
         if (posterUrl.isNotBlank()) {
@@ -122,6 +127,7 @@ fun PosterArtwork(
 
 @Composable
 private fun PosterPlaceholder(title: String, category: MediaCategory) {
+    val neon = categoryNeonColor(category)
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -132,14 +138,14 @@ private fun PosterPlaceholder(title: String, category: MediaCategory) {
         Icon(
             imageVector = if (category == MediaCategory.MOVIE) Icons.Rounded.Movie else Icons.Rounded.Tv,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.secondary.copy(alpha = 0.8f),
+            tint = neon.copy(alpha = 0.9f),
             modifier = Modifier.size(28.dp)
         )
         Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = title,
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
+            color = OffWhiteText.copy(alpha = 0.9f),
             textAlign = TextAlign.Center,
             maxLines = 3,
             overflow = TextOverflow.Ellipsis
@@ -150,30 +156,38 @@ private fun PosterPlaceholder(title: String, category: MediaCategory) {
 @Composable
 fun StatusPill(status: WatchStatus, modifier: Modifier = Modifier) {
     val c = statusColor(status)
-    Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = c.copy(alpha = 0.16f),
-        modifier = modifier.border(1.dp, c.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
+    val shape = RoundedCornerShape(50)
+    Box(
+        modifier = modifier
+            .neonGlow(c, cornerRadius = 12.dp, alpha = 0.24f, spread = 4.dp)
+            .clip(shape)
+            .background(c.copy(alpha = 0.16f))
+            .border(1.dp, c.copy(alpha = 0.60f), shape)
+            .padding(horizontal = 9.dp, vertical = 4.dp)
     ) {
         Text(
             text = status.label,
             style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Medium,
             color = c,
-            maxLines = 1,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+            maxLines = 1
         )
     }
 }
 
 @Composable
 fun RatingPill(rating: Double, prefix: String = "", modifier: Modifier = Modifier) {
-    Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = GoldRating.copy(alpha = 0.14f),
-        modifier = modifier.border(1.dp, GoldRating.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
+    val shape = RoundedCornerShape(50)
+    Box(
+        modifier = modifier
+            .neonGlow(GoldRating, cornerRadius = 12.dp, alpha = 0.26f, spread = 4.dp)
+            .clip(shape)
+            .background(Color(0xFF140D22).copy(alpha = 0.80f))
+            .background(GoldRating.copy(alpha = 0.15f))
+            .border(1.dp, GoldRating.copy(alpha = 0.65f), shape)
+            .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(3.dp)
         ) {
@@ -187,6 +201,7 @@ fun RatingPill(rating: Double, prefix: String = "", modifier: Modifier = Modifie
                 text = if (prefix.isBlank()) String.format(Locale.US, "%.1f", rating)
                 else "$prefix ${String.format(Locale.US, "%.1f", rating)}",
                 style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
                 color = GoldRating
             )
         }
@@ -198,20 +213,18 @@ fun StatKpiCard(
     title: String,
     value: String,
     icon: ImageVector,
-    accentColor: Color = MaterialTheme.colorScheme.primary,
+    accentColor: Color = NeonPurple,
     subtitle: String? = null,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surface,
-        modifier = modifier
-            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(18.dp))
+    NeonGlassCard(
+        modifier = modifier,
+        accentColor = accentColor,
+        cornerRadius = 22.dp,
+        glowAlpha = 0.24f,
+        contentPadding = PaddingValues(14.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -219,9 +232,11 @@ fun StatKpiCard(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(34.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(accentColor.copy(alpha = 0.16f)),
+                        .size(36.dp)
+                        .neonGlow(accentColor, cornerRadius = 11.dp, alpha = 0.34f, spread = 4.dp)
+                        .clip(RoundedCornerShape(11.dp))
+                        .background(accentColor.copy(alpha = 0.20f))
+                        .border(1.dp, accentColor.copy(alpha = 0.55f), RoundedCornerShape(11.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -235,7 +250,7 @@ fun StatKpiCard(
                     Text(
                         text = subtitle,
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = accentColor,
                         maxLines = 1
                     )
                 }
@@ -243,14 +258,14 @@ fun StatKpiCard(
             Text(
                 text = value,
                 style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = OffWhiteText,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MutedGreyText,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -264,97 +279,124 @@ fun MediaGridCard(
     compact: Boolean,
     onClick: () -> Unit,
     onToggleFavourite: () -> Unit,
+    onEdit: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surface,
+    val neonAccent = categoryNeonColor(item.categoryEnum)
+    NeonGlassCard(
         modifier = modifier
             .fillMaxWidth()
-            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(18.dp))
-            .clip(RoundedCornerShape(18.dp))
-            .clickable(onClick = onClick)
-            .testTag("media_card_${item.id}")
+            .testTag("media_card_${item.id}"),
+        accentColor = neonAccent,
+        cornerRadius = 22.dp,
+        glowAlpha = 0.24f,
+        onClick = onClick,
+        contentPadding = PaddingValues(if (compact) 10.dp else 12.dp)
     ) {
-        Column(modifier = Modifier.padding(if (compact) 10.dp else 12.dp)) {
-            Box(
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(if (compact) 150.dp else 185.dp)
+        ) {
+            PosterArtwork(
+                posterUrl = item.posterUrl,
+                title = item.title,
+                category = item.categoryEnum,
+                modifier = Modifier.fillMaxSize()
+            )
+            Row(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(if (compact) 150.dp else 185.dp)
+                    .align(Alignment.TopEnd)
+                    .padding(5.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                PosterArtwork(
-                    posterUrl = item.posterUrl,
-                    title = item.title,
-                    category = item.categoryEnum,
-                    modifier = Modifier.fillMaxSize()
-                )
+                if (onEdit != null) {
+                    IconButton(
+                        onClick = onEdit,
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF0A0714).copy(alpha = 0.72f))
+                            .border(1.dp, Color.White.copy(alpha = 0.26f), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Edit,
+                            contentDescription = "Edit ${item.title}",
+                            tint = OffWhiteText,
+                            modifier = Modifier.size(15.dp)
+                        )
+                    }
+                }
                 IconButton(
                     onClick = onToggleFavourite,
                     modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(4.dp)
-                        .size(40.dp)
+                        .size(34.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.background.copy(alpha = 0.7f))
+                        .background(Color(0xFF0A0714).copy(alpha = 0.72f))
+                        .border(
+                            1.dp,
+                            if (item.favourite) NeonPink.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.26f),
+                            CircleShape
+                        )
                 ) {
                     Icon(
                         imageVector = if (item.favourite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                         contentDescription = if (item.favourite) "Unfavourite ${item.title}" else "Favourite ${item.title}",
-                        tint = if (item.favourite) Color(0xFFF472B6) else MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-                if (item.personalRating > 0.0) {
-                    RatingPill(
-                        rating = item.personalRating,
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(6.dp)
+                        tint = if (item.favourite) NeonPink else OffWhiteText,
+                        modifier = Modifier.size(16.dp)
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(10.dp))
-            Text(
-                text = item.title,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = buildString {
-                    append(item.releaseYear)
-                    if (item.streamingPlatform.isNotBlank()) append(" • ${item.streamingPlatform}")
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            if (item.genre.isNotBlank()) {
-                Text(
-                    text = item.genre,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.85f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 2.dp)
+            if (item.personalRating > 0.0) {
+                RatingPill(
+                    rating = item.personalRating,
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(6.dp)
                 )
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                StatusPill(status = item.statusEnum)
-                if (item.runtimeMinutes > 0 && item.categoryEnum == MediaCategory.MOVIE) {
-                    Text(
-                        text = formatWatchTime(item.runtimeMinutes),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+        }
+        Spacer(modifier = Modifier.height(10.dp))
+        Text(
+            text = item.title,
+            style = MaterialTheme.typography.titleMedium,
+            color = OffWhiteText,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Text(
+            text = buildString {
+                append(item.releaseYear)
+                if (item.streamingPlatform.isNotBlank()) append(" • ${item.streamingPlatform}")
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MutedGreyText,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        if (item.genre.isNotBlank()) {
+            Text(
+                text = item.genre,
+                style = MaterialTheme.typography.labelSmall,
+                color = neonAccent,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 2.dp)
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            StatusPill(status = item.statusEnum)
+            if (item.runtimeMinutes > 0 && item.categoryEnum == MediaCategory.MOVIE) {
+                Text(
+                    text = formatWatchTime(item.runtimeMinutes),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MutedGreyText
+                )
             }
         }
     }
@@ -367,132 +409,154 @@ fun SeriesProgressCard(
     onClick: () -> Unit,
     onStepEpisode: (Int) -> Unit,
     onToggleFavourite: () -> Unit,
+    onEdit: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surface,
+    val neonAccent = categoryNeonColor(item.categoryEnum)
+    NeonGlassCard(
         modifier = modifier
             .fillMaxWidth()
-            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(18.dp))
-            .clip(RoundedCornerShape(18.dp))
-            .clickable(onClick = onClick)
-            .testTag("series_card_${item.id}")
+            .testTag("series_card_${item.id}"),
+        accentColor = neonAccent,
+        cornerRadius = 22.dp,
+        glowAlpha = 0.25f,
+        onClick = onClick,
+        contentPadding = PaddingValues(if (compact) 12.dp else 14.dp)
     ) {
-        Column(modifier = Modifier.padding(if (compact) 12.dp else 14.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.Top
-            ) {
-                PosterArtwork(
-                    posterUrl = item.posterUrl,
-                    title = item.title,
-                    category = item.categoryEnum,
-                    modifier = Modifier
-                        .width(74.dp)
-                        .height(106.dp)
-                )
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = item.title,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = "${item.categoryEnum.label} • ${item.releaseYear} • ${item.streamingPlatform.ifBlank { "Library" }}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            PosterArtwork(
+                posterUrl = item.posterUrl,
+                title = item.title,
+                category = item.categoryEnum,
+                modifier = Modifier
+                    .width(74.dp)
+                    .height(106.dp)
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = item.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = OffWhiteText,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = "${item.categoryEnum.label} • ${item.releaseYear} • ${item.streamingPlatform.ifBlank { "Library" }}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MutedGreyText,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (onEdit != null) {
+                            IconButton(onClick = onEdit, modifier = Modifier.size(36.dp)) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Edit,
+                                    contentDescription = "Edit ${item.title}",
+                                    tint = MutedGreyText,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
-                        IconButton(onClick = onToggleFavourite) {
+                        IconButton(onClick = onToggleFavourite, modifier = Modifier.size(36.dp)) {
                             Icon(
                                 imageVector = if (item.favourite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                                 contentDescription = "Toggle favourite",
-                                tint = if (item.favourite) Color(0xFFF472B6) else MaterialTheme.colorScheme.onSurfaceVariant
+                                tint = if (item.favourite) NeonPink else MutedGreyText,
+                                modifier = Modifier.size(19.dp)
                             )
                         }
                     }
+                }
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = item.formattedSeriesProgress(),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = neonAccent,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                NeonProgressBar(
+                    progress = item.episodeProgressPercent / 100f,
+                    height = 8.dp,
+                    startColor = neonAccent,
+                    endColor = if (neonAccent == NeonCyan) NeonGreen else NeonCyan
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        text = item.formattedSeriesProgress(),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.secondary,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
+                        text = "${item.remainingEpisodes} eps left • ${formatWatchTime(item.watchedTimeMinutes)} watched",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MutedGreyText
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    LinearProgressIndicator(
-                        progress = { item.episodeProgressPercent / 100f },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(7.dp)
-                            .clip(RoundedCornerShape(4.dp)),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                        strokeCap = StrokeCap.Round
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "${item.remainingEpisodes} eps left • ${formatWatchTime(item.watchedTimeMinutes)} watched",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        if (item.personalRating > 0.0) {
-                            RatingPill(rating = item.personalRating)
-                        }
+                    if (item.personalRating > 0.0) {
+                        RatingPill(rating = item.personalRating)
                     }
                 }
             }
+        }
 
-            Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(10.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            StatusPill(status = item.statusEnum)
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                StatusPill(status = item.statusEnum)
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                GlassIconButton(
+                    onClick = { if (item.episodesWatched > 0) onStepEpisode(-1) },
+                    glowColor = neonAccent,
+                    size = 38.dp
                 ) {
-                    FilledTonalIconButton(
-                        onClick = { onStepEpisode(-1) },
-                        enabled = item.episodesWatched > 0,
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Icon(Icons.Rounded.Remove, contentDescription = "Decrease episode")
-                    }
-                    Text(
-                        text = "${item.episodesWatched}/${item.totalEpisodes}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurface
+                    Icon(
+                        Icons.Rounded.Remove,
+                        contentDescription = "Decrease episode",
+                        tint = if (item.episodesWatched > 0) OffWhiteText else MutedGreyText.copy(alpha = 0.4f),
+                        modifier = Modifier.size(18.dp)
                     )
-                    FilledTonalIconButton(
-                        onClick = { onStepEpisode(1) },
-                        enabled = item.totalEpisodes == 0L || item.episodesWatched < item.totalEpisodes,
-                        modifier = Modifier
-                            .size(40.dp)
-                            .testTag("plus_ep_${item.id}")
-                    ) {
-                        Icon(Icons.Rounded.Add, contentDescription = "Watch next episode")
-                    }
+                }
+                Text(
+                    text = "${item.episodesWatched}/${item.totalEpisodes}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = OffWhiteText
+                )
+                GlassIconButton(
+                    onClick = {
+                        if (item.totalEpisodes == 0L || item.episodesWatched < item.totalEpisodes) {
+                            onStepEpisode(1)
+                        }
+                    },
+                    glowColor = neonAccent,
+                    size = 38.dp,
+                    modifier = Modifier.testTag("plus_ep_${item.id}")
+                ) {
+                    Icon(
+                        Icons.Rounded.Add,
+                        contentDescription = "Watch next episode",
+                        tint = if (item.totalEpisodes == 0L || item.episodesWatched < item.totalEpisodes) neonAccent else MutedGreyText.copy(alpha = 0.4f),
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             }
         }
@@ -505,20 +569,20 @@ fun MovieTableView(
     onSelect: (MediaItem) -> Unit,
     onEdit: (MediaItem) -> Unit,
     onDelete: (MediaItem) -> Unit,
+    accentColor: Color = NeonPurple,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surface,
-        modifier = modifier
-            .fillMaxWidth()
-            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(18.dp))
+    NeonGlassCard(
+        modifier = modifier.fillMaxWidth(),
+        accentColor = accentColor,
+        cornerRadius = 22.dp,
+        contentPadding = PaddingValues(0.dp)
     ) {
         Column(modifier = Modifier.horizontalScroll(rememberScrollState())) {
             Row(
                 modifier = Modifier
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                    .background(Color.White.copy(alpha = 0.08f))
+                    .padding(horizontal = 16.dp, vertical = 13.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -532,19 +596,19 @@ fun MovieTableView(
                 TableHeaderCell("Runtime", 75)
                 TableHeaderCell("Actions", 96)
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+            HorizontalDivider(color = Color.White.copy(alpha = 0.16f))
             movies.forEach { movie ->
                 Row(
                     modifier = Modifier
                         .clickable { onSelect(movie) }
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = movie.title,
                         style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = OffWhiteText,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.width(170.dp)
@@ -552,13 +616,13 @@ fun MovieTableView(
                     Text(
                         text = movie.releaseYear.toString(),
                         style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MutedGreyText,
                         modifier = Modifier.width(60.dp)
                     )
                     Text(
                         text = movie.genre.ifBlank { "—" },
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MutedGreyText,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.width(130.dp)
@@ -566,7 +630,7 @@ fun MovieTableView(
                     Text(
                         text = movie.streamingPlatform.ifBlank { "—" },
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MutedGreyText,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.width(100.dp)
@@ -583,25 +647,25 @@ fun MovieTableView(
                     Text(
                         text = if (movie.imdbRating > 0) String.format(Locale.US, "%.1f", movie.imdbRating) else "—",
                         style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MutedGreyText,
                         modifier = Modifier.width(65.dp)
                     )
                     Text(
-                        text = formatWatchTime(movie.runtimeMinutes),
+                        text = if (movie.categoryEnum.isEpisodic) "${movie.episodesWatched}/${movie.totalEpisodes} ep" else formatWatchTime(movie.runtimeMinutes),
                         style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MutedGreyText,
                         modifier = Modifier.width(75.dp)
                     )
                     Row(modifier = Modifier.width(96.dp)) {
                         IconButton(onClick = { onEdit(movie) }) {
-                            Icon(Icons.Rounded.Edit, contentDescription = "Edit ${movie.title}", tint = MaterialTheme.colorScheme.secondary)
+                            Icon(Icons.Rounded.Edit, contentDescription = "Edit ${movie.title}", tint = NeonCyan)
                         }
                         IconButton(onClick = { onDelete(movie) }) {
-                            Icon(Icons.Rounded.Delete, contentDescription = "Delete ${movie.title}", tint = MaterialTheme.colorScheme.error)
+                            Icon(Icons.Rounded.Delete, contentDescription = "Delete ${movie.title}", tint = NeonPink)
                         }
                     }
                 }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f))
+                HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
             }
         }
     }
@@ -613,7 +677,7 @@ private fun TableHeaderCell(text: String, widthDp: Int) {
         text = text,
         style = MaterialTheme.typography.labelMedium,
         fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.secondary,
+        color = NeonFuchsia,
         modifier = Modifier.width(widthDp.dp)
     )
 }
@@ -624,17 +688,17 @@ fun EmptyStateView(
     subtitle: String,
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
+    accentColor: Color = NeonPurple,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        shape = RoundedCornerShape(22.dp),
-        color = MaterialTheme.colorScheme.surface,
-        modifier = modifier
-            .fillMaxWidth()
-            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(22.dp))
+    NeonGlassCard(
+        modifier = modifier.fillMaxWidth(),
+        accentColor = accentColor,
+        cornerRadius = 22.dp,
+        contentPadding = PaddingValues(22.dp)
     ) {
         Column(
-            modifier = Modifier.padding(24.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -644,30 +708,30 @@ fun EmptyStateView(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(150.dp)
+                    .height(145.dp)
                     .clip(RoundedCornerShape(16.dp))
+                    .border(1.dp, Color.White.copy(alpha = 0.22f), RoundedCornerShape(16.dp))
             )
             Text(
                 text = title,
                 style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = OffWhiteText,
                 textAlign = TextAlign.Center
             )
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MutedGreyText,
                 textAlign = TextAlign.Center
             )
             if (actionLabel != null && onAction != null) {
-                Button(
+                NeonPrimaryButton(
                     onClick = onAction,
-                    shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.padding(top = 4.dp)
                 ) {
                     Icon(Icons.Rounded.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(actionLabel)
+                    Text(actionLabel, fontWeight = FontWeight.Bold)
                 }
             }
         }

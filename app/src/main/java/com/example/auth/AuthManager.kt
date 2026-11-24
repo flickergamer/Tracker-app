@@ -9,15 +9,16 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,12 +28,9 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.Tv
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -54,13 +52,27 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import com.example.R
-import com.example.ui.theme.DeepCharcoal
+import com.example.ui.components.AfterglowBackdrop
+import com.example.ui.components.NeonGlassCard
+import com.example.ui.components.NeonPrimaryButton
+import com.example.ui.components.neonGlow
+import com.example.ui.theme.MutedGreyText
+import com.example.ui.theme.NeonButtonDarkText
+import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.NeonFuchsia
+import com.example.ui.theme.NeonGreen
+import com.example.ui.theme.NeonPink
+import com.example.ui.theme.NeonPurple
+import com.example.ui.theme.OffWhiteText
+import com.example.ui.theme.SpaceGroteskFontFamily
+import com.example.ui.theme.VoidBackground
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
@@ -200,30 +212,26 @@ fun AuthScreen(
         )
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(DeepCharcoal)
-    ) {
+    AfterglowBackdrop {
         Image(
             painter = painterResource(id = R.drawable.img_hero_cinema),
             contentDescription = null,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(320.dp),
+                .height(310.dp),
             contentScale = ContentScale.Crop,
-            alpha = 0.5f
+            alpha = 0.28f
         )
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(340.dp)
+                .height(330.dp)
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
                             Color.Transparent,
-                            DeepCharcoal.copy(alpha = 0.7f),
-                            DeepCharcoal
+                            VoidBackground.copy(alpha = 0.65f),
+                            VoidBackground
                         )
                     )
                 )
@@ -243,78 +251,91 @@ fun AuthScreen(
                 modifier = Modifier.widthIn(max = 460.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_afterglow_icon),
-                    contentDescription = "Afterglow emblem",
+                Box(
                     modifier = Modifier
-                        .size(88.dp)
-                        .clip(RoundedCornerShape(22.dp))
-                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(22.dp))
-                )
-                Spacer(modifier = Modifier.height(20.dp))
+                        .size(86.dp)
+                        .neonGlow(NeonPink, cornerRadius = 26.dp, alpha = 0.48f, spread = 12.dp)
+                        .clip(RoundedCornerShape(26.dp))
+                        .background(Brush.linearGradient(listOf(NeonPurple, NeonPink)))
+                        .border(
+                            width = 1.5.dp,
+                            brush = Brush.verticalGradient(
+                                listOf(Color.White.copy(alpha = 0.6f), Color.White.copy(alpha = 0.16f))
+                            ),
+                            shape = RoundedCornerShape(26.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.AutoAwesome,
+                        contentDescription = "Afterglow emblem",
+                        tint = Color.White,
+                        modifier = Modifier.size(42.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(22.dp))
                 Text(
                     text = "AFTERGLOW",
-                    style = MaterialTheme.typography.displayLarge,
-                    color = MaterialTheme.colorScheme.onBackground
+                    fontFamily = SpaceGroteskFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 34.sp,
+                    letterSpacing = 5.sp,
+                    color = OffWhiteText
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = "Personal Cinema & Series Sanctuary",
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.secondary,
+                    color = NeonFuchsia,
                     textAlign = TextAlign.Center
                 )
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "Track movies, web series, anime, and K-dramas with automated episode progress, curated rankings, and deep watching analytics synced across devices.",
+                    text = "Track movies, web series, anime, and K-dramas with live episode progress, curated rankings, and luminous analytics synced across devices.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MutedGreyText,
                     textAlign = TextAlign.Center
                 )
 
-                Spacer(modifier = Modifier.height(28.dp))
+                Spacer(modifier = Modifier.height(26.dp))
 
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
-                    tonalElevation = 4.dp,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(20.dp))
+                NeonGlassCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    accentColor = NeonPurple,
+                    cornerRadius = 24.dp,
+                    contentPadding = PaddingValues(18.dp)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        AuthFeatureRow(Icons.Rounded.Movie, "Movies, Anime & K-Drama", "Full metadata, reviews, ratings & rewatch logs")
-                        AuthFeatureRow(Icons.Rounded.Tv, "Smart Episode Tracker", "Live season progress, remaining episodes & watch time")
-                        AuthFeatureRow(Icons.Rounded.BarChart, "Real-Time Analytics", "Interactive charts, goals & achievement badges")
-                        AuthFeatureRow(Icons.Rounded.AutoAwesome, "Cloud Sync & Backup", "Private per-account Firestore sync plus JSON/CSV export")
+                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        AuthFeatureRow(Icons.Rounded.Movie, NeonPurple, "Movies, Anime & K-Drama", "Full metadata, reviews, ratings & rewatch logs")
+                        AuthFeatureRow(Icons.Rounded.Tv, NeonCyan, "Smart Episode Tracker", "Live season progress, remaining episodes & watch time")
+                        AuthFeatureRow(Icons.Rounded.BarChart, NeonPink, "Real-Time Analytics", "Interactive neon charts, goals & achievement badges")
+                        AuthFeatureRow(Icons.Rounded.AutoAwesome, NeonGreen, "Cloud Sync & Backup", "Private per-account Firestore sync plus JSON/CSV export")
                     }
                 }
 
-                Spacer(modifier = Modifier.height(28.dp))
+                Spacer(modifier = Modifier.height(26.dp))
 
                 if (errorMessage != null) {
-                    Surface(
-                        color = MaterialTheme.colorScheme.error.copy(alpha = 0.14f),
-                        shape = RoundedCornerShape(12.dp),
+                    NeonGlassCard(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 12.dp)
-                            .border(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                            .padding(bottom = 12.dp),
+                        accentColor = NeonPink,
+                        cornerRadius = 16.dp,
+                        contentPadding = PaddingValues(12.dp)
                     ) {
                         Text(
                             text = errorMessage!!,
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.padding(12.dp),
-                            textAlign = TextAlign.Center
+                            color = NeonPink,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
 
-                Button(
+                NeonPrimaryButton(
                     onClick = {
                         errorMessage = null
                         isSigningIn = true
@@ -336,11 +357,7 @@ fun AuthScreen(
                         )
                     },
                     enabled = !isSigningIn && !isCheckingAuto,
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    ),
+                    cornerRadius = 18.dp,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(54.dp)
@@ -349,14 +366,15 @@ fun AuthScreen(
                     if (isSigningIn || isCheckingAuto) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(22.dp),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp
+                            color = NeonButtonDarkText,
+                            strokeWidth = 2.2.dp
                         )
                     } else {
                         Text(
                             text = "Sign in with Google",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = NeonButtonDarkText
                         )
                     }
                 }
@@ -366,22 +384,24 @@ fun AuthScreen(
 }
 
 @Composable
-private fun AuthFeatureRow(icon: ImageVector, title: String, subtitle: String) {
+private fun AuthFeatureRow(icon: ImageVector, accentColor: Color, title: String, subtitle: String) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Box(
             modifier = Modifier
-                .size(38.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)),
+                .size(40.dp)
+                .neonGlow(accentColor, cornerRadius = 12.dp, alpha = 0.28f, spread = 4.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(accentColor.copy(alpha = 0.18f))
+                .border(1.dp, accentColor.copy(alpha = 0.50f), RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.secondary,
+                tint = accentColor,
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -389,12 +409,12 @@ private fun AuthFeatureRow(icon: ImageVector, title: String, subtitle: String) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface
+                color = OffWhiteText
             )
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MutedGreyText
             )
         }
     }

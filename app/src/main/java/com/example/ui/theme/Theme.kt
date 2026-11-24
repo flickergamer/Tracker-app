@@ -10,9 +10,9 @@ import androidx.compose.ui.unit.dp
 import com.example.data.model.AccentColorPreset
 
 val AfterglowShapes = Shapes(
-    extraSmall = RoundedCornerShape(8.dp),
-    small = RoundedCornerShape(12.dp),
-    medium = RoundedCornerShape(16.dp),
+    extraSmall = RoundedCornerShape(10.dp),
+    small = RoundedCornerShape(14.dp),
+    medium = RoundedCornerShape(18.dp),
     large = RoundedCornerShape(22.dp),
     extraLarge = RoundedCornerShape(28.dp)
 )
@@ -23,7 +23,7 @@ fun AfterglowTheme(
     content: @Composable () -> Unit
 ) {
     val (primary, secondary) = when (accentPreset) {
-        AccentColorPreset.AFTERGLOW_PURPLE -> AfterglowPurple to LavenderAccent
+        AccentColorPreset.AFTERGLOW_PURPLE -> NeonPurple to NeonFuchsia
         AccentColorPreset.MIDNIGHT_ROSE -> MidnightRosePrimary to MidnightRoseSecondary
         AccentColorPreset.CELESTIAL_INDIGO -> CelestialIndigoPrimary to CelestialIndigoSecondary
         AccentColorPreset.NEON_AMETHYST -> NeonAmethystPrimary to NeonAmethystSecondary
@@ -31,30 +31,30 @@ fun AfterglowTheme(
 
     val colorScheme = darkColorScheme(
         primary = primary,
-        onPrimary = Color(0xFF140826),
-        primaryContainer = primary.copy(alpha = 0.22f),
-        onPrimaryContainer = secondary,
+        onPrimary = NeonButtonDarkText,
+        primaryContainer = primary.copy(alpha = 0.24f),
+        onPrimaryContainer = OffWhiteText,
         secondary = secondary,
-        onSecondary = Color(0xFF1A0F2E),
+        onSecondary = NeonButtonDarkText,
         secondaryContainer = ElevatedPlum,
         onSecondaryContainer = OffWhiteText,
-        tertiary = GoldRating,
-        onTertiary = Color(0xFF1F1600),
-        background = DeepCharcoal,
+        tertiary = NeonCyan,
+        onTertiary = NeonButtonDarkText,
+        background = VoidBackground,
         onBackground = OffWhiteText,
         surface = DarkPurpleCard,
         onSurface = OffWhiteText,
         surfaceVariant = ElevatedPlum,
         onSurfaceVariant = MutedGreyText,
-        surfaceContainerLowest = DeepCharcoal,
-        surfaceContainerLow = Color(0xFF110D1A),
+        surfaceContainerLowest = VoidBackground,
+        surfaceContainerLow = DarkGlassSurface,
         surfaceContainer = DarkPurpleCard,
         surfaceContainerHigh = ElevatedPlum,
-        surfaceContainerHighest = Color(0xFF28203B),
-        outline = SubtleBorder,
-        outlineVariant = SubtleBorder.copy(alpha = 0.55f),
-        error = StatusDropped,
-        onError = Color(0xFF2B0808)
+        surfaceContainerHighest = Color(0xFF291D45),
+        outline = Color.White.copy(alpha = 0.22f),
+        outlineVariant = Color.White.copy(alpha = 0.12f),
+        error = NeonPink,
+        onError = Color(0xFF280618)
     )
 
     MaterialTheme(

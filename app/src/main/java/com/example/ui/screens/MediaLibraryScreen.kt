@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,7 +11,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,21 +22,16 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Sort
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.FilterList
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.automirrored.rounded.Sort
 import androidx.compose.material.icons.rounded.TableRows
-import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -44,17 +40,33 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.data.model.MediaCategory
 import com.example.data.model.MediaItem
 import com.example.data.model.WatchStatus
 import com.example.ui.components.EmptyStateView
+import com.example.ui.components.FloatingBottomBarClearance
+import com.example.ui.components.GlassIconButton
+import com.example.ui.components.GlassSecondaryButton
 import com.example.ui.components.MediaGridCard
 import com.example.ui.components.MovieTableView
+import com.example.ui.components.NeonGlassChip
+import com.example.ui.components.NeonGlassTextField
+import com.example.ui.components.NeonPrimaryButton
 import com.example.ui.components.SeriesProgressCard
+import com.example.ui.components.statusColor
+import com.example.ui.theme.MutedGreyText
+import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.NeonFuchsia
+import com.example.ui.theme.NeonPink
+import com.example.ui.theme.NeonPurple
+import com.example.ui.theme.OffWhiteText
 
-enum class LibraryMode { MOVIES, WEB_SERIES, ANIME_KDRAMA }
+enum class LibraryMode { MOVIES, WEB_SERIES, ANIME, K_DRAMA }
 enum class MediaSortOption(val label: String) {
     RECENT("Recently Updated"),
     PERSONAL_RATING("Personal Rating"),
@@ -75,29 +87,27 @@ fun MediaLibraryScreen(
     onDelete: (MediaItem) -> Unit,
     onStepEpisode: (MediaItem, Int) -> Unit,
     onToggleFavourite: (MediaItem) -> Unit,
+    bottomPadding: Dp = FloatingBottomBarClearance,
     modifier: Modifier = Modifier
 ) {
-    var searchQuery by remember { mutableStateOf("") }
-    var selectedStatus by remember { mutableStateOf<WatchStatus?>(null) }
-    var selectedGenre by remember { mutableStateOf<String?>(null) }
-    var selectedLanguage by remember { mutableStateOf<String?>(null) }
-    var selectedYear by remember { mutableStateOf<Long?>(null) }
-    var sortOption by remember { mutableStateOf(MediaSortOption.RECENT) }
-    var isTableView by remember { mutableStateOf(false) }
-    var animeKDramaFilter by remember { mutableStateOf<MediaCategory?>(null) } // null = All
+    var searchQuery by remember(mode) { mutableStateOf("") }
+    var selectedStatus by remember(mode) { mutableStateOf<WatchStatus?>(null) }
+    var selectedGenre by remember(mode) { mutableStateOf<String?>(null) }
+    var selectedLanguage by remember(mode) { mutableStateOf<String?>(null) }
+    var selectedYear by remember(mode) { mutableStateOf<Long?>(null) }
+    var sortOption by remember(mode) { mutableStateOf(MediaSortOption.RECENT) }
+    var isTableView by remember(mode) { mutableStateOf(false) }
 
     var showSortMenu by remember { mutableStateOf(false) }
     var showFilterMenu by remember { mutableStateOf(false) }
 
-    val baseItems = remember(allItems, mode, animeKDramaFilter) {
+    val baseItems = remember(allItems, mode) {
         allItems.filter { item ->
             when (mode) {
                 LibraryMode.MOVIES -> item.categoryEnum == MediaCategory.MOVIE
                 LibraryMode.WEB_SERIES -> item.categoryEnum == MediaCategory.WEB_SERIES
-                LibraryMode.ANIME_KDRAMA -> {
-                    if (animeKDramaFilter != null) item.categoryEnum == animeKDramaFilter
-                    else item.categoryEnum == MediaCategory.ANIME || item.categoryEnum == MediaCategory.K_DRAMA
-                }
+                LibraryMode.ANIME -> item.categoryEnum == MediaCategory.ANIME
+                LibraryMode.K_DRAMA -> item.categoryEnum == MediaCategory.K_DRAMA
             }
         }
     }
@@ -149,20 +159,29 @@ fun MediaLibraryScreen(
     val defaultAddCategory = when (mode) {
         LibraryMode.MOVIES -> MediaCategory.MOVIE
         LibraryMode.WEB_SERIES -> MediaCategory.WEB_SERIES
-        LibraryMode.ANIME_KDRAMA -> animeKDramaFilter ?: MediaCategory.ANIME
+        LibraryMode.ANIME -> MediaCategory.ANIME
+        LibraryMode.K_DRAMA -> MediaCategory.K_DRAMA
     }
 
     val headerTitle = when (mode) {
         LibraryMode.MOVIES -> "Movies"
         LibraryMode.WEB_SERIES -> "Web Series"
-        LibraryMode.ANIME_KDRAMA -> "Anime & K-Drama"
+        LibraryMode.ANIME -> "Anime"
+        LibraryMode.K_DRAMA -> "K-Drama"
+    }
+
+    val modeNeon = when (mode) {
+        LibraryMode.MOVIES -> NeonPurple
+        LibraryMode.WEB_SERIES -> NeonCyan
+        LibraryMode.ANIME -> NeonPink
+        LibraryMode.K_DRAMA -> NeonFuchsia
     }
 
     Column(modifier = modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Row(
@@ -171,52 +190,36 @@ fun MediaLibraryScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text(headerTitle, style = MaterialTheme.typography.displayMedium, color = MaterialTheme.colorScheme.onBackground)
+                    Text(headerTitle, style = MaterialTheme.typography.displayMedium, color = OffWhiteText)
                     Text(
                         "${filteredItems.size} of ${baseItems.size} titles",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MutedGreyText
                     )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    if (mode == LibraryMode.MOVIES) {
-                        IconButton(onClick = { isTableView = !isTableView }) {
-                            Icon(
-                                imageVector = if (isTableView) Icons.Rounded.GridView else Icons.Rounded.TableRows,
-                                contentDescription = if (isTableView) "Switch to grid view" else "Switch to table view",
-                                tint = MaterialTheme.colorScheme.secondary
-                            )
-                        }
+                    GlassIconButton(
+                        onClick = { isTableView = !isTableView },
+                        glowColor = modeNeon,
+                        size = 46.dp
+                    ) {
+                        Icon(
+                            imageVector = if (isTableView) Icons.Rounded.GridView else Icons.Rounded.TableRows,
+                            contentDescription = if (isTableView) "Switch to card view" else "Switch to table view",
+                            tint = modeNeon,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
-                    Button(
+                    NeonPrimaryButton(
                         onClick = { onAdd(defaultAddCategory) },
-                        shape = RoundedCornerShape(12.dp),
+                        cornerRadius = 14.dp,
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                         modifier = Modifier.testTag("library_add_button")
                     ) {
                         Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Add")
+                        Text("Add", fontWeight = FontWeight.Bold)
                     }
-                }
-            }
-
-            if (mode == LibraryMode.ANIME_KDRAMA) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
-                        selected = animeKDramaFilter == null,
-                        onClick = { animeKDramaFilter = null },
-                        label = { Text("All (${baseItems.size})") }
-                    )
-                    FilterChip(
-                        selected = animeKDramaFilter == MediaCategory.ANIME,
-                        onClick = { animeKDramaFilter = MediaCategory.ANIME },
-                        label = { Text("Anime") }
-                    )
-                    FilterChip(
-                        selected = animeKDramaFilter == MediaCategory.K_DRAMA,
-                        onClick = { animeKDramaFilter = MediaCategory.K_DRAMA },
-                        label = { Text("K-Drama") }
-                    )
                 }
             }
 
@@ -225,26 +228,41 @@ fun MediaLibraryScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                OutlinedTextField(
+                NeonGlassTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search title, cast, genre...") },
-                    leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
-                    singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
+                    placeholder = "Search title, cast, genre...",
+                    leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                    focusNeonColor = modeNeon,
                     modifier = Modifier
                         .weight(1f)
                         .testTag("library_search_input")
                 )
 
                 Box {
-                    OutlinedButton(onClick = { showSortMenu = true }, shape = RoundedCornerShape(12.dp)) {
+                    GlassSecondaryButton(
+                        onClick = { showSortMenu = true },
+                        accentBorderColor = modeNeon,
+                        cornerRadius = 14.dp,
+                        contentPadding = PaddingValues(horizontal = 13.dp, vertical = 12.dp)
+                    ) {
                         Icon(Icons.AutoMirrored.Rounded.Sort, contentDescription = "Sort", modifier = Modifier.size(18.dp))
                     }
-                    DropdownMenu(expanded = showSortMenu, onDismissRequest = { showSortMenu = false }) {
+                    DropdownMenu(
+                        expanded = showSortMenu,
+                        onDismissRequest = { showSortMenu = false },
+                        modifier = Modifier
+                            .background(Color(0xFF140D26))
+                            .border(1.dp, modeNeon.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                    ) {
                         MediaSortOption.entries.forEach { opt ->
                             DropdownMenuItem(
-                                text = { Text(opt.label) },
+                                text = {
+                                    Text(
+                                        opt.label,
+                                        color = if (sortOption == opt) modeNeon else OffWhiteText
+                                    )
+                                },
                                 onClick = { sortOption = opt; showSortMenu = false }
                             )
                         }
@@ -252,12 +270,23 @@ fun MediaLibraryScreen(
                 }
 
                 Box {
-                    OutlinedButton(onClick = { showFilterMenu = true }, shape = RoundedCornerShape(12.dp)) {
+                    GlassSecondaryButton(
+                        onClick = { showFilterMenu = true },
+                        accentBorderColor = NeonFuchsia,
+                        cornerRadius = 14.dp,
+                        contentPadding = PaddingValues(horizontal = 13.dp, vertical = 12.dp)
+                    ) {
                         Icon(Icons.Rounded.FilterList, contentDescription = "Filters", modifier = Modifier.size(18.dp))
                     }
-                    DropdownMenu(expanded = showFilterMenu, onDismissRequest = { showFilterMenu = false }) {
+                    DropdownMenu(
+                        expanded = showFilterMenu,
+                        onDismissRequest = { showFilterMenu = false },
+                        modifier = Modifier
+                            .background(Color(0xFF140D26))
+                            .border(1.dp, NeonFuchsia.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                    ) {
                         DropdownMenuItem(
-                            text = { Text("Reset All Filters") },
+                            text = { Text("Reset All Filters", color = NeonPink) },
                             onClick = {
                                 selectedStatus = null; selectedGenre = null; selectedLanguage = null; selectedYear = null
                                 showFilterMenu = false
@@ -266,7 +295,7 @@ fun MediaLibraryScreen(
                         if (availableGenres.isNotEmpty()) {
                             availableGenres.take(8).forEach { g ->
                                 DropdownMenuItem(
-                                    text = { Text("Genre: $g") },
+                                    text = { Text("Genre: $g", color = OffWhiteText) },
                                     onClick = { selectedGenre = g; showFilterMenu = false }
                                 )
                             }
@@ -274,7 +303,7 @@ fun MediaLibraryScreen(
                         if (availableLanguages.isNotEmpty()) {
                             availableLanguages.take(6).forEach { l ->
                                 DropdownMenuItem(
-                                    text = { Text("Language: $l") },
+                                    text = { Text("Language: $l", color = OffWhiteText) },
                                     onClick = { selectedLanguage = l; showFilterMenu = false }
                                 )
                             }
@@ -282,7 +311,7 @@ fun MediaLibraryScreen(
                         if (availableYears.isNotEmpty()) {
                             availableYears.take(6).forEach { yr ->
                                 DropdownMenuItem(
-                                    text = { Text("Year: $yr") },
+                                    text = { Text("Year: $yr", color = OffWhiteText) },
                                     onClick = { selectedYear = yr; showFilterMenu = false }
                                 )
                             }
@@ -296,39 +325,61 @@ fun MediaLibraryScreen(
                 modifier = Modifier.horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                FilterChip(
+                NeonGlassChip(
+                    label = "All Statuses",
                     selected = selectedStatus == null,
                     onClick = { selectedStatus = null },
-                    label = { Text("All Statuses") }
+                    accentColor = modeNeon
                 )
                 WatchStatus.entries.forEach { st ->
-                    FilterChip(
+                    NeonGlassChip(
+                        label = st.label,
                         selected = selectedStatus == st,
                         onClick = { selectedStatus = if (selectedStatus == st) null else st },
-                        label = { Text(st.label) }
+                        accentColor = statusColor(st)
                     )
                 }
                 if (selectedGenre != null) {
-                    FilterChip(selected = true, onClick = { selectedGenre = null }, label = { Text("Genre: $selectedGenre ×") })
+                    NeonGlassChip(
+                        label = "Genre: $selectedGenre ×",
+                        selected = true,
+                        onClick = { selectedGenre = null },
+                        accentColor = NeonCyan
+                    )
                 }
                 if (selectedLanguage != null) {
-                    FilterChip(selected = true, onClick = { selectedLanguage = null }, label = { Text("Lang: $selectedLanguage ×") })
+                    NeonGlassChip(
+                        label = "Lang: $selectedLanguage ×",
+                        selected = true,
+                        onClick = { selectedLanguage = null },
+                        accentColor = NeonPink
+                    )
                 }
                 if (selectedYear != null) {
-                    FilterChip(selected = true, onClick = { selectedYear = null }, label = { Text("Year: $selectedYear ×") })
+                    NeonGlassChip(
+                        label = "Year: $selectedYear ×",
+                        selected = true,
+                        onClick = { selectedYear = null },
+                        accentColor = NeonFuchsia
+                    )
                 }
             }
         }
 
         if (filteredItems.isEmpty()) {
-            Box(modifier = Modifier.padding(16.dp)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottomPadding)
+            ) {
                 EmptyStateView(
-                    title = if (baseItems.isEmpty()) "No ${headerTitle} Yet" else "No Matching Titles",
+                    title = if (baseItems.isEmpty()) "No $headerTitle Yet" else "No Matching Titles",
                     subtitle = if (baseItems.isEmpty())
                         "Start curating your $headerTitle collection with posters, ratings, reviews, and progress."
                     else
                         "Try clearing your search or active filter chips.",
                     actionLabel = if (baseItems.isEmpty()) "Add ${defaultAddCategory.label}" else "Reset Filters",
+                    accentColor = modeNeon,
                     onAction = {
                         if (baseItems.isEmpty()) onAdd(defaultAddCategory)
                         else {
@@ -337,21 +388,24 @@ fun MediaLibraryScreen(
                     }
                 )
             }
-        } else if (mode == LibraryMode.MOVIES && isTableView) {
-            LazyColumn(contentPadding = PaddingValues(16.dp)) {
+        } else if (isTableView) {
+            LazyColumn(
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottomPadding)
+            ) {
                 item {
                     MovieTableView(
                         movies = filteredItems,
                         onSelect = onSelect,
                         onEdit = onEdit,
-                        onDelete = onDelete
+                        onDelete = onDelete,
+                        accentColor = modeNeon
                     )
                 }
             }
         } else if (mode == LibraryMode.MOVIES) {
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(minSize = 158.dp),
-                contentPadding = PaddingValues(16.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottomPadding),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxSize()
@@ -361,14 +415,15 @@ fun MediaLibraryScreen(
                         item = movie,
                         compact = compact,
                         onClick = { onSelect(movie) },
-                        onToggleFavourite = { onToggleFavourite(movie) }
+                        onToggleFavourite = { onToggleFavourite(movie) },
+                        onEdit = { onEdit(movie) }
                     )
                 }
             }
         } else {
-            // Web Series or Anime & K-Drama with live Episode Progress cards
+            // Web Series, Anime, or K-Drama with live Episode Progress cards + quick Edit button
             LazyColumn(
-                contentPadding = PaddingValues(16.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottomPadding),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
@@ -378,7 +433,8 @@ fun MediaLibraryScreen(
                         compact = compact,
                         onClick = { onSelect(series) },
                         onStepEpisode = { delta -> onStepEpisode(series, delta) },
-                        onToggleFavourite = { onToggleFavourite(series) }
+                        onToggleFavourite = { onToggleFavourite(series) },
+                        onEdit = { onEdit(series) }
                     )
                 }
             }

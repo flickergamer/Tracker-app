@@ -2,30 +2,49 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Core Afterglow Dark Luxury Palette
-val DeepCharcoal = Color(0xFF0B0912)
-val DarkPurpleCard = Color(0xFF15111F)
-val ElevatedPlum = Color(0xFF1E182D)
-val SubtleBorder = Color(0xFF2E2442)
-val AfterglowPurple = Color(0xFF9B62EF)
-val LavenderAccent = Color(0xFFD2B5FF)
-val OffWhiteText = Color(0xFFF5EFFF)
-val MutedGreyText = Color(0xFFA99AB9)
+// Core Neon + Liquid Glass Design Tokens
+val VoidBackground = Color(0xFF07050F)
+val DeepCharcoal = VoidBackground
+val DarkPurpleCard = Color(0xFF130E22)
+val DarkGlassSurface = Color(0xFF100B1E)
+val ElevatedPlum = Color(0xFF1E1636)
+val SubtleBorder = Color(0xFF342654)
 
-// Accent Theme Presets
-val MidnightRosePrimary = Color(0xFFE0569C)
-val MidnightRoseSecondary = Color(0xFFFFB8DA)
+// Text Tokens
+val OffWhiteText = Color(0xFFF4EFFF)
+val MutedGreyText = Color(0xFFCDBDF5)
 
-val CelestialIndigoPrimary = Color(0xFF6E7BFF)
-val CelestialIndigoSecondary = Color(0xFFC2C9FF)
+// Neon Palette
+val NeonPurple = Color(0xFFA855F7)
+val NeonFuchsia = Color(0xFFE879F9)
+val NeonPink = Color(0xFFEC4899)
+val NeonCyan = Color(0xFF22D3EE)
+val NeonGreen = Color(0xFF4ADE80)
+val NeonButtonLight = Color(0xFFF0ABFC)
+val NeonButtonDeep = Color(0xFFC084FC)
+val NeonButtonDarkText = Color(0xFF130624)
 
-val NeonAmethystPrimary = Color(0xFFB678FF)
-val NeonAmethystSecondary = Color(0xFFE8D1FF)
+// Ambient Radial Glow Tokens
+val RadialGlowMagenta = Color(0xFFD946EF)
+val RadialGlowCyan = Color(0xFF22D3EE)
 
-// Semantic Status Colors
-val StatusCompleted = Color(0xFF4ADE80)
-val StatusWatching = Color(0xFF9B62EF)
-val StatusPlanToWatch = Color(0xFF60A5FA)
+// Legacy / Preset Accents
+val AfterglowPurple = NeonPurple
+val LavenderAccent = MutedGreyText
+
+val MidnightRosePrimary = NeonPink
+val MidnightRoseSecondary = Color(0xFFF9A8D4)
+
+val CelestialIndigoPrimary = NeonCyan
+val CelestialIndigoSecondary = Color(0xFFA5F3FC)
+
+val NeonAmethystPrimary = NeonFuchsia
+val NeonAmethystSecondary = Color(0xFFF5D0FE)
+
+// Semantic Status & Rating Colors (Neon-aligned)
+val StatusCompleted = NeonGreen
+val StatusWatching = NeonPurple
+val StatusPlanToWatch = NeonCyan
 val StatusOnHold = Color(0xFFFBBF24)
-val StatusDropped = Color(0xFFF87171)
+val StatusDropped = NeonPink
 val GoldRating = Color(0xFFFACC15)

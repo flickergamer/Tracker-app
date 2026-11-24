@@ -1,10 +1,7 @@
 package com.example.ui.screens
 
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -20,10 +17,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Casino
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Delete
@@ -33,18 +28,10 @@ import androidx.compose.material.icons.rounded.EmojiEvents
 import androidx.compose.material.icons.rounded.FormatQuote
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Repeat
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -53,10 +40,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.data.model.AVAILABLE_MOODS
 import com.example.data.model.AchievementBadge
@@ -68,11 +56,27 @@ import com.example.data.model.UserProfile
 import com.example.data.model.WatchStatus
 import com.example.data.model.formatWatchTime
 import com.example.ui.components.EmptyStateView
+import com.example.ui.components.FloatingBottomBarClearance
+import com.example.ui.components.GlassSecondaryButton
 import com.example.ui.components.GoalRingCard
+import com.example.ui.components.NeonGlassCard
+import com.example.ui.components.NeonGlassChip
+import com.example.ui.components.NeonGlassDialog
+import com.example.ui.components.NeonGlassTextField
+import com.example.ui.components.NeonPrimaryButton
+import com.example.ui.components.NeonProgressBar
 import com.example.ui.components.PosterArtwork
 import com.example.ui.components.RatingPill
+import com.example.ui.components.categoryNeonColor
+import com.example.ui.components.neonPaletteColor
 import com.example.ui.theme.GoldRating
-import com.example.ui.theme.StatusCompleted
+import com.example.ui.theme.MutedGreyText
+import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.NeonFuchsia
+import com.example.ui.theme.NeonGreen
+import com.example.ui.theme.NeonPink
+import com.example.ui.theme.NeonPurple
+import com.example.ui.theme.OffWhiteText
 import kotlin.random.Random
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -89,6 +93,7 @@ fun SmartHubScreen(
     onIncrementRewatch: (MediaItem) -> Unit,
     onSaveQuote: (QuoteItem, Boolean) -> Unit,
     onDeleteQuote: (QuoteItem) -> Unit,
+    bottomPadding: Dp = FloatingBottomBarClearance,
     modifier: Modifier = Modifier
 ) {
     val tabs = listOf(
@@ -101,18 +106,13 @@ fun SmartHubScreen(
     )
     var selectedTab by remember(initialTab) { mutableIntStateOf(initialTab.coerceIn(0, tabs.lastIndex)) }
 
-    // Random picker state
     var randomCategoryFilter by remember { mutableStateOf<MediaCategory?>(null) }
     var randomOnlyUnwatched by remember { mutableStateOf(true) }
     var pickedRandomItem by remember { mutableStateOf<MediaItem?>(null) }
 
-    // Mood state
     var selectedMood by remember { mutableStateOf(AVAILABLE_MOODS.first()) }
+    var collectionMode by remember { mutableIntStateOf(0) }
 
-    // Collections sub-filter
-    var collectionMode by remember { mutableIntStateOf(0) } // 0 = Hidden Gems, 1 = Rewatch, 2 = Dropped
-
-    // Quote dialog state
     var editingQuote by remember { mutableStateOf<QuoteItem?>(null) }
     var showQuoteDialog by remember { mutableStateOf(false) }
 
@@ -120,51 +120,66 @@ fun SmartHubScreen(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Text("Smart Discovery", style = MaterialTheme.typography.displayMedium, color = MaterialTheme.colorScheme.onBackground)
+            Text("Smart Discovery", style = MaterialTheme.typography.displayMedium, color = OffWhiteText)
             Row(
                 modifier = Modifier.horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 tabs.forEachIndexed { idx, label ->
-                    FilterChip(
+                    NeonGlassChip(
+                        label = label,
                         selected = selectedTab == idx,
                         onClick = { selectedTab = idx },
-                        label = { Text(label) }
+                        accentColor = neonPaletteColor(idx)
                     )
                 }
             }
         }
 
         LazyColumn(
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottomPadding),
             verticalArrangement = Arrangement.spacedBy(14.dp),
             modifier = Modifier.fillMaxSize()
         ) {
             when (selectedTab) {
-                0 -> { // 1. Random Movie/Title Picker
+                0 -> {
                     item {
-                        Surface(
-                            shape = RoundedCornerShape(20.dp),
-                            color = MaterialTheme.colorScheme.surface,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(20.dp))
+                        NeonGlassCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            accentColor = NeonCyan,
+                            cornerRadius = 22.dp,
+                            contentPadding = PaddingValues(18.dp)
                         ) {
-                            Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Text("Random Tonight Picker", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Text("Random Tonight Picker", style = MaterialTheme.typography.titleLarge, color = OffWhiteText)
                                 Text(
                                     "Can't decide what to watch? Spin your personal vault or watchlist.",
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MutedGreyText
                                 )
                                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    FilterChip(selected = randomOnlyUnwatched, onClick = { randomOnlyUnwatched = !randomOnlyUnwatched }, label = { Text("Unwatched / Watchlist Only") })
-                                    FilterChip(selected = randomCategoryFilter == null, onClick = { randomCategoryFilter = null }, label = { Text("Any Category") })
+                                    NeonGlassChip(
+                                        label = "Unwatched / Watchlist Only",
+                                        selected = randomOnlyUnwatched,
+                                        onClick = { randomOnlyUnwatched = !randomOnlyUnwatched },
+                                        accentColor = NeonCyan
+                                    )
+                                    NeonGlassChip(
+                                        label = "Any Category",
+                                        selected = randomCategoryFilter == null,
+                                        onClick = { randomCategoryFilter = null },
+                                        accentColor = NeonPurple
+                                    )
                                     MediaCategory.entries.forEach { c ->
-                                        FilterChip(selected = randomCategoryFilter == c, onClick = { randomCategoryFilter = c }, label = { Text(c.label) })
+                                        NeonGlassChip(
+                                            label = c.label,
+                                            selected = randomCategoryFilter == c,
+                                            onClick = { randomCategoryFilter = c },
+                                            accentColor = categoryNeonColor(c)
+                                        )
                                     }
                                 }
                                 val pool = allItems.filter { item ->
@@ -172,7 +187,7 @@ fun SmartHubScreen(
                                     val matchesStatus = !randomOnlyUnwatched || item.statusEnum == WatchStatus.PLAN_TO_WATCH || item.watchlistItem || item.statusEnum == WatchStatus.ON_HOLD
                                     matchesCat && matchesStatus
                                 }
-                                Button(
+                                NeonPrimaryButton(
                                     onClick = {
                                         pickedRandomItem = if (pool.isNotEmpty()) pool[Random.nextInt(pool.size)] else null
                                     },
@@ -181,7 +196,7 @@ fun SmartHubScreen(
                                 ) {
                                     Icon(Icons.Rounded.Casino, contentDescription = null)
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text(if (pool.isEmpty()) "No Matching Titles in Pool" else "Pick Random Title (${pool.size})")
+                                    Text(if (pool.isEmpty()) "No Matching Titles in Pool" else "Pick Random Title (${pool.size})", fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -193,13 +208,18 @@ fun SmartHubScreen(
                     }
                 }
 
-                1 -> { // 2. Mood-Based Suggestions
+                1 -> {
                     item {
-                        Text("Pick Your Mood", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onBackground)
+                        Text("Pick Your Mood", style = MaterialTheme.typography.titleLarge, color = OffWhiteText)
                         Spacer(modifier = Modifier.height(8.dp))
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            AVAILABLE_MOODS.forEach { mood ->
-                                FilterChip(selected = selectedMood == mood, onClick = { selectedMood = mood }, label = { Text(mood) })
+                            AVAILABLE_MOODS.forEachIndexed { idx, mood ->
+                                NeonGlassChip(
+                                    label = mood,
+                                    selected = selectedMood == mood,
+                                    onClick = { selectedMood = mood },
+                                    accentColor = neonPaletteColor(idx)
+                                )
                             }
                         }
                     }
@@ -211,7 +231,8 @@ fun SmartHubScreen(
                         item {
                             EmptyStateView(
                                 title = "No \"$selectedMood\" Matches Yet",
-                                subtitle = "Tag titles with moods in the editor or add matching genres like Thriller, Comedy, or Romance."
+                                subtitle = "Tag titles with moods in the editor or add matching genres like Thriller, Comedy, or Romance.",
+                                accentColor = NeonPink
                             )
                         }
                     } else {
@@ -221,12 +242,12 @@ fun SmartHubScreen(
                     }
                 }
 
-                2 -> { // 3, 4, 5: Hidden Gems, Rewatch Collection, Dropped Collection
+                2 -> {
                     item {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            FilterChip(selected = collectionMode == 0, onClick = { collectionMode = 0 }, label = { Text("Hidden Gems") })
-                            FilterChip(selected = collectionMode == 1, onClick = { collectionMode = 1 }, label = { Text("Rewatch") })
-                            FilterChip(selected = collectionMode == 2, onClick = { collectionMode = 2 }, label = { Text("Dropped") })
+                            NeonGlassChip(label = "Hidden Gems", selected = collectionMode == 0, onClick = { collectionMode = 0 }, accentColor = NeonCyan)
+                            NeonGlassChip(label = "Rewatch", selected = collectionMode == 1, onClick = { collectionMode = 1 }, accentColor = NeonGreen)
+                            NeonGlassChip(label = "Dropped", selected = collectionMode == 2, onClick = { collectionMode = 2 }, accentColor = NeonPink)
                         }
                     }
                     val list = when (collectionMode) {
@@ -242,48 +263,59 @@ fun SmartHubScreen(
                                     0 -> "Mark underrated favourites as Hidden Gems to build your curated vault."
                                     1 -> "Mark titles for Rewatch or log a rewatch count to track your comfort classics."
                                     else -> "No dropped titles. Everything you started is still going strong!"
-                                }
+                                },
+                                accentColor = NeonPurple
                             )
                         }
                     } else {
                         items(list, key = { "col_${it.id}" }) { item ->
-                            Surface(
-                                shape = RoundedCornerShape(18.dp),
-                                color = MaterialTheme.colorScheme.surface,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(18.dp))
-                                    .clip(RoundedCornerShape(18.dp))
-                                    .clickable { onSelectItem(item) }
+                            val accent = when (collectionMode) {
+                                0 -> NeonCyan
+                                1 -> NeonGreen
+                                else -> NeonPink
+                            }
+                            NeonGlassCard(
+                                modifier = Modifier.fillMaxWidth(),
+                                accentColor = accent,
+                                cornerRadius = 22.dp,
+                                onClick = { onSelectItem(item) },
+                                contentPadding = PaddingValues(12.dp)
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(12.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
                                     PosterArtwork(item.posterUrl, item.title, item.categoryEnum, Modifier.size(56.dp, 80.dp))
                                     Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        Text(item.title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                        Text("${item.categoryEnum.label} • ${item.releaseYear}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text(item.title, style = MaterialTheme.typography.titleMedium, color = OffWhiteText, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        Text("${item.categoryEnum.label} • ${item.releaseYear}", style = MaterialTheme.typography.bodySmall, color = MutedGreyText)
                                         if (collectionMode == 1) {
-                                            Text("Rewatched ${item.rewatchCount}×", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
+                                            Text("Rewatched ${item.rewatchCount}×", style = MaterialTheme.typography.labelMedium, color = NeonGreen)
                                         }
                                         if (collectionMode == 2 && item.notes.isNotBlank()) {
-                                            Text(item.notes, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                            Text(item.notes, style = MaterialTheme.typography.bodySmall, color = MutedGreyText, maxLines = 2, overflow = TextOverflow.Ellipsis)
                                         }
                                     }
                                     when (collectionMode) {
-                                        1 -> FilledTonalButton(onClick = { onIncrementRewatch(item) }) {
+                                        1 -> GlassSecondaryButton(
+                                            onClick = { onIncrementRewatch(item) },
+                                            accentBorderColor = NeonGreen,
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                                        ) {
                                             Icon(Icons.Rounded.Repeat, contentDescription = null, modifier = Modifier.size(16.dp))
                                             Spacer(modifier = Modifier.width(4.dp))
                                             Text("+1")
                                         }
-                                        2 -> FilledTonalButton(onClick = { onResumeDropped(item) }) {
+                                        2 -> GlassSecondaryButton(
+                                            onClick = { onResumeDropped(item) },
+                                            accentBorderColor = NeonCyan,
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                                        ) {
                                             Icon(Icons.Rounded.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
                                             Spacer(modifier = Modifier.width(4.dp))
                                             Text("Resume")
                                         }
-                                        else -> Icon(Icons.Rounded.Diamond, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
+                                        else -> Icon(Icons.Rounded.Diamond, contentDescription = null, tint = NeonCyan)
                                     }
                                 }
                             }
@@ -291,14 +323,14 @@ fun SmartHubScreen(
                     }
                 }
 
-                3 -> { // 8 & 9: Achievement Badges & Watching Goals
+                3 -> {
                     item {
-                        Text("Watching Goals", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onBackground)
+                        Text("Watching Goals", style = MaterialTheme.typography.titleLarge, color = OffWhiteText)
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            GoalRingCard("Movies", stats.completedMoviesThisYear, profile.yearlyMovieGoal.toInt(), MaterialTheme.colorScheme.primary, Modifier.weight(1f))
-                            GoalRingCard("Series", stats.completedSeriesThisYear, profile.yearlySeriesGoal.toInt(), StatusCompleted, Modifier.weight(1f))
-                            GoalRingCard("Episodes", stats.episodesWatchedTotal, profile.yearlyEpisodeGoal.toInt(), MaterialTheme.colorScheme.secondary, Modifier.weight(1f))
+                            GoalRingCard("Movies", stats.completedMoviesThisYear, profile.yearlyMovieGoal.toInt(), NeonPurple, Modifier.weight(1f))
+                            GoalRingCard("Series", stats.completedSeriesThisYear, profile.yearlySeriesGoal.toInt(), NeonGreen, Modifier.weight(1f))
+                            GoalRingCard("Episodes", stats.episodesWatchedTotal, profile.yearlyEpisodeGoal.toInt(), NeonCyan, Modifier.weight(1f))
                         }
                     }
                     item {
@@ -306,66 +338,67 @@ fun SmartHubScreen(
                         Text(
                             text = "Achievement Badges ($unlocked/${achievements.size} Unlocked)",
                             style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onBackground
+                            color = OffWhiteText
                         )
                     }
                     items(achievements, key = { it.id }) { badge ->
-                        Surface(
-                            shape = RoundedCornerShape(18.dp),
-                            color = MaterialTheme.colorScheme.surface,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .border(
-                                    1.dp,
-                                    if (badge.unlocked) GoldRating.copy(alpha = 0.6f) else MaterialTheme.colorScheme.outline,
-                                    RoundedCornerShape(18.dp)
-                                )
+                        val accent = if (badge.unlocked) GoldRating else NeonPurple
+                        NeonGlassCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            accentColor = accent,
+                            cornerRadius = 22.dp,
+                            contentPadding = PaddingValues(14.dp)
                         ) {
-                            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
                                         Icon(
                                             imageVector = if (badge.unlocked) Icons.Rounded.CheckCircle else Icons.Rounded.EmojiEvents,
                                             contentDescription = null,
-                                            tint = if (badge.unlocked) GoldRating else MaterialTheme.colorScheme.onSurfaceVariant
+                                            tint = if (badge.unlocked) GoldRating else MutedGreyText
                                         )
                                         Column {
-                                            Text(badge.title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-                                            Text(badge.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            Text(badge.title, style = MaterialTheme.typography.titleMedium, color = OffWhiteText)
+                                            Text(badge.description, style = MaterialTheme.typography.bodySmall, color = MutedGreyText)
                                         }
                                     }
-                                    Text("${badge.current.coerceAtMost(badge.target)}/${badge.target}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
+                                    Text("${badge.current.coerceAtMost(badge.target)}/${badge.target}", style = MaterialTheme.typography.labelMedium, color = accent)
                                 }
-                                LinearProgressIndicator(
-                                    progress = { badge.progress },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(6.dp)
-                                        .clip(RoundedCornerShape(3.dp)),
-                                    color = if (badge.unlocked) GoldRating else MaterialTheme.colorScheme.primary,
-                                    strokeCap = StrokeCap.Round
+                                NeonProgressBar(
+                                    progress = badge.progress,
+                                    height = 7.dp,
+                                    startColor = if (badge.unlocked) GoldRating else NeonPurple,
+                                    endColor = if (badge.unlocked) NeonGreen else NeonFuchsia
                                 )
                             }
                         }
                     }
                 }
 
-                4 -> { // 7. Favourite Quotes Collection
+                4 -> {
                     item {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Favourite Quotes", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onBackground)
-                            Button(onClick = { editingQuote = null; showQuoteDialog = true }, shape = RoundedCornerShape(12.dp)) {
+                            Text("Favourite Quotes", style = MaterialTheme.typography.titleLarge, color = OffWhiteText)
+                            NeonPrimaryButton(
+                                onClick = { editingQuote = null; showQuoteDialog = true },
+                                cornerRadius = 14.dp,
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)
+                            ) {
                                 Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Add Quote")
+                                Text("Add Quote", fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -375,25 +408,25 @@ fun SmartHubScreen(
                                 title = "No Saved Quotes Yet",
                                 subtitle = "Collect unforgettable dialogue from movies, series, anime, and K-dramas.",
                                 actionLabel = "Add First Quote",
+                                accentColor = NeonFuchsia,
                                 onAction = { editingQuote = null; showQuoteDialog = true }
                             )
                         }
                     } else {
                         items(quotes, key = { it.id }) { q ->
-                            Surface(
-                                shape = RoundedCornerShape(18.dp),
-                                color = MaterialTheme.colorScheme.surface,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(18.dp))
+                            NeonGlassCard(
+                                modifier = Modifier.fillMaxWidth(),
+                                accentColor = categoryNeonColor(q.categoryEnum),
+                                cornerRadius = 22.dp,
+                                contentPadding = PaddingValues(16.dp)
                             ) {
-                                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Icon(Icons.Rounded.FormatQuote, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Icon(Icons.Rounded.FormatQuote, contentDescription = null, tint = categoryNeonColor(q.categoryEnum))
                                     Text(
                                         text = "\"${q.quoteText}\"",
                                         style = MaterialTheme.typography.bodyLarge,
                                         fontStyle = FontStyle.Italic,
-                                        color = MaterialTheme.colorScheme.onSurface
+                                        color = OffWhiteText
                                     )
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
@@ -406,15 +439,15 @@ fun SmartHubScreen(
                                                 append("${q.sourceTitle} (${q.categoryEnum.label})")
                                             },
                                             style = MaterialTheme.typography.labelMedium,
-                                            color = MaterialTheme.colorScheme.secondary,
+                                            color = categoryNeonColor(q.categoryEnum),
                                             modifier = Modifier.weight(1f)
                                         )
                                         Row {
                                             IconButton(onClick = { editingQuote = q; showQuoteDialog = true }) {
-                                                Icon(Icons.Rounded.Edit, contentDescription = "Edit quote")
+                                                Icon(Icons.Rounded.Edit, contentDescription = "Edit quote", tint = NeonCyan)
                                             }
                                             IconButton(onClick = { onDeleteQuote(q) }) {
-                                                Icon(Icons.Rounded.Delete, contentDescription = "Delete quote", tint = MaterialTheme.colorScheme.error)
+                                                Icon(Icons.Rounded.Delete, contentDescription = "Delete quote", tint = NeonPink)
                                             }
                                         }
                                     }
@@ -424,17 +457,18 @@ fun SmartHubScreen(
                     }
                 }
 
-                5 -> { // 6 & 10: Personal Review System & Recently Watched History
+                5 -> {
                     val reviewed = allItems.filter { it.personalReview.isNotBlank() }
                     item {
-                        Text("Recently Watched History", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onBackground)
+                        Text("Recently Watched History", style = MaterialTheme.typography.titleLarge, color = OffWhiteText)
                     }
                     val history = allItems.filter { it.statusEnum == WatchStatus.COMPLETED || it.statusEnum == WatchStatus.WATCHING }.take(10)
                     if (history.isEmpty()) {
                         item {
                             EmptyStateView(
                                 title = "No Watch History Yet",
-                                subtitle = "Start or complete titles to build your chronological viewing log."
+                                subtitle = "Start or complete titles to build your chronological viewing log.",
+                                accentColor = NeonPurple
                             )
                         }
                     } else {
@@ -449,28 +483,26 @@ fun SmartHubScreen(
 
                     item {
                         Spacer(modifier = Modifier.height(6.dp))
-                        Text("Personal Reviews (${reviewed.size})", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onBackground)
+                        Text("Personal Reviews (${reviewed.size})", style = MaterialTheme.typography.titleLarge, color = OffWhiteText)
                     }
                     items(reviewed, key = { "rev_${it.id}" }) { item ->
-                        Surface(
-                            shape = RoundedCornerShape(18.dp),
-                            color = MaterialTheme.colorScheme.surface,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(18.dp))
-                                .clip(RoundedCornerShape(18.dp))
-                                .clickable { onSelectItem(item) }
+                        NeonGlassCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            accentColor = categoryNeonColor(item.categoryEnum),
+                            cornerRadius = 22.dp,
+                            onClick = { onSelectItem(item) },
+                            contentPadding = PaddingValues(16.dp)
                         ) {
-                            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(item.title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                                    Text(item.title, style = MaterialTheme.typography.titleMedium, color = OffWhiteText, modifier = Modifier.weight(1f))
                                     if (item.personalRating > 0) RatingPill(item.personalRating)
                                 }
-                                Text(item.personalReview, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(item.personalReview, style = MaterialTheme.typography.bodyMedium, color = MutedGreyText)
                             }
                         }
                     }
@@ -493,28 +525,26 @@ fun SmartHubScreen(
 
 @Composable
 private fun SmartMediaCard(item: MediaItem, badge: String, onClick: () -> Unit) {
-    Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surface,
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(18.dp))
-            .clip(RoundedCornerShape(18.dp))
-            .clickable(onClick = onClick)
+    val accent = categoryNeonColor(item.categoryEnum)
+    NeonGlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        accentColor = accent,
+        cornerRadius = 22.dp,
+        onClick = onClick,
+        contentPadding = PaddingValues(12.dp)
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             PosterArtwork(item.posterUrl, item.title, item.categoryEnum, Modifier.size(62.dp, 88.dp))
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(badge, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
-                Text(item.title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(badge, style = MaterialTheme.typography.labelSmall, color = accent)
+                Text(item.title, style = MaterialTheme.typography.titleMedium, color = OffWhiteText, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
                     text = "${item.categoryEnum.label} • ${item.releaseYear} • ${formatWatchTime(item.runtimeMinutes)}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MutedGreyText
                 )
             }
             if (item.personalRating > 0) RatingPill(item.personalRating)
@@ -535,63 +565,60 @@ private fun QuoteEditorDialog(
     var characterName by remember { mutableStateOf(initial?.characterName ?: "") }
     var category by remember { mutableStateOf(initial?.categoryEnum ?: MediaCategory.MOVIE) }
 
-    AlertDialog(
+    NeonGlassDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (isEdit) "Edit Quote" else "Save Favourite Quote") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(
-                    value = quoteText,
-                    onValueChange = { quoteText = it },
-                    label = { Text("Quote *") },
-                    minLines = 3,
-                    modifier = Modifier.fillMaxWidth()
+        title = if (isEdit) "Edit Quote" else "Save Favourite Quote",
+        accentColor = NeonFuchsia,
+        confirmText = "Save",
+        confirmEnabled = quoteText.isNotBlank() && sourceTitle.isNotBlank(),
+        onConfirm = {
+            if (quoteText.isNotBlank() && sourceTitle.isNotBlank()) {
+                onSave(
+                    (initial ?: QuoteItem()).copy(
+                        quoteText = quoteText.trim().take(600),
+                        sourceTitle = sourceTitle.trim().take(160),
+                        characterName = characterName.trim().take(120),
+                        mediaCategory = category.name
+                    ),
+                    isEdit
                 )
-                OutlinedTextField(
-                    value = sourceTitle,
-                    onValueChange = { sourceTitle = it },
-                    label = { Text("Movie / Series Title *") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = characterName,
-                    onValueChange = { characterName = it },
-                    label = { Text("Character (Optional)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    MediaCategory.entries.forEach { c ->
-                        FilterChip(selected = category == c, onClick = { category = c }, label = { Text(c.label) })
-                    }
+            }
+        }
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            NeonGlassTextField(
+                value = quoteText,
+                onValueChange = { quoteText = it },
+                label = "Quote *",
+                singleLine = false,
+                minLines = 3,
+                maxLines = 5,
+                modifier = Modifier.fillMaxWidth()
+            )
+            NeonGlassTextField(
+                value = sourceTitle,
+                onValueChange = { sourceTitle = it },
+                label = "Movie / Series Title *",
+                modifier = Modifier.fillMaxWidth()
+            )
+            NeonGlassTextField(
+                value = characterName,
+                onValueChange = { characterName = it },
+                label = "Character (Optional)",
+                modifier = Modifier.fillMaxWidth()
+            )
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                MediaCategory.entries.forEach { c ->
+                    NeonGlassChip(
+                        label = c.label,
+                        selected = category == c,
+                        onClick = { category = c },
+                        accentColor = categoryNeonColor(c)
+                    )
                 }
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (quoteText.isNotBlank() && sourceTitle.isNotBlank()) {
-                        onSave(
-                            (initial ?: QuoteItem()).copy(
-                                quoteText = quoteText.trim().take(600),
-                                sourceTitle = sourceTitle.trim().take(160),
-                                characterName = characterName.trim().take(120),
-                                mediaCategory = category.name
-                            ),
-                            isEdit
-                        )
-                    }
-                },
-                enabled = quoteText.isNotBlank() && sourceTitle.isNotBlank()
-            ) {
-                Text("Save")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
         }
-    )
+    }
 }
 
 private fun moodMatchesGenre(mood: String, genre: String): Boolean {

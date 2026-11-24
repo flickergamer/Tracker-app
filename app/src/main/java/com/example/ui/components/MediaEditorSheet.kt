@@ -1,13 +1,12 @@
 package com.example.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,18 +24,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Surface
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -49,8 +44,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -66,6 +63,14 @@ import com.example.data.model.WatchlistPriority
 import com.example.data.tmdb.TmdbMultiResult
 import com.example.data.tmdb.TmdbPreferences
 import com.example.data.tmdb.TmdbPrefillResult
+import com.example.ui.theme.GoldRating
+import com.example.ui.theme.MutedGreyText
+import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.NeonFuchsia
+import com.example.ui.theme.NeonGreen
+import com.example.ui.theme.NeonPink
+import com.example.ui.theme.NeonPurple
+import com.example.ui.theme.OffWhiteText
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -140,12 +145,7 @@ fun MediaEditorDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background),
-            color = MaterialTheme.colorScheme.background
-        ) {
+        AfterglowBackdrop(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -160,32 +160,32 @@ fun MediaEditorDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = onDismiss) {
-                            Icon(Icons.Rounded.Close, contentDescription = "Close editor")
+                        GlassIconButton(onClick = onDismiss, glowColor = NeonPurple) {
+                            Icon(Icons.Rounded.Close, contentDescription = "Close editor", tint = OffWhiteText)
                         }
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             text = if (isEdit) "Edit ${category.label}" else "Add to Afterglow",
                             style = MaterialTheme.typography.headlineMedium,
-                            color = MaterialTheme.colorScheme.onBackground
+                            color = OffWhiteText
                         )
                     }
-                    Button(
+                    NeonPrimaryButton(
                         onClick = {
                             val cleanTitle = title.trim()
                             if (cleanTitle.isBlank()) {
                                 validationError = "Title is required."
-                                return@Button
+                                return@NeonPrimaryButton
                             }
                             val parsedYear = releaseYear.toLongOrNull() ?: 2024L
                             if (parsedYear !in 1880L..2040L) {
                                 validationError = "Release year must be between 1880 and 2040."
-                                return@Button
+                                return@NeonPrimaryButton
                             }
                             val parsedImdb = imdbRating.toDoubleOrNull() ?: 0.0
                             if (parsedImdb !in 0.0..10.0) {
                                 validationError = "IMDb rating must be between 0.0 and 10.0."
-                                return@Button
+                                return@NeonPrimaryButton
                             }
                             val parsedRuntime = (runtimeMinutes.toLongOrNull() ?: 0L).coerceIn(0L, 2000L)
                             val parsedSeasons = (totalSeasons.toLongOrNull() ?: 1L).coerceIn(0L, 200L)
@@ -232,13 +232,14 @@ fun MediaEditorDialog(
                             )
                             onSave(finalItem, isEdit)
                         },
-                        shape = RoundedCornerShape(12.dp),
+                        cornerRadius = 14.dp,
+                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
                         modifier = Modifier.testTag("save_media_button")
                     ) {
-                        Text("Save")
+                        Text("Save", fontWeight = FontWeight.Bold)
                     }
                 }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                HorizontalDivider(color = Color.White.copy(alpha = 0.12f))
 
                 Column(
                     modifier = Modifier
@@ -248,55 +249,50 @@ fun MediaEditorDialog(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     if (validationError != null) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.error.copy(alpha = 0.14f),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
+                        NeonGlassCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            accentColor = NeonPink,
+                            cornerRadius = 16.dp,
+                            contentPadding = PaddingValues(12.dp)
                         ) {
                             Text(
                                 text = validationError!!,
-                                color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.padding(12.dp)
+                                color = NeonPink,
+                                style = MaterialTheme.typography.bodySmall
                             )
                         }
                     }
 
                     // Optional TMDB Quick Lookup
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surface,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
+                    NeonGlassCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        accentColor = NeonCyan,
+                        contentPadding = PaddingValues(14.dp)
                     ) {
-                        Column(
-                            modifier = Modifier.padding(14.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text(
                                 text = "Auto-Fill via TMDB (Optional)",
                                 style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.secondary
+                                color = NeonCyan
                             )
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                OutlinedTextField(
+                                NeonGlassTextField(
                                     value = tmdbQuery,
                                     onValueChange = { tmdbQuery = it },
-                                    placeholder = { Text("Search movie or TV title...") },
-                                    singleLine = true,
+                                    placeholder = "Search movie or TV title...",
+                                    focusNeonColor = NeonCyan,
                                     modifier = Modifier.weight(1f)
                                 )
-                                OutlinedButton(
+                                GlassSecondaryButton(
                                     onClick = {
                                         val q = tmdbQuery.trim().ifBlank { title.trim() }
                                         if (q.isBlank()) {
                                             tmdbMessage = "Enter a title to search TMDB."
-                                            return@OutlinedButton
+                                            return@GlassSecondaryButton
                                         }
                                         scope.launch {
                                             tmdbLoading = true
@@ -318,10 +314,12 @@ fun MediaEditorDialog(
                                             tmdbLoading = false
                                         }
                                     },
-                                    enabled = !tmdbLoading
+                                    enabled = !tmdbLoading,
+                                    accentBorderColor = NeonCyan,
+                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp)
                                 ) {
                                     if (tmdbLoading) {
-                                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = NeonCyan)
                                     } else {
                                         Icon(Icons.Rounded.Search, contentDescription = null, modifier = Modifier.size(18.dp))
                                         Spacer(modifier = Modifier.width(4.dp))
@@ -333,18 +331,17 @@ fun MediaEditorDialog(
                                 Text(
                                     text = tmdbMessage!!,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MutedGreyText
                                 )
                             }
                             tmdbResults.forEach { res ->
                                 val label = res.title ?: res.name ?: "Untitled"
                                 val yr = (res.releaseDate ?: res.firstAirDate)?.take(4) ?: ""
-                                Surface(
-                                    shape = RoundedCornerShape(10.dp),
-                                    color = MaterialTheme.colorScheme.surfaceVariant,
+                                Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clip(RoundedCornerShape(10.dp))
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Color.White.copy(alpha = 0.08f))
                                         .clickable {
                                             scope.launch {
                                                 tmdbLoading = true
@@ -375,47 +372,46 @@ fun MediaEditorDialog(
                                                 tmdbLoading = false
                                             }
                                         }
+                                        .padding(10.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Row(
-                                        modifier = Modifier.padding(10.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = "$label ${if (yr.isNotBlank()) "($yr)" else ""}",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                        Text(
-                                            text = res.mediaType?.uppercase() ?: "",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.secondary
-                                        )
-                                    }
+                                    Text(
+                                        text = "$label ${if (yr.isNotBlank()) "($yr)" else ""}",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = OffWhiteText,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Text(
+                                        text = res.mediaType?.uppercase() ?: "",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = NeonCyan
+                                    )
                                 }
                             }
                         }
                     }
 
                     // Category & Watch Status
-                    Text("Category", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary)
+                    Text("Category", style = MaterialTheme.typography.titleSmall, color = NeonFuchsia)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         MediaCategory.entries.forEach { cat ->
-                            FilterChip(
+                            NeonGlassChip(
+                                label = cat.label,
                                 selected = category == cat,
                                 onClick = { category = cat },
-                                label = { Text(cat.label) }
+                                accentColor = categoryNeonColor(cat)
                             )
                         }
                     }
 
-                    Text("Watch Status", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary)
+                    Text("Watch Status", style = MaterialTheme.typography.titleSmall, color = NeonFuchsia)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         WatchStatus.entries.forEach { st ->
-                            FilterChip(
+                            NeonGlassChip(
+                                label = st.label,
                                 selected = status == st,
                                 onClick = {
                                     status = st
@@ -424,175 +420,182 @@ fun MediaEditorDialog(
                                         episodesWatched = totalEpisodes
                                     }
                                 },
-                                label = { Text(st.label) }
+                                accentColor = statusColor(st)
                             )
                         }
                     }
 
                     // Core Metadata
-                    OutlinedTextField(
+                    NeonGlassTextField(
                         value = title,
                         onValueChange = { title = it; validationError = null },
-                        label = { Text("Title *") },
-                        singleLine = true,
+                        label = "Title *",
+                        placeholder = "Enter title...",
+                        focusNeonColor = NeonFuchsia,
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("editor_title_input")
                     )
 
-                    OutlinedTextField(
+                    NeonGlassTextField(
                         value = posterUrl,
                         onValueChange = { posterUrl = it },
-                        label = { Text("Poster Image URL") },
-                        singleLine = true,
+                        label = "Poster Image URL",
+                        placeholder = "https://...",
+                        focusNeonColor = NeonPurple,
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    OutlinedTextField(
+                    NeonGlassTextField(
                         value = genre,
                         onValueChange = { genre = it },
-                        label = { Text("Genres (comma-separated)") },
-                        singleLine = true,
+                        label = "Genres (comma-separated)",
+                        placeholder = "Sci-Fi, Thriller, Drama",
+                        focusNeonColor = NeonCyan,
                         modifier = Modifier.fillMaxWidth()
                     )
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        POPULAR_GENRES.take(10).forEach { g ->
+                        POPULAR_GENRES.take(10).forEachIndexed { idx, g ->
                             val currentList = genre.split(",").map { it.trim() }.filter { it.isNotEmpty() }
                             val selected = currentList.any { it.equals(g, ignoreCase = true) }
-                            FilterChip(
+                            NeonGlassChip(
+                                label = g,
                                 selected = selected,
                                 onClick = {
                                     val updated = if (selected) currentList.filterNot { it.equals(g, true) } else currentList + g
                                     genre = updated.joinToString(", ")
                                 },
-                                label = { Text(g, style = MaterialTheme.typography.labelSmall) }
+                                accentColor = neonPaletteColor(idx)
                             )
                         }
                     }
 
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        OutlinedTextField(
+                        NeonGlassTextField(
                             value = releaseYear,
                             onValueChange = { releaseYear = it.filter(Char::isDigit).take(4) },
-                            label = { Text("Release Year") },
+                            label = "Release Year",
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            singleLine = true,
                             modifier = Modifier.weight(1f)
                         )
-                        OutlinedTextField(
+                        NeonGlassTextField(
                             value = language,
                             onValueChange = { language = it },
-                            label = { Text("Language") },
-                            singleLine = true,
+                            label = "Language",
                             modifier = Modifier.weight(1f)
                         )
                     }
 
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        OutlinedTextField(
+                        NeonGlassTextField(
                             value = runtimeMinutes,
                             onValueChange = { runtimeMinutes = it.filter(Char::isDigit).take(4) },
-                            label = { Text(if (category.isEpisodic) "Avg Ep Min" else "Runtime (min)") },
+                            label = if (category.isEpisodic) "Avg Ep Min" else "Runtime (min)",
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            singleLine = true,
                             modifier = Modifier.weight(1f)
                         )
-                        OutlinedTextField(
+                        NeonGlassTextField(
                             value = imdbRating,
                             onValueChange = { imdbRating = it },
-                            label = { Text("IMDb (0-10)") },
+                            label = "IMDb (0-10)",
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            singleLine = true,
                             modifier = Modifier.weight(1f)
                         )
                     }
 
-                    // Personal Rating Slider
-                    Column {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Personal Rating", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary)
-                            Text(
-                                text = if (personalRating <= 0.0) "Unrated" else String.format(Locale.US, "%.1f / 10", personalRating),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onSurface
+                    // Personal Rating Slider inside NeonGlassCard
+                    NeonGlassCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        accentColor = GoldRating,
+                        contentPadding = PaddingValues(14.dp)
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Personal Rating", style = MaterialTheme.typography.titleSmall, color = GoldRating)
+                                Text(
+                                    text = if (personalRating <= 0.0) "Unrated" else String.format(Locale.US, "%.1f / 10", personalRating),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = OffWhiteText
+                                )
+                            }
+                            if (personalRating > 0.0) {
+                                NeonRatingStars(ratingOutOfTen = personalRating, starSize = 18.dp)
+                            }
+                            Slider(
+                                value = personalRating.toFloat(),
+                                onValueChange = { personalRating = ((it * 2f).roundToInt() / 2.0) },
+                                valueRange = 0f..10f,
+                                steps = 19,
+                                colors = SliderDefaults.colors(
+                                    thumbColor = NeonFuchsia,
+                                    activeTrackColor = NeonPurple,
+                                    inactiveTrackColor = Color.White.copy(alpha = 0.14f)
+                                )
                             )
                         }
-                        Slider(
-                            value = personalRating.toFloat(),
-                            onValueChange = { personalRating = ((it * 2f).roundToInt() / 2.0) },
-                            valueRange = 0f..10f,
-                            steps = 19
-                        )
                     }
 
                     // Platform chips + input
-                    OutlinedTextField(
+                    NeonGlassTextField(
                         value = platform,
                         onValueChange = { platform = it },
-                        label = { Text("Streaming Platform") },
-                        singleLine = true,
+                        label = "Streaming Platform",
+                        focusNeonColor = NeonCyan,
                         modifier = Modifier.fillMaxWidth()
                     )
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        POPULAR_PLATFORMS.take(7).forEach { p ->
-                            FilterChip(
+                        POPULAR_PLATFORMS.take(7).forEachIndexed { idx, p ->
+                            NeonGlassChip(
+                                label = p,
                                 selected = platform.equals(p, ignoreCase = true),
                                 onClick = { platform = p },
-                                label = { Text(p, style = MaterialTheme.typography.labelSmall) }
+                                accentColor = neonPaletteColor(idx + 1)
                             )
                         }
                     }
 
                     // Series / Anime / K-Drama Episode Tracking
                     if (category.isEpisodic) {
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = MaterialTheme.colorScheme.surface,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
+                        NeonGlassCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            accentColor = categoryNeonColor(category),
+                            contentPadding = PaddingValues(14.dp)
                         ) {
-                            Column(
-                                modifier = Modifier.padding(14.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                Text("Season & Episode Progress", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary)
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Text("Season & Episode Progress", style = MaterialTheme.typography.titleSmall, color = categoryNeonColor(category))
                                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    OutlinedTextField(
+                                    NeonGlassTextField(
                                         value = currentSeason,
                                         onValueChange = { currentSeason = it.filter(Char::isDigit).take(3) },
-                                        label = { Text("Curr Season") },
+                                        label = "Curr Season",
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                        singleLine = true,
                                         modifier = Modifier.weight(1f)
                                     )
-                                    OutlinedTextField(
+                                    NeonGlassTextField(
                                         value = totalSeasons,
                                         onValueChange = { totalSeasons = it.filter(Char::isDigit).take(3) },
-                                        label = { Text("Total Seasons") },
+                                        label = "Total Seasons",
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                        singleLine = true,
                                         modifier = Modifier.weight(1f)
                                     )
                                 }
                                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    OutlinedTextField(
+                                    NeonGlassTextField(
                                         value = episodesWatched,
                                         onValueChange = { episodesWatched = it.filter(Char::isDigit).take(4) },
-                                        label = { Text("Eps Watched") },
+                                        label = "Eps Watched",
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                        singleLine = true,
                                         modifier = Modifier.weight(1f)
                                     )
-                                    OutlinedTextField(
+                                    NeonGlassTextField(
                                         value = totalEpisodes,
                                         onValueChange = { totalEpisodes = it.filter(Char::isDigit).take(4) },
-                                        label = { Text("Total Eps") },
+                                        label = "Total Eps",
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                        singleLine = true,
                                         modifier = Modifier.weight(1f)
                                     )
                                 }
@@ -602,78 +605,70 @@ fun MediaEditorDialog(
 
                     // Cast, Crew, Country, Dates, Links
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        OutlinedTextField(
+                        NeonGlassTextField(
                             value = director,
                             onValueChange = { director = it },
-                            label = { Text("Director / Creator") },
-                            singleLine = true,
+                            label = "Director / Creator",
                             modifier = Modifier.weight(1f)
                         )
-                        OutlinedTextField(
+                        NeonGlassTextField(
                             value = country,
                             onValueChange = { country = it },
-                            label = { Text("Country") },
-                            singleLine = true,
+                            label = "Country",
                             modifier = Modifier.weight(1f)
                         )
                     }
-                    OutlinedTextField(
+                    NeonGlassTextField(
                         value = mainCast,
                         onValueChange = { mainCast = it },
-                        label = { Text("Main Cast") },
-                        singleLine = true,
+                        label = "Main Cast",
                         modifier = Modifier.fillMaxWidth()
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        OutlinedTextField(
+                        NeonGlassTextField(
                             value = startDate,
                             onValueChange = { startDate = it },
-                            label = { Text("Start (YYYY-MM-DD)") },
-                            singleLine = true,
+                            label = "Start (YYYY-MM-DD)",
                             modifier = Modifier.weight(1f)
                         )
-                        OutlinedTextField(
+                        NeonGlassTextField(
                             value = completionDate,
                             onValueChange = { completionDate = it },
-                            label = { Text("Finish (YYYY-MM-DD)") },
-                            singleLine = true,
+                            label = "Finish (YYYY-MM-DD)",
                             modifier = Modifier.weight(1f)
                         )
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        OutlinedTextField(
+                        NeonGlassTextField(
                             value = trailerLink,
                             onValueChange = { trailerLink = it },
-                            label = { Text("Trailer URL") },
-                            singleLine = true,
+                            label = "Trailer URL",
                             modifier = Modifier.weight(1f)
                         )
-                        OutlinedTextField(
+                        NeonGlassTextField(
                             value = imdbLink,
                             onValueChange = { imdbLink = it },
-                            label = { Text("IMDb URL") },
-                            singleLine = true,
+                            label = "IMDb URL",
                             modifier = Modifier.weight(1f)
                         )
                     }
 
                     // Watchlist Priority & Collections
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surface,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
+                    NeonGlassCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        accentColor = NeonPink,
+                        contentPadding = PaddingValues(14.dp)
                     ) {
-                        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             ToggleRow("Include in Watchlist", watchlistItem) { watchlistItem = it }
                             if (watchlistItem) {
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     WatchlistPriority.entries.forEach { p ->
-                                        FilterChip(
+                                        NeonGlassChip(
+                                            label = "${p.label} Priority",
                                             selected = priority == p,
                                             onClick = { priority = p },
-                                            label = { Text("${p.label} Priority") }
+                                            accentColor = priorityColor(p)
                                         )
                                     }
                                 }
@@ -683,12 +678,11 @@ fun MediaEditorDialog(
                             ToggleRow("Hidden Gem", hiddenGem) { hiddenGem = it }
                             ToggleRow("Rewatch Collection", rewatchFlag) { rewatchFlag = it }
                             if (rewatchFlag) {
-                                OutlinedTextField(
+                                NeonGlassTextField(
                                     value = rewatchCount,
                                     onValueChange = { rewatchCount = it.filter(Char::isDigit).take(3) },
-                                    label = { Text("Rewatch Count") },
+                                    label = "Rewatch Count",
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                    singleLine = true,
                                     modifier = Modifier.fillMaxWidth()
                                 )
                             }
@@ -696,36 +690,41 @@ fun MediaEditorDialog(
                     }
 
                     // Mood Tags
-                    Text("Mood Tags (up to 6)", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary)
+                    Text("Mood Tags (up to 6)", style = MaterialTheme.typography.titleSmall, color = NeonGreen)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        AVAILABLE_MOODS.forEach { mood ->
+                        AVAILABLE_MOODS.forEachIndexed { idx, mood ->
                             val isSelected = selectedMoods.contains(mood)
-                            FilterChip(
+                            NeonGlassChip(
+                                label = mood,
                                 selected = isSelected,
                                 onClick = {
                                     if (isSelected) selectedMoods.remove(mood)
                                     else if (selectedMoods.size < 6) selectedMoods.add(mood)
                                 },
-                                label = { Text(mood) }
+                                accentColor = neonPaletteColor(idx)
                             )
                         }
                     }
 
                     // Review & Notes
-                    OutlinedTextField(
+                    NeonGlassTextField(
                         value = personalReview,
                         onValueChange = { personalReview = it },
-                        label = { Text("Personal Review") },
+                        label = "Personal Review",
+                        singleLine = false,
                         minLines = 3,
                         maxLines = 6,
+                        focusNeonColor = NeonFuchsia,
                         modifier = Modifier.fillMaxWidth()
                     )
-                    OutlinedTextField(
+                    NeonGlassTextField(
                         value = notes,
                         onValueChange = { notes = it },
-                        label = { Text("Personal Notes") },
+                        label = "Personal Notes",
+                        singleLine = false,
                         minLines = 2,
                         maxLines = 4,
+                        focusNeonColor = NeonCyan,
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -743,7 +742,17 @@ private fun ToggleRow(label: String, checked: Boolean, onCheckedChange: (Boolean
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = OffWhiteText)
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = NeonPurple,
+                uncheckedThumbColor = MutedGreyText,
+                uncheckedTrackColor = Color.White.copy(alpha = 0.12f),
+                uncheckedBorderColor = Color.White.copy(alpha = 0.25f)
+            )
+        )
     }
 }

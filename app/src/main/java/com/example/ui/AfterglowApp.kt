@@ -1,20 +1,24 @@
 package com.example.ui
 
+import android.os.Build
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.Image
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -27,35 +31,25 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.Bookmark
-import androidx.compose.material.icons.rounded.Dashboard
+import androidx.compose.material.icons.rounded.Casino
 import androidx.compose.material.icons.rounded.EmojiEvents
-import androidx.compose.material.icons.rounded.Menu
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationDrawerItem
-import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.PermanentDrawerSheet
 import androidx.compose.material3.PermanentNavigationDrawer
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -70,11 +64,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.credentials.CredentialManager
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -89,8 +86,16 @@ import com.example.data.model.MediaCategory
 import com.example.data.model.MediaItem
 import com.example.data.model.UiState
 import com.example.data.model.UserProfile
+import com.example.ui.components.AfterglowBackdrop
+import com.example.ui.components.AfterglowTopBar
+import com.example.ui.components.FloatingBottomBarClearance
+import com.example.ui.components.LiquidGlassBottomBar
+import com.example.ui.components.LiquidNavTab
 import com.example.ui.components.MediaDetailDialog
 import com.example.ui.components.MediaEditorDialog
+import com.example.ui.components.NeonGlassCard
+import com.example.ui.components.NeonPrimaryButton
+import com.example.ui.components.neonGlow
 import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.LibraryMode
 import com.example.ui.screens.MediaLibraryScreen
@@ -100,22 +105,32 @@ import com.example.ui.screens.SmartHubScreen
 import com.example.ui.screens.StatisticsScreen
 import com.example.ui.screens.WatchlistScreen
 import com.example.ui.theme.AfterglowTheme
+import com.example.ui.theme.MutedGreyText
+import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.NeonFuchsia
+import com.example.ui.theme.NeonPink
+import com.example.ui.theme.NeonPurple
+import com.example.ui.theme.OffWhiteText
+import com.example.ui.theme.SpaceGroteskFontFamily
 import com.example.ui.viewmodel.AfterglowViewModel
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FirebaseFirestore
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.launch
 
 enum class AfterglowSection(val label: String, val icon: ImageVector) {
-    DASHBOARD("Dashboard", Icons.Rounded.Dashboard),
+    DASHBOARD("Home", Icons.Rounded.Home),
     MOVIES("Movies", Icons.Rounded.Movie),
-    WEB_SERIES("Web Series", Icons.Rounded.Tv),
-    ANIME_KDRAMA("Anime & K-Drama", Icons.Rounded.AutoAwesome),
+    WEB_SERIES("Series", Icons.Rounded.Tv),
+    ANIME("Anime", Icons.Rounded.AutoAwesome),
+    K_DRAMA("K-Drama", Icons.Rounded.Favorite),
     WATCHLIST("Watchlist", Icons.Rounded.Bookmark),
     RANKINGS("Favourites & Rankings", Icons.Rounded.EmojiEvents),
     STATISTICS("Statistics", Icons.Rounded.BarChart),
-    SMART_HUB("Smart Discovery", Icons.Rounded.AutoAwesome),
+    SMART_HUB("Smart Discovery", Icons.Rounded.Casino),
     SETTINGS("Settings & Data", Icons.Rounded.Settings)
 }
 
@@ -148,7 +163,6 @@ fun AfterglowApp() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AuthenticatedAfterglowShell(
     currentUserId: String,
@@ -206,6 +220,7 @@ private fun AuthenticatedAfterglowShell(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val hazeState = rememberHazeState()
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { msg ->
@@ -220,6 +235,7 @@ private fun AuthenticatedAfterglowShell(
     AfterglowTheme(accentPreset = profile.accentPreset) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val isExpandedScreen = maxWidth >= 840.dp
+            val screenBottomPadding = if (isExpandedScreen) 24.dp else FloatingBottomBarClearance
 
             val openAddEditor: (MediaCategory, Boolean) -> Unit = { cat, isWatchlist ->
                 editorItem = null
@@ -228,247 +244,288 @@ private fun AuthenticatedAfterglowShell(
                 showEditor = true
             }
 
-            val mainScaffold: @Composable () -> Unit = {
-                Scaffold(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    contentWindowInsets = WindowInsets(0, 0, 0, 0),
-                    snackbarHost = { SnackbarHost(snackbarHostState) },
-                    topBar = {
-                        if (!isExpandedScreen) {
-                            TopAppBar(
-                                colors = TopAppBarDefaults.topAppBarColors(
-                                    containerColor = MaterialTheme.colorScheme.background,
-                                    titleContentColor = MaterialTheme.colorScheme.onBackground
-                                ),
-                                navigationIcon = {
-                                    IconButton(
-                                        onClick = { scope.launch { drawerState.open() } },
-                                        modifier = Modifier.testTag("open_drawer_button")
-                                    ) {
-                                        Icon(Icons.Rounded.Menu, contentDescription = "Open navigation menu")
-                                    }
-                                },
-                                title = {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Image(
-                                            painter = painterResource(id = R.drawable.ic_afterglow_icon),
-                                            contentDescription = null,
-                                            modifier = Modifier
-                                                .size(26.dp)
-                                                .clip(RoundedCornerShape(7.dp))
-                                        )
-                                        Text(
-                                            text = "AFTERGLOW",
-                                            style = MaterialTheme.typography.titleLarge,
-                                            color = MaterialTheme.colorScheme.onBackground
-                                        )
-                                    }
-                                },
-                                actions = {
-                                    IconButton(
-                                        onClick = {
-                                            val cat = when (currentSection) {
-                                                AfterglowSection.WEB_SERIES -> MediaCategory.WEB_SERIES
-                                                AfterglowSection.ANIME_KDRAMA -> MediaCategory.ANIME
-                                                else -> MediaCategory.MOVIE
-                                            }
-                                            openAddEditor(cat, currentSection == AfterglowSection.WATCHLIST)
-                                        },
-                                        modifier = Modifier.testTag("topbar_add_button")
-                                    ) {
-                                        Icon(Icons.Rounded.Add, contentDescription = "Add title", tint = MaterialTheme.colorScheme.secondary)
-                                    }
+            val bottomSections = remember {
+                listOf(
+                    AfterglowSection.DASHBOARD,
+                    AfterglowSection.MOVIES,
+                    AfterglowSection.WEB_SERIES,
+                    AfterglowSection.ANIME,
+                    AfterglowSection.K_DRAMA
+                )
+            }
+            val bottomTabs = remember {
+                bottomSections.map { sec ->
+                    LiquidNavTab(
+                        id = sec.name.lowercase(),
+                        label = sec.label,
+                        icon = sec.icon
+                    )
+                }
+            }
+
+            val mainShellContent: @Composable () -> Unit = {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    // Backdrop + scrolling content marked as Haze blur source on Android 12+
+                    AfterglowBackdrop(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .then(
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                    Modifier.hazeSource(state = hazeState)
+                                } else {
+                                    Modifier
                                 }
                             )
-                        }
-                    },
-                    bottomBar = {
-                        if (!isExpandedScreen) {
-                            val bottomTabs = listOf(
-                                AfterglowSection.DASHBOARD,
-                                AfterglowSection.MOVIES,
-                                AfterglowSection.WEB_SERIES,
-                                AfterglowSection.WATCHLIST,
-                                AfterglowSection.STATISTICS
-                            )
-                            NavigationBar(
-                                containerColor = MaterialTheme.colorScheme.surface
-                            ) {
-                                bottomTabs.forEach { sec ->
-                                    NavigationBarItem(
-                                        selected = currentSection == sec,
-                                        onClick = { currentSection = sec },
-                                        icon = { Icon(sec.icon, contentDescription = sec.label) },
-                                        label = {
-                                            Text(
-                                                text = when (sec) {
-                                                    AfterglowSection.WEB_SERIES -> "Series"
-                                                    AfterglowSection.STATISTICS -> "Stats"
-                                                    else -> sec.label
-                                                },
-                                                maxLines = 1
-                                            )
+                    ) {
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            if (!isExpandedScreen) {
+                                AfterglowTopBar(
+                                    onOpenMenu = { scope.launch { drawerState.open() } },
+                                    onAddClick = {
+                                        val cat = when (currentSection) {
+                                            AfterglowSection.WEB_SERIES -> MediaCategory.WEB_SERIES
+                                            AfterglowSection.ANIME -> MediaCategory.ANIME
+                                            AfterglowSection.K_DRAMA -> MediaCategory.K_DRAMA
+                                            else -> MediaCategory.MOVIE
                                         }
-                                    )
-                                }
+                                        openAddEditor(cat, currentSection == AfterglowSection.WATCHLIST)
+                                    }
+                                )
+                            } else {
+                                Spacer(modifier = Modifier.statusBarsPadding().height(8.dp))
                             }
-                        }
-                    },
-                    floatingActionButton = {
-                        if (isExpandedScreen) {
-                            FloatingActionButton(
-                                onClick = { openAddEditor(MediaCategory.MOVIE, currentSection == AfterglowSection.WATCHLIST) },
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary
+
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth()
                             ) {
-                                Icon(Icons.Rounded.Add, contentDescription = "Add title")
+                                when {
+                                    mediaItemsState is UiState.Loading -> {
+                                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                            CircularProgressIndicator(color = NeonFuchsia)
+                                        }
+                                    }
+                                    mediaItemsState is UiState.Error -> {
+                                        val err = (mediaItemsState as UiState.Error).message
+                                        Box(modifier = Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+                                            NeonGlassCard(
+                                                accentColor = NeonPink,
+                                                cornerRadius = 22.dp,
+                                                contentPadding = PaddingValues(18.dp)
+                                            ) {
+                                                Text(
+                                                    text = "Unable to sync library: $err",
+                                                    color = NeonPink
+                                                )
+                                            }
+                                        }
+                                    }
+                                    else -> {
+                                        Crossfade(
+                                            targetState = currentSection,
+                                            animationSpec = tween(200),
+                                            label = "section_crossfade"
+                                        ) { section ->
+                                            when (section) {
+                                                AfterglowSection.DASHBOARD -> DashboardScreen(
+                                                    profile = profile,
+                                                    stats = stats,
+                                                    onAddTitle = openAddEditor,
+                                                    onSelectItem = { detailItemId = it.id },
+                                                    onStepEpisode = viewModel::stepEpisode,
+                                                    onToggleFavourite = viewModel::toggleFavourite,
+                                                    onOpenWatchlist = { currentSection = AfterglowSection.WATCHLIST },
+                                                    onOpenSmartHub = { tab ->
+                                                        smartHubTab = tab
+                                                        currentSection = AfterglowSection.SMART_HUB
+                                                    },
+                                                    onOpenStatistics = { currentSection = AfterglowSection.STATISTICS },
+                                                    bottomPadding = screenBottomPadding
+                                                )
+
+                                                AfterglowSection.MOVIES -> MediaLibraryScreen(
+                                                    mode = LibraryMode.MOVIES,
+                                                    allItems = allItems,
+                                                    compact = profile.compactMode,
+                                                    onAdd = { openAddEditor(it, false) },
+                                                    onSelect = { detailItemId = it.id },
+                                                    onEdit = {
+                                                        editorItem = it
+                                                        showEditor = true
+                                                    },
+                                                    onDelete = viewModel::deleteMediaItem,
+                                                    onStepEpisode = viewModel::stepEpisode,
+                                                    onToggleFavourite = viewModel::toggleFavourite,
+                                                    bottomPadding = screenBottomPadding
+                                                )
+
+                                                AfterglowSection.WEB_SERIES -> MediaLibraryScreen(
+                                                    mode = LibraryMode.WEB_SERIES,
+                                                    allItems = allItems,
+                                                    compact = profile.compactMode,
+                                                    onAdd = { openAddEditor(it, false) },
+                                                    onSelect = { detailItemId = it.id },
+                                                    onEdit = {
+                                                        editorItem = it
+                                                        showEditor = true
+                                                    },
+                                                    onDelete = viewModel::deleteMediaItem,
+                                                    onStepEpisode = viewModel::stepEpisode,
+                                                    onToggleFavourite = viewModel::toggleFavourite,
+                                                    bottomPadding = screenBottomPadding
+                                                )
+
+                                                AfterglowSection.ANIME -> MediaLibraryScreen(
+                                                    mode = LibraryMode.ANIME,
+                                                    allItems = allItems,
+                                                    compact = profile.compactMode,
+                                                    onAdd = { openAddEditor(it, false) },
+                                                    onSelect = { detailItemId = it.id },
+                                                    onEdit = {
+                                                        editorItem = it
+                                                        showEditor = true
+                                                    },
+                                                    onDelete = viewModel::deleteMediaItem,
+                                                    onStepEpisode = viewModel::stepEpisode,
+                                                    onToggleFavourite = viewModel::toggleFavourite,
+                                                    bottomPadding = screenBottomPadding
+                                                )
+
+                                                AfterglowSection.K_DRAMA -> MediaLibraryScreen(
+                                                    mode = LibraryMode.K_DRAMA,
+                                                    allItems = allItems,
+                                                    compact = profile.compactMode,
+                                                    onAdd = { openAddEditor(it, false) },
+                                                    onSelect = { detailItemId = it.id },
+                                                    onEdit = {
+                                                        editorItem = it
+                                                        showEditor = true
+                                                    },
+                                                    onDelete = viewModel::deleteMediaItem,
+                                                    onStepEpisode = viewModel::stepEpisode,
+                                                    onToggleFavourite = viewModel::toggleFavourite,
+                                                    bottomPadding = screenBottomPadding
+                                                )
+
+                                                AfterglowSection.WATCHLIST -> WatchlistScreen(
+                                                    allItems = allItems,
+                                                    onAddWatchlistItem = { openAddEditor(MediaCategory.MOVIE, true) },
+                                                    onSelectItem = { detailItemId = it.id },
+                                                    onMoveToLibrary = viewModel::moveWatchlistToLibrary,
+                                                    onDeleteItem = viewModel::deleteMediaItem,
+                                                    bottomPadding = screenBottomPadding
+                                                )
+
+                                                AfterglowSection.RANKINGS -> RankingsScreen(
+                                                    allItems = allItems,
+                                                    onSelectItem = { detailItemId = it.id },
+                                                    onUpdateManualRank = viewModel::updateManualRank,
+                                                    onToggleFavourite = viewModel::toggleFavourite,
+                                                    onToggleAllTime = viewModel::toggleAllTimeFavourite,
+                                                    bottomPadding = screenBottomPadding
+                                                )
+
+                                                AfterglowSection.STATISTICS -> StatisticsScreen(
+                                                    stats = stats,
+                                                    profile = profile,
+                                                    allItems = allItems,
+                                                    onSelectItem = { detailItemId = it.id },
+                                                    bottomPadding = screenBottomPadding
+                                                )
+
+                                                AfterglowSection.SMART_HUB -> SmartHubScreen(
+                                                    initialTab = smartHubTab,
+                                                    allItems = allItems,
+                                                    quotes = quotes,
+                                                    achievements = achievements,
+                                                    stats = stats,
+                                                    profile = profile,
+                                                    onSelectItem = { detailItemId = it.id },
+                                                    onResumeDropped = viewModel::resumeDroppedItem,
+                                                    onIncrementRewatch = viewModel::incrementRewatch,
+                                                    onSaveQuote = viewModel::saveQuote,
+                                                    onDeleteQuote = viewModel::deleteQuote,
+                                                    bottomPadding = screenBottomPadding
+                                                )
+
+                                                AfterglowSection.SETTINGS -> SettingsScreen(
+                                                    userEmail = userEmail,
+                                                    profile = profile,
+                                                    mediaItems = allItems,
+                                                    quotes = quotes,
+                                                    onUpdateProfile = viewModel::updateProfile,
+                                                    onImportBackup = viewModel::importBackup,
+                                                    onClearAllData = viewModel::clearAllData,
+                                                    onNotify = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } },
+                                                    onSignOut = {
+                                                        signOut(credentialManager, scope, onSignOutComplete = onSignedOut)
+                                                    },
+                                                    bottomPadding = screenBottomPadding
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
-                ) { innerPadding ->
-                    Box(
+
+                    // Neon Glass Snackbar positioned cleanly above floating bar
+                    SnackbarHost(
+                        hostState = snackbarHostState,
                         modifier = Modifier
-                            .fillMaxSize()
-                            .padding(innerPadding)
-                    ) {
-                        when {
-                            mediaItemsState is UiState.Loading -> {
-                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    CircularProgressIndicator()
+                            .align(Alignment.BottomCenter)
+                            .navigationBarsPadding()
+                            .padding(
+                                start = 16.dp,
+                                end = 16.dp,
+                                bottom = if (isExpandedScreen) 20.dp else 94.dp
+                            )
+                    ) { data ->
+                        NeonGlassCard(
+                            accentColor = NeonCyan,
+                            cornerRadius = 18.dp,
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
+                        ) {
+                            Text(
+                                text = data.visuals.message,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = OffWhiteText
+                            )
+                        }
+                    }
+
+                    // Floating Liquid Glass Bottom Bar (Home, Movies, Series, Anime, K-Drama)
+                    if (!isExpandedScreen) {
+                        val selectedIndex = bottomSections.indexOf(currentSection)
+                        LiquidGlassBottomBar(
+                            tabs = bottomTabs,
+                            selectedIndex = selectedIndex,
+                            onSelectTab = { idx -> currentSection = bottomSections[idx] },
+                            hazeState = hazeState,
+                            modifier = Modifier.align(Alignment.BottomCenter)
+                        )
+                    } else {
+                        NeonPrimaryButton(
+                            onClick = {
+                                val cat = when (currentSection) {
+                                    AfterglowSection.WEB_SERIES -> MediaCategory.WEB_SERIES
+                                    AfterglowSection.ANIME -> MediaCategory.ANIME
+                                    AfterglowSection.K_DRAMA -> MediaCategory.K_DRAMA
+                                    else -> MediaCategory.MOVIE
                                 }
-                            }
-                            mediaItemsState is UiState.Error -> {
-                                val err = (mediaItemsState as UiState.Error).message
-                                Box(modifier = Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-                                    Surface(
-                                        shape = RoundedCornerShape(18.dp),
-                                        color = MaterialTheme.colorScheme.surface,
-                                        modifier = Modifier.border(1.dp, MaterialTheme.colorScheme.error, RoundedCornerShape(18.dp))
-                                    ) {
-                                        Text(
-                                            text = "Unable to sync library: $err",
-                                            color = MaterialTheme.colorScheme.error,
-                                            modifier = Modifier.padding(18.dp)
-                                        )
-                                    }
-                                }
-                            }
-                            else -> {
-                                when (currentSection) {
-                                    AfterglowSection.DASHBOARD -> DashboardScreen(
-                                        profile = profile,
-                                        stats = stats,
-                                        onAddTitle = openAddEditor,
-                                        onSelectItem = { detailItemId = it.id },
-                                        onStepEpisode = viewModel::stepEpisode,
-                                        onToggleFavourite = viewModel::toggleFavourite,
-                                        onOpenSmartHub = { tab ->
-                                            smartHubTab = tab
-                                            currentSection = AfterglowSection.SMART_HUB
-                                        },
-                                        onOpenStatistics = { currentSection = AfterglowSection.STATISTICS }
-                                    )
-
-                                    AfterglowSection.MOVIES -> MediaLibraryScreen(
-                                        mode = LibraryMode.MOVIES,
-                                        allItems = allItems,
-                                        compact = profile.compactMode,
-                                        onAdd = { openAddEditor(it, false) },
-                                        onSelect = { detailItemId = it.id },
-                                        onEdit = {
-                                            editorItem = it
-                                            showEditor = true
-                                        },
-                                        onDelete = viewModel::deleteMediaItem,
-                                        onStepEpisode = viewModel::stepEpisode,
-                                        onToggleFavourite = viewModel::toggleFavourite
-                                    )
-
-                                    AfterglowSection.WEB_SERIES -> MediaLibraryScreen(
-                                        mode = LibraryMode.WEB_SERIES,
-                                        allItems = allItems,
-                                        compact = profile.compactMode,
-                                        onAdd = { openAddEditor(it, false) },
-                                        onSelect = { detailItemId = it.id },
-                                        onEdit = {
-                                            editorItem = it
-                                            showEditor = true
-                                        },
-                                        onDelete = viewModel::deleteMediaItem,
-                                        onStepEpisode = viewModel::stepEpisode,
-                                        onToggleFavourite = viewModel::toggleFavourite
-                                    )
-
-                                    AfterglowSection.ANIME_KDRAMA -> MediaLibraryScreen(
-                                        mode = LibraryMode.ANIME_KDRAMA,
-                                        allItems = allItems,
-                                        compact = profile.compactMode,
-                                        onAdd = { openAddEditor(it, false) },
-                                        onSelect = { detailItemId = it.id },
-                                        onEdit = {
-                                            editorItem = it
-                                            showEditor = true
-                                        },
-                                        onDelete = viewModel::deleteMediaItem,
-                                        onStepEpisode = viewModel::stepEpisode,
-                                        onToggleFavourite = viewModel::toggleFavourite
-                                    )
-
-                                    AfterglowSection.WATCHLIST -> WatchlistScreen(
-                                        allItems = allItems,
-                                        onAddWatchlistItem = { openAddEditor(MediaCategory.MOVIE, true) },
-                                        onSelectItem = { detailItemId = it.id },
-                                        onMoveToLibrary = viewModel::moveWatchlistToLibrary,
-                                        onDeleteItem = viewModel::deleteMediaItem
-                                    )
-
-                                    AfterglowSection.RANKINGS -> RankingsScreen(
-                                        allItems = allItems,
-                                        onSelectItem = { detailItemId = it.id },
-                                        onUpdateManualRank = viewModel::updateManualRank,
-                                        onToggleFavourite = viewModel::toggleFavourite,
-                                        onToggleAllTime = viewModel::toggleAllTimeFavourite
-                                    )
-
-                                    AfterglowSection.STATISTICS -> StatisticsScreen(
-                                        stats = stats,
-                                        profile = profile,
-                                        allItems = allItems,
-                                        onSelectItem = { detailItemId = it.id }
-                                    )
-
-                                    AfterglowSection.SMART_HUB -> SmartHubScreen(
-                                        initialTab = smartHubTab,
-                                        allItems = allItems,
-                                        quotes = quotes,
-                                        achievements = achievements,
-                                        stats = stats,
-                                        profile = profile,
-                                        onSelectItem = { detailItemId = it.id },
-                                        onResumeDropped = viewModel::resumeDroppedItem,
-                                        onIncrementRewatch = viewModel::incrementRewatch,
-                                        onSaveQuote = viewModel::saveQuote,
-                                        onDeleteQuote = viewModel::deleteQuote
-                                    )
-
-                                    AfterglowSection.SETTINGS -> SettingsScreen(
-                                        userEmail = userEmail,
-                                        profile = profile,
-                                        mediaItems = allItems,
-                                        quotes = quotes,
-                                        onUpdateProfile = viewModel::updateProfile,
-                                        onImportBackup = viewModel::importBackup,
-                                        onClearAllData = viewModel::clearAllData,
-                                        onNotify = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } },
-                                        onSignOut = {
-                                            signOut(credentialManager, scope, onSignOutComplete = onSignedOut)
-                                        }
-                                    )
-                                }
-                            }
+                                openAddEditor(cat, currentSection == AfterglowSection.WATCHLIST)
+                            },
+                            cornerRadius = 18.dp,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .navigationBarsPadding()
+                                .padding(20.dp)
+                        ) {
+                            Icon(Icons.Rounded.Add, contentDescription = "Add title")
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Add Title", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -478,8 +535,10 @@ private fun AuthenticatedAfterglowShell(
                 PermanentNavigationDrawer(
                     drawerContent = {
                         PermanentDrawerSheet(
-                            drawerContainerColor = MaterialTheme.colorScheme.surface,
-                            modifier = Modifier.width(268.dp)
+                            drawerContainerColor = Color(0xFF0A0614),
+                            modifier = Modifier
+                                .width(268.dp)
+                                .border(1.dp, Color.White.copy(alpha = 0.14f))
                         ) {
                             DrawerMenuContent(
                                 profile = profile,
@@ -488,15 +547,17 @@ private fun AuthenticatedAfterglowShell(
                             )
                         }
                     },
-                    content = mainScaffold
+                    content = mainShellContent
                 )
             } else {
                 ModalNavigationDrawer(
                     drawerState = drawerState,
                     drawerContent = {
                         ModalDrawerSheet(
-                            drawerContainerColor = MaterialTheme.colorScheme.surface,
-                            modifier = Modifier.width(284.dp)
+                            drawerContainerColor = Color(0xFF0B0718),
+                            modifier = Modifier
+                                .width(284.dp)
+                                .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(topEnd = 24.dp, bottomEnd = 24.dp))
                         ) {
                             DrawerMenuContent(
                                 profile = profile,
@@ -508,7 +569,7 @@ private fun AuthenticatedAfterglowShell(
                             )
                         }
                     },
-                    content = mainScaffold
+                    content = mainShellContent
                 )
             }
         }
@@ -561,42 +622,88 @@ private fun DrawerMenuContent(
         modifier = Modifier
             .fillMaxHeight()
             .statusBarsPadding()
+            .navigationBarsPadding()
             .verticalScroll(rememberScrollState())
             .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.ic_afterglow_icon),
-                contentDescription = "Afterglow logo",
+            Box(
                 modifier = Modifier
                     .size(40.dp)
-                    .clip(RoundedCornerShape(10.dp))
-            )
+                    .neonGlow(NeonPink, cornerRadius = 12.dp, alpha = 0.42f, spread = 6.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Brush.linearGradient(listOf(NeonPurple, NeonPink)))
+                    .border(1.dp, Color.White.copy(alpha = 0.45f), RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.AutoAwesome,
+                    contentDescription = "Afterglow logo",
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
             Column {
-                Text("AFTERGLOW", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
-                Text(profile.displayName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+                Text(
+                    text = "AFTERGLOW",
+                    fontFamily = SpaceGroteskFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    letterSpacing = 2.2.sp,
+                    color = OffWhiteText
+                )
+                Text(
+                    text = profile.displayName,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = NeonFuchsia
+                )
             }
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outline, modifier = Modifier.padding(vertical = 6.dp))
+        HorizontalDivider(color = Color.White.copy(alpha = 0.14f), modifier = Modifier.padding(vertical = 4.dp))
 
         AfterglowSection.entries.forEach { section ->
-            NavigationDrawerItem(
-                selected = currentSection == section,
-                onClick = { onSelectSection(section) },
-                icon = { Icon(section.icon, contentDescription = null) },
-                label = { Text(section.label) },
-                colors = NavigationDrawerItemDefaults.colors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                    selectedIconColor = MaterialTheme.colorScheme.secondary,
-                    selectedTextColor = MaterialTheme.colorScheme.onSurface
-                ),
-                modifier = Modifier.testTag("nav_${section.name.lowercase()}")
-            )
+            val selected = currentSection == section
+            val shape = RoundedCornerShape(16.dp)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(
+                        if (selected) {
+                            Modifier
+                                .neonGlow(NeonPurple, cornerRadius = 16.dp, alpha = 0.30f, spread = 5.dp)
+                                .clip(shape)
+                                .background(Brush.horizontalGradient(listOf(NeonFuchsia.copy(alpha = 0.85f), NeonPurple.copy(alpha = 0.85f))))
+                                .border(1.dp, Color.White.copy(alpha = 0.38f), shape)
+                        } else {
+                            Modifier
+                                .clip(shape)
+                                .background(Color.White.copy(alpha = 0.04f))
+                        }
+                    )
+                    .clickable { onSelectSection(section) }
+                    .padding(horizontal = 14.dp, vertical = 12.dp)
+                    .testTag("nav_${section.name.lowercase()}"),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    imageVector = section.icon,
+                    contentDescription = null,
+                    tint = if (selected) Color.White else MutedGreyText,
+                    modifier = Modifier.size(20.dp)
+                )
+                Text(
+                    text = section.label,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                    color = if (selected) Color.White else OffWhiteText
+                )
+            }
         }
     }
 }

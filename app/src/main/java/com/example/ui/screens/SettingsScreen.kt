@@ -2,7 +2,6 @@ package com.example.ui.screens
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -12,12 +11,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Logout
@@ -28,18 +24,11 @@ import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.TableView
 import androidx.compose.material.icons.rounded.Upload
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -49,10 +38,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.BuildConfig
 import com.example.data.export.ImportedBackup
@@ -62,6 +55,21 @@ import com.example.data.model.MediaItem
 import com.example.data.model.QuoteItem
 import com.example.data.model.UserProfile
 import com.example.data.tmdb.TmdbPreferences
+import com.example.ui.components.FloatingBottomBarClearance
+import com.example.ui.components.GlassSecondaryButton
+import com.example.ui.components.NeonGlassCard
+import com.example.ui.components.NeonGlassChip
+import com.example.ui.components.NeonGlassDialog
+import com.example.ui.components.NeonGlassTextField
+import com.example.ui.components.NeonPrimaryButton
+import com.example.ui.components.neonPaletteColor
+import com.example.ui.theme.MutedGreyText
+import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.NeonFuchsia
+import com.example.ui.theme.NeonGreen
+import com.example.ui.theme.NeonPink
+import com.example.ui.theme.NeonPurple
+import com.example.ui.theme.OffWhiteText
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -79,6 +87,7 @@ fun SettingsScreen(
     onClearAllData: () -> Unit,
     onNotify: (String) -> Unit,
     onSignOut: () -> Unit,
+    bottomPadding: Dp = FloatingBottomBarClearance,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -147,68 +156,68 @@ fun SettingsScreen(
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottomPadding),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
             Text(
                 text = "Settings & Data",
                 style = MaterialTheme.typography.displayMedium,
-                color = MaterialTheme.colorScheme.onBackground
+                color = OffWhiteText
             )
         }
 
         // User Profile & Preferences
         item {
-            SettingsCard(title = "Profile & Display Name", icon = Icons.Rounded.Person) {
+            SettingsCard(title = "Profile & Display Name", icon = Icons.Rounded.Person, accentColor = NeonPurple) {
                 if (!userEmail.isNullOrBlank()) {
                     Text(
                         text = "Signed in as $userEmail",
                         style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.secondary
+                        color = NeonCyan
                     )
                 }
-                OutlinedTextField(
+                NeonGlassTextField(
                     value = displayName,
                     onValueChange = { displayName = it },
-                    label = { Text("Custom Display Name") },
-                    singleLine = true,
+                    label = "Custom Display Name",
+                    focusNeonColor = NeonPurple,
                     modifier = Modifier.fillMaxWidth()
                 )
-                OutlinedTextField(
+                NeonGlassTextField(
                     value = bio,
                     onValueChange = { bio = it },
-                    label = { Text("Bio / Cinephile Tagline") },
+                    label = "Bio / Cinephile Tagline",
+                    singleLine = false,
+                    minLines = 2,
                     maxLines = 3,
+                    focusNeonColor = NeonPurple,
                     modifier = Modifier.fillMaxWidth()
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
+                    NeonGlassTextField(
                         value = movieGoal,
                         onValueChange = { movieGoal = it.filter(Char::isDigit).take(4) },
-                        label = { Text("Movie Goal") },
+                        label = "Movie Goal",
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
                         modifier = Modifier.weight(1f)
                     )
-                    OutlinedTextField(
+                    NeonGlassTextField(
                         value = seriesGoal,
                         onValueChange = { seriesGoal = it.filter(Char::isDigit).take(3) },
-                        label = { Text("Series Goal") },
+                        label = "Series Goal",
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
                         modifier = Modifier.weight(1f)
                     )
-                    OutlinedTextField(
+                    NeonGlassTextField(
                         value = episodeGoal,
                         onValueChange = { episodeGoal = it.filter(Char::isDigit).take(5) },
-                        label = { Text("Ep Goal") },
+                        label = "Ep Goal",
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
                         modifier = Modifier.weight(1f)
                     )
                 }
-                Button(
+                NeonPrimaryButton(
                     onClick = {
                         onUpdateProfile(
                             profile.copy(
@@ -222,29 +231,29 @@ fun SettingsScreen(
                             )
                         )
                     },
-                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("save_profile_button")
                 ) {
-                    Text("Save Profile & Goals")
+                    Text("Save Profile & Goals", fontWeight = FontWeight.Bold)
                 }
             }
         }
 
         // Theme Settings
         item {
-            SettingsCard(title = "Theme Settings", icon = Icons.Rounded.Palette) {
-                Text("Accent Palette", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary)
+            SettingsCard(title = "Theme Settings", icon = Icons.Rounded.Palette, accentColor = NeonFuchsia) {
+                Text("Accent Palette", style = MaterialTheme.typography.titleSmall, color = NeonFuchsia)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AccentColorPreset.entries.forEach { preset ->
-                        FilterChip(
+                    AccentColorPreset.entries.forEachIndexed { idx, preset ->
+                        NeonGlassChip(
+                            label = preset.label,
                             selected = selectedAccent == preset,
                             onClick = {
                                 selectedAccent = preset
                                 onUpdateProfile(profile.copy(accentColorKey = preset.name, compactMode = compactMode))
                             },
-                            label = { Text(preset.label) }
+                            accentColor = neonPaletteColor(idx)
                         )
                     }
                 }
@@ -254,15 +263,21 @@ fun SettingsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Compact Card Density", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                        Text("Fit more posters and episode cards per screen", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Compact Card Density", style = MaterialTheme.typography.bodyMedium, color = OffWhiteText)
+                        Text("Fit more posters and episode cards per screen", style = MaterialTheme.typography.bodySmall, color = MutedGreyText)
                     }
                     Switch(
                         checked = compactMode,
                         onCheckedChange = {
                             compactMode = it
                             onUpdateProfile(profile.copy(accentColorKey = selectedAccent.name, compactMode = it))
-                        }
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = NeonFuchsia,
+                            uncheckedThumbColor = MutedGreyText,
+                            uncheckedTrackColor = Color.White.copy(alpha = 0.12f)
+                        )
                     )
                 }
             }
@@ -270,29 +285,30 @@ fun SettingsScreen(
 
         // Optional TMDB API Integration
         item {
-            SettingsCard(title = "TMDB Auto-Fill (Optional)", icon = Icons.Rounded.Backup) {
+            SettingsCard(title = "TMDB Auto-Fill (Optional)", icon = Icons.Rounded.Backup, accentColor = NeonCyan) {
                 val buildKeyActive = BuildConfig.TMDB_API_KEY.isNotBlank() && BuildConfig.TMDB_API_KEY != "MY_TMDB_API_KEY"
                 Text(
                     text = if (buildKeyActive) "TMDB key active via Secrets configuration."
                     else "Optional: Add a personal TMDB v3 API key locally (or via Secrets panel) to search posters, cast & runtime automatically.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MutedGreyText
                 )
-                OutlinedTextField(
+                NeonGlassTextField(
                     value = tmdbKeyInput,
                     onValueChange = { tmdbKeyInput = it },
-                    label = { Text("TMDB v3 API Key") },
+                    label = "TMDB v3 API Key",
                     visualTransformation = PasswordVisualTransformation(),
-                    singleLine = true,
+                    focusNeonColor = NeonCyan,
                     modifier = Modifier.fillMaxWidth()
                 )
-                OutlinedButton(
+                GlassSecondaryButton(
                     onClick = {
                         scope.launch {
                             TmdbPreferences.saveUserKey(context, tmdbKeyInput)
                             onNotify(if (tmdbKeyInput.isBlank()) "Cleared custom TMDB key" else "TMDB API key saved locally")
                         }
                     },
+                    accentBorderColor = NeonCyan,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Save TMDB Key")
@@ -302,23 +318,24 @@ fun SettingsScreen(
 
         // Backup, Export & Import
         item {
-            SettingsCard(title = "Backup, Import & Export", icon = Icons.Rounded.TableView) {
+            SettingsCard(title = "Backup, Import & Export", icon = Icons.Rounded.TableView, accentColor = NeonGreen) {
                 Text(
                     text = "Export your entire Afterglow library (${mediaItems.size} titles, ${quotes.size} quotes) or restore from a JSON backup.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MutedGreyText
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Button(
+                    NeonPrimaryButton(
                         onClick = { exportJsonLauncher.launch("afterglow_backup_$dateStamp.json") },
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(Icons.Rounded.Download, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Export JSON")
+                        Text("Export JSON", fontWeight = FontWeight.Bold)
                     }
-                    OutlinedButton(
+                    GlassSecondaryButton(
                         onClick = { importJsonLauncher.launch(arrayOf("application/json", "*/*")) },
+                        accentBorderColor = NeonGreen,
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(Icons.Rounded.Upload, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -326,8 +343,9 @@ fun SettingsScreen(
                         Text("Import JSON")
                     }
                 }
-                OutlinedButton(
+                GlassSecondaryButton(
                     onClick = { exportCsvLauncher.launch("afterglow_library_$dateStamp.csv") },
+                    accentBorderColor = NeonCyan,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(Icons.Rounded.TableView, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -339,8 +357,8 @@ fun SettingsScreen(
 
         // Danger Zone & Sign Out
         item {
-            SettingsCard(title = "Account & Danger Zone", icon = Icons.Rounded.DeleteForever) {
-                OutlinedButton(
+            SettingsCard(title = "Account & Danger Zone", icon = Icons.Rounded.DeleteForever, accentColor = NeonPink) {
+                GlassSecondaryButton(
                     onClick = onSignOut,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -350,70 +368,74 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Sign Out")
                 }
-                Button(
+                GlassSecondaryButton(
                     onClick = { showClearConfirm1 = true },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                    accentBorderColor = NeonPink,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(Icons.Rounded.DeleteForever, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Rounded.DeleteForever, contentDescription = null, modifier = Modifier.size(18.dp), tint = NeonPink)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Clear All Library Data")
+                    Text("Clear All Library Data", color = NeonPink, fontWeight = FontWeight.Bold)
                 }
             }
         }
     }
 
     if (showClearConfirm1) {
-        AlertDialog(
+        NeonGlassDialog(
             onDismissRequest = { showClearConfirm1 = false },
-            title = { Text("Clear All Library Data?") },
-            text = { Text("This will delete all ${mediaItems.size} tracked titles and ${quotes.size} quotes from your cloud vault. Consider exporting a JSON backup first.") },
-            confirmButton = {
-                Button(
-                    onClick = { showClearConfirm1 = false; showClearConfirm2 = true },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) { Text("Continue") }
-            },
-            dismissButton = { TextButton(onClick = { showClearConfirm1 = false }) { Text("Cancel") } }
-        )
+            title = "Clear All Library Data?",
+            accentColor = NeonPink,
+            confirmText = "Continue",
+            confirmDangerous = true,
+            onConfirm = { showClearConfirm1 = false; showClearConfirm2 = true }
+        ) {
+            Text(
+                text = "This will delete all ${mediaItems.size} tracked titles and ${quotes.size} quotes from your cloud vault. Consider exporting a JSON backup first.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MutedGreyText
+            )
+        }
     }
 
     if (showClearConfirm2) {
-        AlertDialog(
+        NeonGlassDialog(
             onDismissRequest = { showClearConfirm2 = false },
-            title = { Text("Final Confirmation") },
-            text = { Text("Permanently erase all Afterglow library items and quotes? This cannot be undone.") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showClearConfirm2 = false
-                        onClearAllData()
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) { Text("Erase Everything") }
-            },
-            dismissButton = { TextButton(onClick = { showClearConfirm2 = false }) { Text("Cancel") } }
-        )
+            title = "Final Confirmation",
+            accentColor = NeonPink,
+            confirmText = "Erase Everything",
+            confirmDangerous = true,
+            onConfirm = {
+                showClearConfirm2 = false
+                onClearAllData()
+            }
+        ) {
+            Text(
+                text = "Permanently erase all Afterglow library items and quotes? This cannot be undone.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MutedGreyText
+            )
+        }
     }
 }
 
 @Composable
 private fun SettingsCard(
     title: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
+    accentColor: Color,
     content: @Composable () -> Unit
 ) {
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surface,
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(20.dp))
+    NeonGlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        accentColor = accentColor,
+        cornerRadius = 22.dp,
+        contentPadding = PaddingValues(18.dp)
     ) {
-        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
-                Text(title, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
+                Icon(icon, contentDescription = null, tint = accentColor)
+                Text(title, style = MaterialTheme.typography.titleLarge, color = OffWhiteText)
             }
             content()
         }
