@@ -1,6 +1,7 @@
 package com.example.ui.components
 
 import android.os.Build
+import android.view.View
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -52,8 +53,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
@@ -68,6 +72,8 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -94,10 +100,12 @@ import com.example.ui.theme.RadialGlowCyan
 import com.example.ui.theme.RadialGlowMagenta
 import com.example.ui.theme.SpaceGroteskFontFamily
 import com.example.ui.theme.VoidBackground
+import dev.chrisbanes.haze.HazeDefaults
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.hazeSource
 import kotlin.math.max
 
 val FloatingBottomBarClearance: Dp = 112.dp
@@ -401,7 +409,7 @@ fun LiquidGlassHeroCard(
                         0.0f to Color.White.copy(alpha = 0.22f),
                         0.52f to Color.Transparent,
                         startY = 0f,
-                        endY = size.height
+                        endY = size.height.coerceAtLeast(1f)
                     )
                 )
             }
@@ -952,19 +960,60 @@ data class LiquidNavTab(
     val icon: ImageVector
 )
 
+@Composable
+fun rememberSafeBlurEnabled(): Boolean {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return false
+    if (LocalInspectionMode.current) return false
+    val view = LocalView.current
+    var isHwAccelerated by remember(view) {
+        mutableStateOf(view.isAttachedToWindow && view.isHardwareAccelerated)
+    }
+    DisposableEffect(view) {
+        if (view.isAttachedToWindow) {
+            isHwAccelerated = view.isHardwareAccelerated
+        }
+        val listener = object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) {
+                isHwAccelerated = v.isHardwareAccelerated
+            }
+            override fun onViewDetachedFromWindow(v: View) {}
+        }
+        view.addOnAttachStateChangeListener(listener)
+        onDispose { view.removeOnAttachStateChangeListener(listener) }
+    }
+    if (!isHwAccelerated) return false
+    return remember {
+        runCatching { HazeDefaults.blurEnabled() }.getOrDefault(false)
+    }
+}
+
+@Composable
+fun rememberSafeHazeState(): HazeState? {
+    val enabled = rememberSafeBlurEnabled()
+    return remember(enabled) {
+        if (!enabled) null
+        else runCatching { HazeState() }.getOrNull()
+    }
+}
+
+fun Modifier.safeHazeSource(hazeState: HazeState?): Modifier {
+    if (hazeState == null) return this
+    return runCatching { this.hazeSource(state = hazeState) }.getOrDefault(this)
+}
+
 /**
  * Component #7: Floating Liquid Glass Bottom Bar
  * - Inset 14dp from edges, 72dp high, fully rounded.
- * - Real backdrop blur via Haze (Android 12+), semi-transparent frosted fallback (< Android 12).
+ * - Real backdrop blur via Haze on hardware-accelerated Android 12+, with safe frosted fallback.
  * - Frosted gradient fill (white 16% -> 5%), 1dp white border at 28%, purple glow, inner top highlight.
- * - Selected tab sits in an animated glossy gradient pill (fuchsia -> purple) with glow.
+ * - Selected tab sits in an animated glossy gradient pill (fuchsia to purple) with glow.
  */
 @Composable
 fun LiquidGlassBottomBar(
     tabs: List<LiquidNavTab>,
     selectedIndex: Int,
     onSelectTab: (Int) -> Unit,
-    hazeState: HazeState,
+    hazeState: HazeState?,
     modifier: Modifier = Modifier
 ) {
     val pillShape = RoundedCornerShape(36.dp)
@@ -975,6 +1024,8 @@ fun LiquidGlassBottomBar(
         animationSpec = tween(220),
         label = "bottom_bar_pill_alpha"
     )
+    val canBlur = hazeState != null && rememberSafeBlurEnabled()
+    val fallbackGlassColor = Color(0xFF130D24).copy(alpha = 0.88f)
 
     Box(
         modifier = modifier
@@ -982,46 +1033,62 @@ fun LiquidGlassBottomBar(
             .navigationBarsPadding()
             .padding(start = 14.dp, end = 14.dp, bottom = 10.dp)
     ) {
-        val blurModifier = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            Modifier.hazeEffect(
-                state = hazeState,
-                style = HazeStyle(
-                    backgroundColor = Color(0xFF0E091C),
-                    blurRadius = 24.dp,
-                    tint = HazeTint(Color.White.copy(alpha = 0.08f))
+        val blurLayerModifier = if (canBlur && hazeState != null) {
+            runCatching {
+                Modifier.hazeEffect(
+                    state = hazeState,
+                    style = HazeStyle(
+                        backgroundColor = Color(0xFF0E091C),
+                        blurRadius = 20.dp,
+                        tint = HazeTint(Color.White.copy(alpha = 0.08f)),
+                        noiseFactor = 0f,
+                        fallbackTint = HazeTint(fallbackGlassColor)
+                    )
                 )
-            )
+            }.getOrElse {
+                Modifier.background(fallbackGlassColor)
+            }
         } else {
-            Modifier.background(Color(0xFF130D24).copy(alpha = 0.88f))
+            Modifier.background(fallbackGlassColor)
         }
 
-        BoxWithConstraints(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(72.dp)
                 .neonGlow(color = NeonPurple, cornerRadius = 36.dp, alpha = 0.38f, spread = 10.dp)
                 .clip(pillShape)
-                .then(blurModifier)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.White.copy(alpha = 0.16f),
-                            Color.White.copy(alpha = 0.05f)
+        ) {
+            // Dedicated leaf blur/frosted backdrop layer (never placed directly on SubcomposeLayout/BoxWithConstraints)
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .then(blurLayerModifier)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.White.copy(alpha = 0.16f),
+                                Color.White.copy(alpha = 0.05f)
+                            )
                         )
                     )
-                )
-                .drawBehind {
-                    // Inner top glossy highlight
-                    drawLine(
-                        color = Color.White.copy(alpha = 0.34f),
-                        start = Offset(32.dp.toPx(), 1.dp.toPx()),
-                        end = Offset(size.width - 32.dp.toPx(), 1.dp.toPx()),
-                        strokeWidth = 1.2.dp.toPx()
-                    )
-                }
-                .border(1.dp, Color.White.copy(alpha = 0.28f), pillShape)
-                .padding(6.dp)
-        ) {
+                    .drawBehind {
+                        // Inner top glossy highlight
+                        drawLine(
+                            color = Color.White.copy(alpha = 0.34f),
+                            start = Offset(32.dp.toPx(), 1.dp.toPx()),
+                            end = Offset(size.width - 32.dp.toPx(), 1.dp.toPx()),
+                            strokeWidth = 1.2.dp.toPx()
+                        )
+                    }
+                    .border(1.dp, Color.White.copy(alpha = 0.28f), pillShape)
+            )
+
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(6.dp)
+            ) {
             val slotWidth = maxWidth / tabs.size.coerceAtLeast(1)
             val indicatorOffset by animateDpAsState(
                 targetValue = slotWidth * safeIndex,
@@ -1106,6 +1173,7 @@ fun LiquidGlassBottomBar(
             }
         }
     }
+}
 }
 
 /**

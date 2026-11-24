@@ -1,6 +1,5 @@
 package com.example.ui
 
-import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
@@ -96,6 +95,8 @@ import com.example.ui.components.MediaEditorDialog
 import com.example.ui.components.NeonGlassCard
 import com.example.ui.components.NeonPrimaryButton
 import com.example.ui.components.neonGlow
+import com.example.ui.components.rememberSafeHazeState
+import com.example.ui.components.safeHazeSource
 import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.LibraryMode
 import com.example.ui.screens.MediaLibraryScreen
@@ -117,8 +118,6 @@ import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FirebaseFirestore
-import dev.chrisbanes.haze.hazeSource
-import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.launch
 
 enum class AfterglowSection(val label: String, val icon: ImageVector) {
@@ -220,7 +219,7 @@ private fun AuthenticatedAfterglowShell(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-    val hazeState = rememberHazeState()
+    val hazeState = rememberSafeHazeState()
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { msg ->
@@ -265,17 +264,11 @@ private fun AuthenticatedAfterglowShell(
 
             val mainShellContent: @Composable () -> Unit = {
                 Box(modifier = Modifier.fillMaxSize()) {
-                    // Backdrop + scrolling content marked as Haze blur source on Android 12+
+                    // Backdrop + scrolling content marked as safe Haze blur source when floating bar is active
                     AfterglowBackdrop(
                         modifier = Modifier
                             .fillMaxSize()
-                            .then(
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                    Modifier.hazeSource(state = hazeState)
-                                } else {
-                                    Modifier
-                                }
-                            )
+                            .safeHazeSource(if (!isExpandedScreen) hazeState else null)
                     ) {
                         Column(modifier = Modifier.fillMaxSize()) {
                             if (!isExpandedScreen) {
