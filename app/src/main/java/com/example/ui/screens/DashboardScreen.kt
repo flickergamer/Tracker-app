@@ -23,17 +23,12 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.Bookmark
-import androidx.compose.material.icons.rounded.BookmarkAdd
 import androidx.compose.material.icons.rounded.Casino
 import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.EmojiEvents
 import androidx.compose.material.icons.rounded.FormatQuote
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Movie
-import androidx.compose.material.icons.rounded.PauseCircle
-import androidx.compose.material.icons.rounded.PlayCircle
-import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.material3.Icon
@@ -67,22 +62,10 @@ import com.example.ui.components.RatingPill
 import com.example.ui.components.SeriesProgressCard
 import com.example.ui.components.StatKpiCard
 import com.example.ui.components.StatusPill
-import com.example.ui.components.categoryNeonColor
-import com.example.ui.components.neonPaletteColor
-import com.example.ui.theme.GoldRating
-import com.example.ui.theme.MutedGreyText
-import com.example.ui.theme.NeonCyan
-import com.example.ui.theme.NeonFuchsia
-import com.example.ui.theme.NeonGreen
-import com.example.ui.theme.NeonPink
-import com.example.ui.theme.NeonPurple
-import com.example.ui.theme.OffWhiteText
-import com.example.ui.theme.StatusCompleted
-import com.example.ui.theme.StatusDropped
-import com.example.ui.theme.StatusOnHold
-import com.example.ui.theme.StatusPlanToWatch
-import com.example.ui.theme.StatusWatching
-import java.util.Locale
+import com.example.ui.components.themedCategoryColor
+import com.example.ui.components.themedPaletteColor
+import com.example.ui.components.themedPastelFill
+import com.example.ui.theme.LocalZenixTokens
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -99,18 +82,20 @@ fun DashboardScreen(
     bottomPadding: Dp = FloatingBottomBarClearance,
     modifier: Modifier = Modifier
 ) {
+    val tokens = LocalZenixTokens.current
+
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottomPadding),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        // Liquid Glass Hero Welcome Card (28dp rounded, gradient fill, 35% border, purple glow, glossy top half)
+        // Hero Welcome Card ("Welcome back, <name>", titles tracked and watch time, Add Movie and Add Series buttons)
         item {
             LiquidGlassHeroCard {
                 Text(
                     text = "Welcome back, ${profile.displayName}",
                     style = MaterialTheme.typography.displayMedium,
-                    color = OffWhiteText
+                    color = tokens.textPrimary
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
@@ -119,7 +104,7 @@ fun DashboardScreen(
                     else
                         "${stats.totalTitles} titles tracked • ${formatWatchTime(stats.totalWatchTimeMinutes)} total watch time • ${stats.completedCount} completed",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MutedGreyText
+                    color = tokens.textSecondary
                 )
                 Spacer(modifier = Modifier.height(14.dp))
                 FlowRow(
@@ -135,41 +120,42 @@ fun DashboardScreen(
                         Text("Add Movie", fontWeight = FontWeight.Bold)
                     }
                     GlassSecondaryButton(
-                        onClick = { onAddTitle(MediaCategory.WEB_SERIES, false) }
+                        onClick = { onAddTitle(MediaCategory.WEB_SERIES, false) },
+                        modifier = Modifier.testTag("dashboard_add_series")
                     ) {
                         Icon(Icons.Rounded.Tv, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("Add Series")
                     }
-                    GlassSecondaryButton(
-                        onClick = { onOpenSmartHub(0) },
-                        accentBorderColor = NeonCyan
-                    ) {
-                        Icon(Icons.Rounded.Casino, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Random Pick")
-                    }
                 }
             }
         }
 
-        // Quick Navigation & Smart Discovery Chips (Watchlist + Analytics open directly from Dashboard chips)
+        // Smart Discovery chips (Random Picker, Watchlist, Analytics + quick Smart Hub shortcuts)
         item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
-                    text = "Quick Hubs & Discovery",
+                    text = "Smart Discovery",
                     style = MaterialTheme.typography.titleLarge,
-                    color = OffWhiteText
+                    color = tokens.textPrimary
                 )
                 Row(
                     modifier = Modifier.horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     NeonGlassChip(
-                        label = "Watchlist (${stats.planToWatchCount})",
+                        label = "Random Picker",
+                        selected = false,
+                        onClick = { onOpenSmartHub(0) },
+                        accentColor = tokens.primaryAccent,
+                        leadingIcon = Icons.Rounded.Casino,
+                        modifier = Modifier.testTag("dashboard_random_picker_chip")
+                    )
+                    NeonGlassChip(
+                        label = "Watchlist",
                         selected = true,
                         onClick = onOpenWatchlist,
-                        accentColor = NeonCyan,
+                        accentColor = tokens.tertiaryAccent,
                         leadingIcon = Icons.Rounded.Bookmark,
                         modifier = Modifier.testTag("dashboard_watchlist_chip")
                     )
@@ -177,57 +163,50 @@ fun DashboardScreen(
                         label = "Analytics",
                         selected = true,
                         onClick = onOpenStatistics,
-                        accentColor = NeonFuchsia,
+                        accentColor = tokens.secondaryAccent,
                         leadingIcon = Icons.Rounded.BarChart,
                         modifier = Modifier.testTag("dashboard_analytics_chip")
-                    )
-                    NeonGlassChip(
-                        label = "Random Picker",
-                        selected = false,
-                        onClick = { onOpenSmartHub(0) },
-                        accentColor = NeonPurple,
-                        leadingIcon = Icons.Rounded.Casino
                     )
                     NeonGlassChip(
                         label = "Mood Match",
                         selected = false,
                         onClick = { onOpenSmartHub(1) },
-                        accentColor = NeonPink,
+                        accentColor = tokens.dangerAccent,
                         leadingIcon = Icons.Rounded.AutoAwesome
                     )
                     NeonGlassChip(
                         label = "Hidden Gems",
                         selected = false,
                         onClick = { onOpenSmartHub(2) },
-                        accentColor = NeonCyan,
+                        accentColor = tokens.tertiaryAccent,
                         leadingIcon = Icons.Rounded.Star
                     )
                     NeonGlassChip(
                         label = "Badges & Goals",
                         selected = false,
                         onClick = { onOpenSmartHub(3) },
-                        accentColor = NeonGreen,
+                        accentColor = tokens.positiveAccent,
                         leadingIcon = Icons.Rounded.EmojiEvents
                     )
                     NeonGlassChip(
                         label = "Quotes",
                         selected = false,
                         onClick = { onOpenSmartHub(4) },
-                        accentColor = NeonFuchsia,
+                        accentColor = tokens.secondaryAccent,
                         leadingIcon = Icons.Rounded.FormatQuote
                     )
                     NeonGlassChip(
                         label = "History",
                         selected = false,
                         onClick = { onOpenSmartHub(5) },
-                        accentColor = NeonPurple,
+                        accentColor = tokens.primaryAccent,
                         leadingIcon = Icons.Rounded.History
                     )
                 }
             }
         }
 
-        // All 10 Automatic Statistics Cards (22dp neon glass cards)
+        // Overview Metrics 2x2 cards (Total Titles, Total Movies, Web Series, Completed)
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -237,54 +216,51 @@ fun DashboardScreen(
                 Text(
                     text = "Overview Metrics",
                     style = MaterialTheme.typography.titleLarge,
-                    color = OffWhiteText
+                    color = tokens.textPrimary
                 )
                 NeonGlassChip(
                     label = "Full Analytics",
                     selected = false,
                     onClick = onOpenStatistics,
-                    accentColor = NeonCyan
+                    accentColor = tokens.tertiaryAccent
                 )
             }
             Spacer(modifier = Modifier.height(10.dp))
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    StatKpiCard("Total Titles", stats.totalTitles.toString(), Icons.Rounded.AutoAwesome, NeonPurple, modifier = Modifier.weight(1f))
-                    StatKpiCard("Total Movies", stats.totalMovies.toString(), Icons.Rounded.Movie, NeonFuchsia, modifier = Modifier.weight(1f))
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     StatKpiCard(
-                        "Web Series",
-                        stats.totalWebSeries.toString(),
-                        Icons.Rounded.Tv,
-                        NeonCyan,
-                        subtitle = "+${stats.totalAnimeAndKDrama} Anime/KD",
-                        modifier = Modifier.weight(1f)
-                    )
-                    StatKpiCard("Completed", stats.completedCount.toString(), Icons.Rounded.CheckCircle, StatusCompleted, modifier = Modifier.weight(1f))
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    StatKpiCard("Currently Watching", stats.watchingCount.toString(), Icons.Rounded.PlayCircle, StatusWatching, modifier = Modifier.weight(1f))
-                    StatKpiCard("Plan to Watch", stats.planToWatchCount.toString(), Icons.Rounded.BookmarkAdd, StatusPlanToWatch, modifier = Modifier.weight(1f))
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    StatKpiCard("On Hold", stats.onHoldCount.toString(), Icons.Rounded.PauseCircle, StatusOnHold, modifier = Modifier.weight(1f))
-                    StatKpiCard("Dropped", stats.droppedCount.toString(), Icons.Rounded.Close, StatusDropped, modifier = Modifier.weight(1f))
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    StatKpiCard(
-                        "Avg Personal Rating",
-                        if (stats.averagePersonalRating <= 0.0) "—" else String.format(Locale.US, "%.1f / 10", stats.averagePersonalRating),
-                        Icons.Rounded.Star,
-                        GoldRating,
+                        title = "Total Titles",
+                        value = stats.totalTitles.toString(),
+                        icon = Icons.Rounded.AutoAwesome,
+                        accentColor = themedPaletteColor(0),
+                        pastelFill = themedPastelFill(0),
                         modifier = Modifier.weight(1f)
                     )
                     StatKpiCard(
-                        "Total Watch Time",
-                        formatWatchTime(stats.totalWatchTimeMinutes),
-                        Icons.Rounded.Schedule,
-                        NeonGreen,
-                        subtitle = "${stats.totalEpisodesWatched} eps",
+                        title = "Total Movies",
+                        value = stats.totalMovies.toString(),
+                        icon = Icons.Rounded.Movie,
+                        accentColor = themedPaletteColor(1),
+                        pastelFill = themedPastelFill(1),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    StatKpiCard(
+                        title = "Web Series",
+                        value = stats.totalWebSeries.toString(),
+                        icon = Icons.Rounded.Tv,
+                        accentColor = themedPaletteColor(2),
+                        subtitle = if (stats.totalAnimeAndKDrama > 0) "+${stats.totalAnimeAndKDrama} Anime/KD" else null,
+                        pastelFill = themedPastelFill(2),
+                        modifier = Modifier.weight(1f)
+                    )
+                    StatKpiCard(
+                        title = "Completed",
+                        value = stats.completedCount.toString(),
+                        icon = Icons.Rounded.CheckCircle,
+                        accentColor = themedPaletteColor(3),
+                        pastelFill = themedPastelFill(3),
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -294,14 +270,14 @@ fun DashboardScreen(
         if (stats.totalTitles == 0) {
             item {
                 EmptyStateView(
-                    title = "Start Building Your Afterglow",
+                    title = "Start Building Your Zenix",
                     subtitle = "Add your first movie, web series, anime, or K-drama to unlock live watch time analytics, genre charts, and rankings.",
                     actionLabel = "Add First Title",
+                    accentColor = tokens.primaryAccent,
                     onAction = { onAddTitle(MediaCategory.MOVIE, false) }
                 )
             }
         } else {
-            // Watch Time Overview
             item {
                 HorizontalBarChartCard(
                     title = "Watch Time Overview (Minutes)",
@@ -310,43 +286,40 @@ fun DashboardScreen(
                         "Web Series" to stats.seriesWatchTimeMinutes.toInt(),
                         "Anime & K-Drama" to stats.animeWatchTimeMinutes.toInt()
                     ).filter { it.second > 0 },
-                    barColor = NeonPurple,
+                    barColor = tokens.primaryAccent,
                     emptyMessage = "Complete movies or log episodes to calculate watch time."
                 )
             }
 
-            // Movies vs Series Distribution
             item {
                 DonutChartCard(
                     title = "Movies vs Series Distribution",
                     centerLabel = stats.totalTitles.toString(),
                     centerSubLabel = "TITLES",
                     slices = listOf(
-                        ChartSlice("Movies", stats.totalMovies.toFloat(), NeonPurple),
-                        ChartSlice("Web Series", stats.totalWebSeries.toFloat(), NeonCyan),
-                        ChartSlice("Anime & K-Drama", stats.totalAnimeAndKDrama.toFloat(), NeonPink)
+                        ChartSlice("Movies", stats.totalMovies.toFloat(), themedPaletteColor(0)),
+                        ChartSlice("Web Series", stats.totalWebSeries.toFloat(), themedPaletteColor(1)),
+                        ChartSlice("Anime & K-Drama", stats.totalAnimeAndKDrama.toFloat(), themedPaletteColor(2))
                     ),
-                    accentColor = NeonCyan
+                    accentColor = tokens.tertiaryAccent
                 )
             }
 
-            // Genre Distribution
             item {
                 HorizontalBarChartCard(
                     title = "Genre Distribution",
                     items = stats.genreDistribution.take(6),
-                    barColor = NeonPink,
+                    barColor = tokens.dangerAccent,
                     emptyMessage = "Add genres to titles to see your genre profile."
                 )
             }
 
-            // Currently Watching
             if (stats.currentlyWatching.isNotEmpty()) {
                 item {
                     Text(
                         text = "Currently Watching",
                         style = MaterialTheme.typography.titleLarge,
-                        color = OffWhiteText
+                        color = tokens.textPrimary
                     )
                 }
                 items(stats.currentlyWatching, key = { "cw_${it.id}" }) { item ->
@@ -364,18 +337,17 @@ fun DashboardScreen(
                 }
             }
 
-            // Top 5 Highest Rated
             if (stats.top5Rated.isNotEmpty()) {
                 item {
                     Text(
                         text = "Top 5 Highest Rated",
                         style = MaterialTheme.typography.titleLarge,
-                        color = OffWhiteText
+                        color = tokens.textPrimary
                     )
                     Spacer(modifier = Modifier.height(10.dp))
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         stats.top5Rated.forEachIndexed { idx, item ->
-                            val accent = neonPaletteColor(idx)
+                            val accent = themedPaletteColor(idx)
                             NeonGlassCard(
                                 modifier = Modifier.fillMaxWidth(),
                                 accentColor = accent,
@@ -402,14 +374,14 @@ fun DashboardScreen(
                                         Text(
                                             text = item.title,
                                             style = MaterialTheme.typography.titleMedium,
-                                            color = OffWhiteText,
+                                            color = tokens.textPrimary,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
                                         )
                                         Text(
                                             text = "${item.categoryEnum.label} • ${item.releaseYear}",
                                             style = MaterialTheme.typography.bodySmall,
-                                            color = MutedGreyText
+                                            color = tokens.textSecondary
                                         )
                                     }
                                     RatingPill(rating = item.personalRating)
@@ -420,13 +392,12 @@ fun DashboardScreen(
                 }
             }
 
-            // Recently Added
             if (stats.recentlyAdded.isNotEmpty()) {
                 item {
                     Text(
                         text = "Recently Added",
                         style = MaterialTheme.typography.titleLarge,
-                        color = OffWhiteText
+                        color = tokens.textPrimary
                     )
                     Spacer(modifier = Modifier.height(10.dp))
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -437,13 +408,12 @@ fun DashboardScreen(
                 }
             }
 
-            // Recently Completed
             if (stats.recentlyCompleted.isNotEmpty()) {
                 item {
                     Text(
                         text = "Recently Completed",
                         style = MaterialTheme.typography.titleLarge,
-                        color = OffWhiteText
+                        color = tokens.textPrimary
                     )
                     Spacer(modifier = Modifier.height(10.dp))
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -459,9 +429,10 @@ fun DashboardScreen(
 
 @Composable
 private fun CompactDashboardItemRow(item: MediaItem, onClick: () -> Unit) {
+    val tokens = LocalZenixTokens.current
     NeonGlassCard(
         modifier = Modifier.fillMaxWidth(),
-        accentColor = categoryNeonColor(item.categoryEnum),
+        accentColor = themedCategoryColor(item.categoryEnum),
         cornerRadius = 22.dp,
         onClick = onClick,
         contentPadding = PaddingValues(12.dp)
@@ -477,8 +448,8 @@ private fun CompactDashboardItemRow(item: MediaItem, onClick: () -> Unit) {
                 modifier = Modifier.size(width = 50.dp, height = 70.dp)
             )
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(item.title, style = MaterialTheme.typography.titleMedium, color = OffWhiteText, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text("${item.releaseYear} • ${item.streamingPlatform}", style = MaterialTheme.typography.bodySmall, color = MutedGreyText)
+                Text(item.title, style = MaterialTheme.typography.titleMedium, color = tokens.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("${item.releaseYear} • ${item.streamingPlatform}", style = MaterialTheme.typography.bodySmall, color = tokens.textSecondary)
                 StatusPill(status = item.statusEnum)
             }
             if (item.personalRating > 0) RatingPill(item.personalRating)
@@ -488,9 +459,10 @@ private fun CompactDashboardItemRow(item: MediaItem, onClick: () -> Unit) {
 
 @Composable
 private fun DashboardMiniCard(item: MediaItem, onClick: () -> Unit) {
+    val tokens = LocalZenixTokens.current
     NeonGlassCard(
         modifier = Modifier.width(146.dp),
-        accentColor = categoryNeonColor(item.categoryEnum),
+        accentColor = themedCategoryColor(item.categoryEnum),
         cornerRadius = 22.dp,
         onClick = onClick,
         contentPadding = PaddingValues(10.dp)
@@ -507,7 +479,7 @@ private fun DashboardMiniCard(item: MediaItem, onClick: () -> Unit) {
             Text(
                 text = item.title,
                 style = MaterialTheme.typography.titleSmall,
-                color = OffWhiteText,
+                color = tokens.textPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -516,7 +488,7 @@ private fun DashboardMiniCard(item: MediaItem, onClick: () -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(item.releaseYear.toString(), style = MaterialTheme.typography.labelSmall, color = MutedGreyText)
+                Text(item.releaseYear.toString(), style = MaterialTheme.typography.labelSmall, color = tokens.textSecondary)
                 if (item.personalRating > 0) RatingPill(item.personalRating)
             }
         }

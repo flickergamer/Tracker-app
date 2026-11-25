@@ -44,7 +44,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -52,14 +51,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.data.model.MediaItem
 import com.example.data.model.formatWatchTime
-import com.example.ui.theme.GoldRating
-import com.example.ui.theme.MutedGreyText
-import com.example.ui.theme.NeonCyan
-import com.example.ui.theme.NeonFuchsia
-import com.example.ui.theme.NeonGreen
-import com.example.ui.theme.NeonPink
-import com.example.ui.theme.NeonPurple
-import com.example.ui.theme.OffWhiteText
+import com.example.ui.theme.LocalZenixTokens
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -75,8 +67,9 @@ fun MediaDetailDialog(
     onIncrementRewatch: () -> Unit
 ) {
     val context = LocalContext.current
+    val tokens = LocalZenixTokens.current
     var showDeleteConfirm by remember { mutableStateOf(false) }
-    val categoryNeon = categoryNeonColor(item.categoryEnum)
+    val categoryAccent = themedCategoryColor(item.categoryEnum)
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -96,19 +89,19 @@ fun MediaDetailDialog(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    GlassIconButton(onClick = onDismiss, glowColor = NeonPurple) {
-                        Icon(Icons.Rounded.Close, contentDescription = "Close details", tint = OffWhiteText)
+                    GlassIconButton(onClick = onDismiss, glowColor = tokens.primaryAccent) {
+                        Icon(Icons.Rounded.Close, contentDescription = "Close details", tint = tokens.textPrimary)
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        GlassIconButton(onClick = onEdit, glowColor = NeonCyan) {
-                            Icon(Icons.Rounded.Edit, contentDescription = "Edit title", tint = NeonCyan)
+                        GlassIconButton(onClick = onEdit, glowColor = tokens.tertiaryAccent) {
+                            Icon(Icons.Rounded.Edit, contentDescription = "Edit title", tint = tokens.tertiaryAccent)
                         }
-                        GlassIconButton(onClick = { showDeleteConfirm = true }, glowColor = NeonPink) {
-                            Icon(Icons.Rounded.Delete, contentDescription = "Delete title", tint = NeonPink)
+                        GlassIconButton(onClick = { showDeleteConfirm = true }, glowColor = tokens.dangerAccent) {
+                            Icon(Icons.Rounded.Delete, contentDescription = "Delete title", tint = tokens.dangerAccent)
                         }
                     }
                 }
-                HorizontalDivider(color = Color.White.copy(alpha = 0.12f))
+                HorizontalDivider(color = tokens.outlineSubtle)
 
                 Column(
                     modifier = Modifier
@@ -126,7 +119,10 @@ fun MediaDetailDialog(
                                 modifier = Modifier
                                     .width(116.dp)
                                     .height(168.dp)
-                                    .neonGlow(categoryNeon, cornerRadius = 16.dp, alpha = 0.34f, spread = 8.dp)
+                                    .then(
+                                        if (tokens.useGlow) Modifier.neonGlow(categoryAccent, cornerRadius = 16.dp, alpha = 0.34f, spread = 8.dp)
+                                        else Modifier
+                                    )
                             )
                             Column(
                                 modifier = Modifier.weight(1f),
@@ -135,18 +131,18 @@ fun MediaDetailDialog(
                                 Text(
                                     text = item.title,
                                     style = MaterialTheme.typography.headlineMedium,
-                                    color = OffWhiteText
+                                    color = tokens.textPrimary
                                 )
                                 Text(
                                     text = "${item.categoryEnum.label} • ${item.releaseYear} • ${item.language.ifBlank { "—" }}",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MutedGreyText
+                                    color = tokens.textSecondary
                                 )
                                 if (item.streamingPlatform.isNotBlank()) {
                                     Text(
                                         text = "On ${item.streamingPlatform}",
                                         style = MaterialTheme.typography.labelLarge,
-                                        color = NeonCyan
+                                        color = tokens.tertiaryAccent
                                     )
                                 }
                                 StatusPill(status = item.statusEnum)
@@ -165,7 +161,6 @@ fun MediaDetailDialog(
                         }
                     }
 
-                    // Quick Action Flags
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -174,50 +169,49 @@ fun MediaDetailDialog(
                             label = if (item.favourite) "Favourited" else "Favourite",
                             selected = item.favourite,
                             onClick = onToggleFavourite,
-                            accentColor = NeonPink,
+                            accentColor = tokens.dangerAccent,
                             leadingIcon = if (item.favourite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder
                         )
                         NeonGlassChip(
                             label = if (item.allTimeFavourite) "All-Time Fav" else "Mark All-Time",
                             selected = item.allTimeFavourite,
                             onClick = onToggleAllTimeFavourite,
-                            accentColor = GoldRating,
+                            accentColor = tokens.ratingGold,
                             leadingIcon = Icons.Filled.Star
                         )
                         NeonGlassChip(
                             label = if (item.hiddenGem) "Hidden Gem" else "Mark Gem",
                             selected = item.hiddenGem,
                             onClick = onToggleHiddenGem,
-                            accentColor = NeonCyan,
+                            accentColor = tokens.tertiaryAccent,
                             leadingIcon = Icons.Rounded.Diamond
                         )
                         NeonGlassChip(
                             label = "Rewatch (${item.rewatchCount})",
                             selected = item.rewatchCount > 0L,
                             onClick = onIncrementRewatch,
-                            accentColor = NeonGreen,
+                            accentColor = tokens.positiveAccent,
                             leadingIcon = Icons.Rounded.Repeat
                         )
                     }
 
-                    // Episode Progress Section for Series/Anime/K-Drama
                     if (item.categoryEnum.isEpisodic) {
                         NeonGlassCard(
                             modifier = Modifier.fillMaxWidth(),
-                            accentColor = categoryNeon,
+                            accentColor = categoryAccent,
                             contentPadding = PaddingValues(16.dp)
                         ) {
                             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 Text(
                                     text = item.formattedSeriesProgress(),
                                     style = MaterialTheme.typography.titleMedium,
-                                    color = categoryNeon
+                                    color = categoryAccent
                                 )
                                 NeonProgressBar(
                                     progress = item.episodeProgressPercent / 100f,
                                     height = 9.dp,
-                                    startColor = categoryNeon,
-                                    endColor = NeonFuchsia
+                                    startColor = categoryAccent,
+                                    endColor = tokens.secondaryAccent
                                 )
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -228,21 +222,21 @@ fun MediaDetailDialog(
                                         Text(
                                             text = "Season ${item.currentSeason}/${item.totalSeasons} (${item.seasonProgressPercent}%)",
                                             style = MaterialTheme.typography.bodySmall,
-                                            color = OffWhiteText
+                                            color = tokens.textPrimary
                                         )
                                         Text(
                                             text = "${item.remainingEpisodes} episodes remaining • Est. total ${formatWatchTime(item.estimatedTotalSeriesMinutes)}",
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = MutedGreyText
+                                            color = tokens.textSecondary
                                         )
                                     }
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         GlassIconButton(
                                             onClick = { if (item.episodesWatched > 0) onStepEpisode(-1) },
-                                            glowColor = categoryNeon,
+                                            glowColor = categoryAccent,
                                             size = 44.dp
                                         ) {
-                                            Icon(Icons.Rounded.Remove, contentDescription = "Previous episode", tint = OffWhiteText)
+                                            Icon(Icons.Rounded.Remove, contentDescription = "Previous episode", tint = tokens.textPrimary)
                                         }
                                         GlassIconButton(
                                             onClick = {
@@ -250,10 +244,10 @@ fun MediaDetailDialog(
                                                     onStepEpisode(1)
                                                 }
                                             },
-                                            glowColor = categoryNeon,
+                                            glowColor = categoryAccent,
                                             size = 44.dp
                                         ) {
-                                            Icon(Icons.Rounded.Add, contentDescription = "Next episode", tint = categoryNeon)
+                                            Icon(Icons.Rounded.Add, contentDescription = "Next episode", tint = categoryAccent)
                                         }
                                     }
                                 }
@@ -261,7 +255,6 @@ fun MediaDetailDialog(
                         }
                     }
 
-                    // External Links
                     if (item.trailerLink.isNotBlank() || item.imdbLink.isNotBlank()) {
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             if (item.trailerLink.isNotBlank()) {
@@ -285,7 +278,7 @@ fun MediaDetailDialog(
                                             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(item.imdbLink)))
                                         }
                                     },
-                                    accentBorderColor = GoldRating,
+                                    accentBorderColor = tokens.ratingGold,
                                     modifier = Modifier.weight(1f)
                                 ) {
                                     Icon(Icons.AutoMirrored.Rounded.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -296,10 +289,9 @@ fun MediaDetailDialog(
                         }
                     }
 
-                    // Metadata Card
                     NeonGlassCard(
                         modifier = Modifier.fillMaxWidth(),
-                        accentColor = NeonPurple,
+                        accentColor = tokens.primaryAccent,
                         contentPadding = PaddingValues(16.dp)
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -320,7 +312,7 @@ fun MediaDetailDialog(
                                     label = mood,
                                     selected = false,
                                     onClick = {},
-                                    accentColor = NeonFuchsia,
+                                    accentColor = tokens.secondaryAccent,
                                     leadingIcon = Icons.Rounded.AutoAwesome
                                 )
                             }
@@ -330,12 +322,12 @@ fun MediaDetailDialog(
                     if (item.personalReview.isNotBlank()) {
                         NeonGlassCard(
                             modifier = Modifier.fillMaxWidth(),
-                            accentColor = NeonFuchsia,
+                            accentColor = tokens.secondaryAccent,
                             contentPadding = PaddingValues(16.dp)
                         ) {
                             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text("Personal Review", style = MaterialTheme.typography.titleMedium, color = NeonFuchsia)
-                                Text(item.personalReview, style = MaterialTheme.typography.bodyMedium, color = OffWhiteText)
+                                Text("Personal Review", style = MaterialTheme.typography.titleMedium, color = tokens.secondaryAccent)
+                                Text(item.personalReview, style = MaterialTheme.typography.bodyMedium, color = tokens.textPrimary)
                             }
                         }
                     }
@@ -343,12 +335,12 @@ fun MediaDetailDialog(
                     if (item.notes.isNotBlank()) {
                         NeonGlassCard(
                             modifier = Modifier.fillMaxWidth(),
-                            accentColor = NeonCyan,
+                            accentColor = tokens.tertiaryAccent,
                             contentPadding = PaddingValues(16.dp)
                         ) {
                             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text("Notes", style = MaterialTheme.typography.titleMedium, color = NeonCyan)
-                                Text(item.notes, style = MaterialTheme.typography.bodyMedium, color = MutedGreyText)
+                                Text("Notes", style = MaterialTheme.typography.titleMedium, color = tokens.tertiaryAccent)
+                                Text(item.notes, style = MaterialTheme.typography.bodyMedium, color = tokens.textSecondary)
                             }
                         }
                     }
@@ -363,7 +355,7 @@ fun MediaDetailDialog(
         NeonGlassDialog(
             onDismissRequest = { showDeleteConfirm = false },
             title = "Delete \"${item.title}\"?",
-            accentColor = NeonPink,
+            accentColor = tokens.dangerAccent,
             confirmText = "Delete",
             confirmDangerous = true,
             onConfirm = {
@@ -372,9 +364,9 @@ fun MediaDetailDialog(
             }
         ) {
             Text(
-                text = "This permanently removes the title, ratings, and review from your Afterglow library.",
+                text = "This permanently removes the title, ratings, and review from your Zenix library.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MutedGreyText
+                color = tokens.textSecondary
             )
         }
     }
@@ -382,12 +374,13 @@ fun MediaDetailDialog(
 
 @Composable
 private fun DetailRow(label: String, value: String) {
+    val tokens = LocalZenixTokens.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(label, style = MaterialTheme.typography.bodySmall, color = MutedGreyText)
+        Text(label, style = MaterialTheme.typography.bodySmall, color = tokens.textSecondary)
         Spacer(modifier = Modifier.width(12.dp))
-        Text(value, style = MaterialTheme.typography.bodyMedium, color = OffWhiteText)
+        Text(value, style = MaterialTheme.typography.bodyMedium, color = tokens.textPrimary)
     }
 }

@@ -63,14 +63,9 @@ import com.example.data.model.WatchlistPriority
 import com.example.data.tmdb.TmdbMultiResult
 import com.example.data.tmdb.TmdbPreferences
 import com.example.data.tmdb.TmdbPrefillResult
-import com.example.ui.theme.GoldRating
-import com.example.ui.theme.MutedGreyText
-import com.example.ui.theme.NeonCyan
-import com.example.ui.theme.NeonFuchsia
-import com.example.ui.theme.NeonGreen
-import com.example.ui.theme.NeonPink
-import com.example.ui.theme.NeonPurple
-import com.example.ui.theme.OffWhiteText
+import com.example.ui.theme.AppThemeMode
+import com.example.ui.theme.LocalZenixTokens
+import com.example.ui.theme.PastelLavender
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -91,6 +86,7 @@ fun MediaEditorDialog(
     val isEdit = initialItem != null && initialItem.id.isNotBlank()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val tokens = LocalZenixTokens.current
     val today = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) }
 
     var title by remember { mutableStateOf(initialItem?.title ?: "") }
@@ -102,7 +98,15 @@ fun MediaEditorDialog(
     }
     var posterUrl by remember { mutableStateOf(initialItem?.posterUrl ?: "") }
     var genre by remember { mutableStateOf(initialItem?.genre ?: "") }
-    var language by remember { mutableStateOf(initialItem?.language ?: if (defaultCategory == MediaCategory.ANIME) "Japanese" else if (defaultCategory == MediaCategory.K_DRAMA) "Korean" else "English") }
+    var language by remember {
+        mutableStateOf(
+            initialItem?.language ?: when (defaultCategory) {
+                MediaCategory.ANIME -> "Japanese"
+                MediaCategory.K_DRAMA -> "Korean"
+                else -> "English"
+            }
+        )
+    }
     var releaseYear by remember { mutableStateOf((initialItem?.releaseYear ?: 2024L).toString()) }
     var platform by remember { mutableStateOf(initialItem?.streamingPlatform ?: "Netflix") }
     var imdbRating by remember { mutableStateOf(if ((initialItem?.imdbRating ?: 0.0) > 0.0) initialItem!!.imdbRating.toString() else "") }
@@ -120,13 +124,11 @@ fun MediaEditorDialog(
     var personalReview by remember { mutableStateOf(initialItem?.personalReview ?: "") }
     var notes by remember { mutableStateOf(initialItem?.notes ?: "") }
 
-    // Episodic fields
     var totalSeasons by remember { mutableStateOf((initialItem?.totalSeasons ?: 1L).toString()) }
     var currentSeason by remember { mutableStateOf((initialItem?.currentSeason ?: 1L).toString()) }
     var totalEpisodes by remember { mutableStateOf((initialItem?.totalEpisodes ?: 10L).toString()) }
     var episodesWatched by remember { mutableStateOf((initialItem?.episodesWatched ?: 0L).toString()) }
 
-    // Watchlist & Flags
     var watchlistItem by remember { mutableStateOf(initialItem?.watchlistItem ?: defaultWatchlist) }
     var priority by remember { mutableStateOf(initialItem?.priorityEnum ?: WatchlistPriority.MEDIUM) }
     var favourite by remember { mutableStateOf(initialItem?.favourite ?: false) }
@@ -134,7 +136,6 @@ fun MediaEditorDialog(
     var hiddenGem by remember { mutableStateOf(initialItem?.hiddenGem ?: false) }
     val selectedMoods = remember { mutableStateListOf<String>().apply { addAll(initialItem?.moodTags ?: emptyList()) } }
 
-    // TMDB state
     var tmdbQuery by remember { mutableStateOf("") }
     var tmdbLoading by remember { mutableStateOf(false) }
     var tmdbResults by remember { mutableStateOf<List<TmdbMultiResult>>(emptyList()) }
@@ -160,14 +161,14 @@ fun MediaEditorDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        GlassIconButton(onClick = onDismiss, glowColor = NeonPurple) {
-                            Icon(Icons.Rounded.Close, contentDescription = "Close editor", tint = OffWhiteText)
+                        GlassIconButton(onClick = onDismiss, glowColor = tokens.primaryAccent) {
+                            Icon(Icons.Rounded.Close, contentDescription = "Close editor", tint = tokens.textPrimary)
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            text = if (isEdit) "Edit ${category.label}" else "Add to Afterglow",
+                            text = if (isEdit) "Edit ${category.label}" else "Add to Zenix",
                             style = MaterialTheme.typography.headlineMedium,
-                            color = OffWhiteText
+                            color = tokens.textPrimary
                         )
                     }
                     NeonPrimaryButton(
@@ -239,7 +240,7 @@ fun MediaEditorDialog(
                         Text("Save", fontWeight = FontWeight.Bold)
                     }
                 }
-                HorizontalDivider(color = Color.White.copy(alpha = 0.12f))
+                HorizontalDivider(color = tokens.outlineSubtle)
 
                 Column(
                     modifier = Modifier
@@ -251,29 +252,28 @@ fun MediaEditorDialog(
                     if (validationError != null) {
                         NeonGlassCard(
                             modifier = Modifier.fillMaxWidth(),
-                            accentColor = NeonPink,
+                            accentColor = tokens.dangerAccent,
                             cornerRadius = 16.dp,
                             contentPadding = PaddingValues(12.dp)
                         ) {
                             Text(
                                 text = validationError!!,
-                                color = NeonPink,
+                                color = tokens.dangerAccent,
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }
                     }
 
-                    // Optional TMDB Quick Lookup
                     NeonGlassCard(
                         modifier = Modifier.fillMaxWidth(),
-                        accentColor = NeonCyan,
+                        accentColor = tokens.tertiaryAccent,
                         contentPadding = PaddingValues(14.dp)
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text(
                                 text = "Auto-Fill via TMDB (Optional)",
                                 style = MaterialTheme.typography.titleSmall,
-                                color = NeonCyan
+                                color = tokens.tertiaryAccent
                             )
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -284,7 +284,7 @@ fun MediaEditorDialog(
                                     value = tmdbQuery,
                                     onValueChange = { tmdbQuery = it },
                                     placeholder = "Search movie or TV title...",
-                                    focusNeonColor = NeonCyan,
+                                    focusNeonColor = tokens.tertiaryAccent,
                                     modifier = Modifier.weight(1f)
                                 )
                                 GlassSecondaryButton(
@@ -315,11 +315,11 @@ fun MediaEditorDialog(
                                         }
                                     },
                                     enabled = !tmdbLoading,
-                                    accentBorderColor = NeonCyan,
+                                    accentBorderColor = tokens.tertiaryAccent,
                                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp)
                                 ) {
                                     if (tmdbLoading) {
-                                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = NeonCyan)
+                                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = tokens.tertiaryAccent)
                                     } else {
                                         Icon(Icons.Rounded.Search, contentDescription = null, modifier = Modifier.size(18.dp))
                                         Spacer(modifier = Modifier.width(4.dp))
@@ -331,8 +331,13 @@ fun MediaEditorDialog(
                                 Text(
                                     text = tmdbMessage!!,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MutedGreyText
+                                    color = tokens.textSecondary
                                 )
+                            }
+                            val resultBg = when (tokens.mode) {
+                                AppThemeMode.NEON -> Color.White.copy(alpha = 0.08f)
+                                AppThemeMode.ANDROID_UI -> tokens.tonalContainer.copy(alpha = 0.55f)
+                                AppThemeMode.MINIMAL_PASTEL -> PastelLavender.copy(alpha = 0.55f)
                             }
                             tmdbResults.forEach { res ->
                                 val label = res.title ?: res.name ?: "Untitled"
@@ -341,7 +346,7 @@ fun MediaEditorDialog(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(12.dp))
-                                        .background(Color.White.copy(alpha = 0.08f))
+                                        .background(resultBg)
                                         .clickable {
                                             scope.launch {
                                                 tmdbLoading = true
@@ -379,7 +384,7 @@ fun MediaEditorDialog(
                                     Text(
                                         text = "$label ${if (yr.isNotBlank()) "($yr)" else ""}",
                                         style = MaterialTheme.typography.bodyMedium,
-                                        color = OffWhiteText,
+                                        color = tokens.textPrimary,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier.weight(1f)
@@ -387,27 +392,26 @@ fun MediaEditorDialog(
                                     Text(
                                         text = res.mediaType?.uppercase() ?: "",
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = NeonCyan
+                                        color = tokens.tertiaryAccent
                                     )
                                 }
                             }
                         }
                     }
 
-                    // Category & Watch Status
-                    Text("Category", style = MaterialTheme.typography.titleSmall, color = NeonFuchsia)
+                    Text("Category", style = MaterialTheme.typography.titleSmall, color = tokens.secondaryAccent)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         MediaCategory.entries.forEach { cat ->
                             NeonGlassChip(
                                 label = cat.label,
                                 selected = category == cat,
                                 onClick = { category = cat },
-                                accentColor = categoryNeonColor(cat)
+                                accentColor = themedCategoryColor(cat)
                             )
                         }
                     }
 
-                    Text("Watch Status", style = MaterialTheme.typography.titleSmall, color = NeonFuchsia)
+                    Text("Watch Status", style = MaterialTheme.typography.titleSmall, color = tokens.secondaryAccent)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         WatchStatus.entries.forEach { st ->
                             NeonGlassChip(
@@ -425,13 +429,12 @@ fun MediaEditorDialog(
                         }
                     }
 
-                    // Core Metadata
                     NeonGlassTextField(
                         value = title,
                         onValueChange = { title = it; validationError = null },
                         label = "Title *",
                         placeholder = "Enter title...",
-                        focusNeonColor = NeonFuchsia,
+                        focusNeonColor = tokens.secondaryAccent,
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("editor_title_input")
@@ -442,7 +445,7 @@ fun MediaEditorDialog(
                         onValueChange = { posterUrl = it },
                         label = "Poster Image URL",
                         placeholder = "https://...",
-                        focusNeonColor = NeonPurple,
+                        focusNeonColor = tokens.primaryAccent,
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -451,7 +454,7 @@ fun MediaEditorDialog(
                         onValueChange = { genre = it },
                         label = "Genres (comma-separated)",
                         placeholder = "Sci-Fi, Thriller, Drama",
-                        focusNeonColor = NeonCyan,
+                        focusNeonColor = tokens.tertiaryAccent,
                         modifier = Modifier.fillMaxWidth()
                     )
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -465,7 +468,7 @@ fun MediaEditorDialog(
                                     val updated = if (selected) currentList.filterNot { it.equals(g, true) } else currentList + g
                                     genre = updated.joinToString(", ")
                                 },
-                                accentColor = neonPaletteColor(idx)
+                                accentColor = themedPaletteColor(idx)
                             )
                         }
                     }
@@ -503,10 +506,9 @@ fun MediaEditorDialog(
                         )
                     }
 
-                    // Personal Rating Slider inside NeonGlassCard
                     NeonGlassCard(
                         modifier = Modifier.fillMaxWidth(),
-                        accentColor = GoldRating,
+                        accentColor = tokens.ratingGold,
                         contentPadding = PaddingValues(14.dp)
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -515,11 +517,11 @@ fun MediaEditorDialog(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("Personal Rating", style = MaterialTheme.typography.titleSmall, color = GoldRating)
+                                Text("Personal Rating", style = MaterialTheme.typography.titleSmall, color = tokens.ratingGold)
                                 Text(
                                     text = if (personalRating <= 0.0) "Unrated" else String.format(Locale.US, "%.1f / 10", personalRating),
                                     style = MaterialTheme.typography.labelLarge,
-                                    color = OffWhiteText
+                                    color = tokens.textPrimary
                                 )
                             }
                             if (personalRating > 0.0) {
@@ -531,20 +533,19 @@ fun MediaEditorDialog(
                                 valueRange = 0f..10f,
                                 steps = 19,
                                 colors = SliderDefaults.colors(
-                                    thumbColor = NeonFuchsia,
-                                    activeTrackColor = NeonPurple,
-                                    inactiveTrackColor = Color.White.copy(alpha = 0.14f)
+                                    thumbColor = tokens.secondaryAccent,
+                                    activeTrackColor = tokens.primaryAccent,
+                                    inactiveTrackColor = tokens.outlineSubtle
                                 )
                             )
                         }
                     }
 
-                    // Platform chips + input
                     NeonGlassTextField(
                         value = platform,
                         onValueChange = { platform = it },
                         label = "Streaming Platform",
-                        focusNeonColor = NeonCyan,
+                        focusNeonColor = tokens.tertiaryAccent,
                         modifier = Modifier.fillMaxWidth()
                     )
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -553,20 +554,20 @@ fun MediaEditorDialog(
                                 label = p,
                                 selected = platform.equals(p, ignoreCase = true),
                                 onClick = { platform = p },
-                                accentColor = neonPaletteColor(idx + 1)
+                                accentColor = themedPaletteColor(idx + 1)
                             )
                         }
                     }
 
-                    // Series / Anime / K-Drama Episode Tracking
                     if (category.isEpisodic) {
+                        val catAccent = themedCategoryColor(category)
                         NeonGlassCard(
                             modifier = Modifier.fillMaxWidth(),
-                            accentColor = categoryNeonColor(category),
+                            accentColor = catAccent,
                             contentPadding = PaddingValues(14.dp)
                         ) {
                             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                Text("Season & Episode Progress", style = MaterialTheme.typography.titleSmall, color = categoryNeonColor(category))
+                                Text("Season & Episode Progress", style = MaterialTheme.typography.titleSmall, color = catAccent)
                                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                     NeonGlassTextField(
                                         value = currentSeason,
@@ -603,7 +604,6 @@ fun MediaEditorDialog(
                         }
                     }
 
-                    // Cast, Crew, Country, Dates, Links
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         NeonGlassTextField(
                             value = director,
@@ -653,10 +653,9 @@ fun MediaEditorDialog(
                         )
                     }
 
-                    // Watchlist Priority & Collections
                     NeonGlassCard(
                         modifier = Modifier.fillMaxWidth(),
-                        accentColor = NeonPink,
+                        accentColor = tokens.dangerAccent,
                         contentPadding = PaddingValues(14.dp)
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -689,8 +688,7 @@ fun MediaEditorDialog(
                         }
                     }
 
-                    // Mood Tags
-                    Text("Mood Tags (up to 6)", style = MaterialTheme.typography.titleSmall, color = NeonGreen)
+                    Text("Mood Tags (up to 6)", style = MaterialTheme.typography.titleSmall, color = tokens.positiveAccent)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         AVAILABLE_MOODS.forEachIndexed { idx, mood ->
                             val isSelected = selectedMoods.contains(mood)
@@ -701,12 +699,11 @@ fun MediaEditorDialog(
                                     if (isSelected) selectedMoods.remove(mood)
                                     else if (selectedMoods.size < 6) selectedMoods.add(mood)
                                 },
-                                accentColor = neonPaletteColor(idx)
+                                accentColor = themedPaletteColor(idx)
                             )
                         }
                     }
 
-                    // Review & Notes
                     NeonGlassTextField(
                         value = personalReview,
                         onValueChange = { personalReview = it },
@@ -714,7 +711,7 @@ fun MediaEditorDialog(
                         singleLine = false,
                         minLines = 3,
                         maxLines = 6,
-                        focusNeonColor = NeonFuchsia,
+                        focusNeonColor = tokens.secondaryAccent,
                         modifier = Modifier.fillMaxWidth()
                     )
                     NeonGlassTextField(
@@ -724,7 +721,7 @@ fun MediaEditorDialog(
                         singleLine = false,
                         minLines = 2,
                         maxLines = 4,
-                        focusNeonColor = NeonCyan,
+                        focusNeonColor = tokens.tertiaryAccent,
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -737,21 +734,22 @@ fun MediaEditorDialog(
 
 @Composable
 private fun ToggleRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    val tokens = LocalZenixTokens.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, style = MaterialTheme.typography.bodyMedium, color = OffWhiteText)
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = tokens.textPrimary)
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
-                checkedTrackColor = NeonPurple,
-                uncheckedThumbColor = MutedGreyText,
-                uncheckedTrackColor = Color.White.copy(alpha = 0.12f),
-                uncheckedBorderColor = Color.White.copy(alpha = 0.25f)
+                checkedThumbColor = if (tokens.mode == AppThemeMode.ANDROID_UI) tokens.primaryButtonText else Color.White,
+                checkedTrackColor = tokens.primaryAccent,
+                uncheckedThumbColor = tokens.textSecondary,
+                uncheckedTrackColor = tokens.outlineSubtle,
+                uncheckedBorderColor = tokens.outline
             )
         )
     }

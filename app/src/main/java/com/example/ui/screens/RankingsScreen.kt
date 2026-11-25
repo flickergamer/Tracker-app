@@ -45,13 +45,8 @@ import com.example.ui.components.NeonGlassChip
 import com.example.ui.components.NeonRatingStars
 import com.example.ui.components.PosterArtwork
 import com.example.ui.components.RatingPill
-import com.example.ui.components.neonPaletteColor
-import com.example.ui.theme.GoldRating
-import com.example.ui.theme.MutedGreyText
-import com.example.ui.theme.NeonFuchsia
-import com.example.ui.theme.NeonPink
-import com.example.ui.theme.NeonPurple
-import com.example.ui.theme.OffWhiteText
+import com.example.ui.components.themedPaletteColor
+import com.example.ui.theme.LocalZenixTokens
 
 enum class RankingCategoryTab(val label: String) {
     TOP_10_MOVIES("Top 10 Movies"),
@@ -72,6 +67,7 @@ fun RankingsScreen(
     bottomPadding: Dp = FloatingBottomBarClearance,
     modifier: Modifier = Modifier
 ) {
+    val tokens = LocalZenixTokens.current
     var selectedTab by remember { mutableStateOf(RankingCategoryTab.TOP_10_MOVIES) }
     var autoRankByRating by remember { mutableStateOf(true) }
 
@@ -110,7 +106,7 @@ fun RankingsScreen(
             Text(
                 text = "Favourites & Rankings",
                 style = MaterialTheme.typography.displayMedium,
-                color = OffWhiteText
+                color = tokens.textPrimary
             )
 
             Row(
@@ -122,14 +118,14 @@ fun RankingsScreen(
                         label = tab.label,
                         selected = selectedTab == tab,
                         onClick = { selectedTab = tab },
-                        accentColor = neonPaletteColor(idx)
+                        accentColor = themedPaletteColor(idx)
                     )
                 }
             }
 
             NeonGlassCard(
                 modifier = Modifier.fillMaxWidth(),
-                accentColor = NeonFuchsia,
+                accentColor = tokens.secondaryAccent,
                 cornerRadius = 18.dp,
                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)
             ) {
@@ -142,12 +138,12 @@ fun RankingsScreen(
                         Text(
                             text = if (autoRankByRating) "Auto-Rank by Personal Rating" else "Manual Custom Order",
                             style = MaterialTheme.typography.titleSmall,
-                            color = OffWhiteText
+                            color = tokens.textPrimary
                         )
                         Text(
                             text = if (autoRankByRating) "Ordered highest to lowest rating" else "Use arrows to customize rank #1–10",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MutedGreyText
+                            color = tokens.textSecondary
                         )
                     }
                     Switch(
@@ -155,9 +151,9 @@ fun RankingsScreen(
                         onCheckedChange = { autoRankByRating = it },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,
-                            checkedTrackColor = NeonPurple,
-                            uncheckedThumbColor = MutedGreyText,
-                            uncheckedTrackColor = Color.White.copy(alpha = 0.12f)
+                            checkedTrackColor = tokens.primaryAccent,
+                            uncheckedThumbColor = tokens.textSecondary,
+                            uncheckedTrackColor = tokens.outlineSubtle
                         )
                     )
                 }
@@ -173,7 +169,7 @@ fun RankingsScreen(
                 EmptyStateView(
                     title = "No Titles in ${selectedTab.label}",
                     subtitle = "Rate titles or mark favourites and all-time favourites in your library to curate this leaderboard.",
-                    accentColor = GoldRating
+                    accentColor = tokens.ratingGold
                 )
             }
         } else {
@@ -182,7 +178,7 @@ fun RankingsScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 itemsIndexed(rankedList, key = { _, item -> item.id }) { index, item ->
-                    val accent = if (index < 3) GoldRating else neonPaletteColor(index)
+                    val accent = if (index < 3) tokens.ratingGold else themedPaletteColor(index)
                     NeonGlassCard(
                         modifier = Modifier.fillMaxWidth(),
                         accentColor = accent,
@@ -210,14 +206,14 @@ fun RankingsScreen(
                                 Text(
                                     text = item.title,
                                     style = MaterialTheme.typography.titleMedium,
-                                    color = OffWhiteText,
+                                    color = tokens.textPrimary,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
                                     text = "${item.categoryEnum.label} • ${item.releaseYear}",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MutedGreyText
+                                    color = tokens.textSecondary
                                 )
                                 if (item.personalRating > 0) {
                                     Row(
@@ -241,7 +237,7 @@ fun RankingsScreen(
                                         },
                                         enabled = index > 0
                                     ) {
-                                        Icon(Icons.Rounded.ArrowUpward, contentDescription = "Move up", tint = OffWhiteText)
+                                        Icon(Icons.Rounded.ArrowUpward, contentDescription = "Move up", tint = tokens.textPrimary)
                                     }
                                     IconButton(
                                         onClick = {
@@ -253,7 +249,7 @@ fun RankingsScreen(
                                         },
                                         enabled = index < rankedList.lastIndex
                                     ) {
-                                        Icon(Icons.Rounded.ArrowDownward, contentDescription = "Move down", tint = OffWhiteText)
+                                        Icon(Icons.Rounded.ArrowDownward, contentDescription = "Move down", tint = tokens.textPrimary)
                                     }
                                 }
                             } else {
@@ -262,14 +258,14 @@ fun RankingsScreen(
                                         Icon(
                                             imageVector = Icons.Filled.Favorite,
                                             contentDescription = "Favourite",
-                                            tint = if (item.favourite) NeonPink else MutedGreyText.copy(alpha = 0.5f)
+                                            tint = if (item.favourite) tokens.dangerAccent else tokens.textSecondary.copy(alpha = 0.5f)
                                         )
                                     }
                                     IconButton(onClick = { onToggleAllTime(item) }) {
                                         Icon(
                                             imageVector = Icons.Filled.Star,
                                             contentDescription = "All-time favourite",
-                                            tint = if (item.allTimeFavourite) GoldRating else MutedGreyText.copy(alpha = 0.5f)
+                                            tint = if (item.allTimeFavourite) tokens.ratingGold else tokens.textSecondary.copy(alpha = 0.5f)
                                         )
                                     }
                                 }

@@ -57,14 +57,25 @@ import com.example.data.model.MediaItem
 import com.example.data.model.WatchStatus
 import com.example.data.model.WatchlistPriority
 import com.example.data.model.formatWatchTime
-import com.example.ui.theme.GoldRating
-import com.example.ui.theme.MutedGreyText
+import com.example.ui.theme.AndroidOutlineVariant
+import com.example.ui.theme.AndroidPrimary
+import com.example.ui.theme.AndroidSurface
+import com.example.ui.theme.AppThemeMode
+import com.example.ui.theme.LocalAppThemeMode
+import com.example.ui.theme.LocalZenixTokens
 import com.example.ui.theme.NeonCyan
-import com.example.ui.theme.NeonFuchsia
 import com.example.ui.theme.NeonGreen
 import com.example.ui.theme.NeonPink
 import com.example.ui.theme.NeonPurple
-import com.example.ui.theme.OffWhiteText
+import com.example.ui.theme.PastelAccentCoral
+import com.example.ui.theme.PastelAccentGold
+import com.example.ui.theme.PastelAccentMint
+import com.example.ui.theme.PastelAccentPlum
+import com.example.ui.theme.PastelAccentTeal
+import com.example.ui.theme.PastelLavender
+import com.example.ui.theme.PastelOutline
+import com.example.ui.theme.PastelOutlineStrong
+import com.example.ui.theme.PastelSky
 import com.example.ui.theme.StatusCompleted
 import com.example.ui.theme.StatusDropped
 import com.example.ui.theme.StatusOnHold
@@ -73,19 +84,47 @@ import com.example.ui.theme.StatusWatching
 import java.util.Locale
 
 @Composable
-fun statusColor(status: WatchStatus): Color = when (status) {
-    WatchStatus.COMPLETED -> StatusCompleted
-    WatchStatus.WATCHING -> StatusWatching
-    WatchStatus.PLAN_TO_WATCH -> StatusPlanToWatch
-    WatchStatus.ON_HOLD -> StatusOnHold
-    WatchStatus.DROPPED -> StatusDropped
+fun statusColor(status: WatchStatus): Color = when (LocalAppThemeMode.current) {
+    AppThemeMode.NEON -> when (status) {
+        WatchStatus.COMPLETED -> StatusCompleted
+        WatchStatus.WATCHING -> StatusWatching
+        WatchStatus.PLAN_TO_WATCH -> StatusPlanToWatch
+        WatchStatus.ON_HOLD -> StatusOnHold
+        WatchStatus.DROPPED -> StatusDropped
+    }
+    AppThemeMode.ANDROID_UI -> when (status) {
+        WatchStatus.COMPLETED -> Color(0xFF81C784)
+        WatchStatus.WATCHING -> AndroidPrimary
+        WatchStatus.PLAN_TO_WATCH -> Color(0xFF80D8FF)
+        WatchStatus.ON_HOLD -> Color(0xFFFFD54F)
+        WatchStatus.DROPPED -> Color(0xFFF2B8B5)
+    }
+    AppThemeMode.MINIMAL_PASTEL -> when (status) {
+        WatchStatus.COMPLETED -> PastelAccentMint
+        WatchStatus.WATCHING -> PastelAccentPlum
+        WatchStatus.PLAN_TO_WATCH -> PastelAccentTeal
+        WatchStatus.ON_HOLD -> PastelAccentGold
+        WatchStatus.DROPPED -> PastelAccentCoral
+    }
 }
 
 @Composable
-fun priorityColor(priority: WatchlistPriority): Color = when (priority) {
-    WatchlistPriority.HIGH -> NeonPink
-    WatchlistPriority.MEDIUM -> StatusOnHold
-    WatchlistPriority.LOW -> NeonCyan
+fun priorityColor(priority: WatchlistPriority): Color = when (LocalAppThemeMode.current) {
+    AppThemeMode.NEON -> when (priority) {
+        WatchlistPriority.HIGH -> NeonPink
+        WatchlistPriority.MEDIUM -> StatusOnHold
+        WatchlistPriority.LOW -> NeonCyan
+    }
+    AppThemeMode.ANDROID_UI -> when (priority) {
+        WatchlistPriority.HIGH -> Color(0xFFF2B8B5)
+        WatchlistPriority.MEDIUM -> Color(0xFFFFD54F)
+        WatchlistPriority.LOW -> Color(0xFF80D8FF)
+    }
+    AppThemeMode.MINIMAL_PASTEL -> when (priority) {
+        WatchlistPriority.HIGH -> PastelAccentCoral
+        WatchlistPriority.MEDIUM -> PastelAccentGold
+        WatchlistPriority.LOW -> PastelAccentTeal
+    }
 }
 
 @Composable
@@ -95,19 +134,34 @@ fun PosterArtwork(
     category: MediaCategory,
     modifier: Modifier = Modifier
 ) {
-    val neon = categoryNeonColor(category)
-    val fallbackBrush = Brush.linearGradient(
-        colors = listOf(
-            Color(0xFF1A1032),
-            neon.copy(alpha = 0.25f),
-            Color(0xFF0E091B)
+    val tokens = LocalZenixTokens.current
+    val accent = themedCategoryColor(category)
+    val fallbackBrush = when (tokens.mode) {
+        AppThemeMode.NEON -> Brush.linearGradient(
+            colors = listOf(
+                Color(0xFF1A1032),
+                accent.copy(alpha = 0.25f),
+                Color(0xFF0E091B)
+            )
         )
-    )
+        AppThemeMode.ANDROID_UI -> Brush.linearGradient(
+            colors = listOf(AndroidSurface, Color(0xFF332D41))
+        )
+        AppThemeMode.MINIMAL_PASTEL -> Brush.linearGradient(
+            colors = listOf(PastelLavender, PastelSky)
+        )
+    }
+    val borderColor = when (tokens.mode) {
+        AppThemeMode.NEON -> Color.White.copy(alpha = 0.22f)
+        AppThemeMode.ANDROID_UI -> AndroidOutlineVariant
+        AppThemeMode.MINIMAL_PASTEL -> PastelOutline
+    }
+
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(16.dp))
             .background(fallbackBrush)
-            .border(1.dp, Color.White.copy(alpha = 0.22f), RoundedCornerShape(16.dp)),
+            .border(1.dp, borderColor, RoundedCornerShape(16.dp)),
         contentAlignment = Alignment.Center
     ) {
         if (posterUrl.isNotBlank()) {
@@ -127,7 +181,8 @@ fun PosterArtwork(
 
 @Composable
 private fun PosterPlaceholder(title: String, category: MediaCategory) {
-    val neon = categoryNeonColor(category)
+    val tokens = LocalZenixTokens.current
+    val accent = themedCategoryColor(category)
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -138,14 +193,14 @@ private fun PosterPlaceholder(title: String, category: MediaCategory) {
         Icon(
             imageVector = if (category == MediaCategory.MOVIE) Icons.Rounded.Movie else Icons.Rounded.Tv,
             contentDescription = null,
-            tint = neon.copy(alpha = 0.9f),
+            tint = accent.copy(alpha = 0.9f),
             modifier = Modifier.size(28.dp)
         )
         Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = title,
             style = MaterialTheme.typography.labelSmall,
-            color = OffWhiteText.copy(alpha = 0.9f),
+            color = tokens.textPrimary.copy(alpha = 0.9f),
             textAlign = TextAlign.Center,
             maxLines = 3,
             overflow = TextOverflow.Ellipsis
@@ -155,14 +210,18 @@ private fun PosterPlaceholder(title: String, category: MediaCategory) {
 
 @Composable
 fun StatusPill(status: WatchStatus, modifier: Modifier = Modifier) {
+    val tokens = LocalZenixTokens.current
     val c = statusColor(status)
     val shape = RoundedCornerShape(50)
     Box(
         modifier = modifier
-            .neonGlow(c, cornerRadius = 12.dp, alpha = 0.24f, spread = 4.dp)
+            .then(
+                if (tokens.useGlow) Modifier.neonGlow(c, cornerRadius = 12.dp, alpha = 0.24f, spread = 4.dp)
+                else Modifier
+            )
             .clip(shape)
-            .background(c.copy(alpha = 0.16f))
-            .border(1.dp, c.copy(alpha = 0.60f), shape)
+            .background(c.copy(alpha = if (tokens.isLight) 0.14f else 0.16f))
+            .border(1.dp, c.copy(alpha = if (tokens.isLight) 0.45f else 0.60f), shape)
             .padding(horizontal = 9.dp, vertical = 4.dp)
     ) {
         Text(
@@ -177,14 +236,25 @@ fun StatusPill(status: WatchStatus, modifier: Modifier = Modifier) {
 
 @Composable
 fun RatingPill(rating: Double, prefix: String = "", modifier: Modifier = Modifier) {
+    val tokens = LocalZenixTokens.current
+    val gold = tokens.ratingGold
     val shape = RoundedCornerShape(50)
+    val baseBg = when (tokens.mode) {
+        AppThemeMode.NEON -> Color(0xFF140D22).copy(alpha = 0.80f)
+        AppThemeMode.ANDROID_UI -> AndroidSurface
+        AppThemeMode.MINIMAL_PASTEL -> Color(0xFFFFF8E8)
+    }
+
     Box(
         modifier = modifier
-            .neonGlow(GoldRating, cornerRadius = 12.dp, alpha = 0.26f, spread = 4.dp)
+            .then(
+                if (tokens.useGlow) Modifier.neonGlow(gold, cornerRadius = 12.dp, alpha = 0.26f, spread = 4.dp)
+                else Modifier
+            )
             .clip(shape)
-            .background(Color(0xFF140D22).copy(alpha = 0.80f))
-            .background(GoldRating.copy(alpha = 0.15f))
-            .border(1.dp, GoldRating.copy(alpha = 0.65f), shape)
+            .background(baseBg)
+            .background(gold.copy(alpha = if (tokens.isLight) 0.12f else 0.15f))
+            .border(1.dp, gold.copy(alpha = 0.65f), shape)
             .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
         Row(
@@ -194,7 +264,7 @@ fun RatingPill(rating: Double, prefix: String = "", modifier: Modifier = Modifie
             Icon(
                 imageVector = Icons.Filled.Star,
                 contentDescription = null,
-                tint = GoldRating,
+                tint = gold,
                 modifier = Modifier.size(12.dp)
             )
             Text(
@@ -202,7 +272,7 @@ fun RatingPill(rating: Double, prefix: String = "", modifier: Modifier = Modifie
                 else "$prefix ${String.format(Locale.US, "%.1f", rating)}",
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
-                color = GoldRating
+                color = gold
             )
         }
     }
@@ -215,13 +285,16 @@ fun StatKpiCard(
     icon: ImageVector,
     accentColor: Color = NeonPurple,
     subtitle: String? = null,
+    pastelFill: Color? = null,
     modifier: Modifier = Modifier
 ) {
+    val tokens = LocalZenixTokens.current
     NeonGlassCard(
         modifier = modifier,
         accentColor = accentColor,
         cornerRadius = 22.dp,
         glowAlpha = 0.24f,
+        pastelFill = pastelFill,
         contentPadding = PaddingValues(14.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -233,10 +306,16 @@ fun StatKpiCard(
                 Box(
                     modifier = Modifier
                         .size(36.dp)
-                        .neonGlow(accentColor, cornerRadius = 11.dp, alpha = 0.34f, spread = 4.dp)
+                        .then(
+                            if (tokens.useGlow) Modifier.neonGlow(accentColor, cornerRadius = 11.dp, alpha = 0.34f, spread = 4.dp)
+                            else Modifier
+                        )
                         .clip(RoundedCornerShape(11.dp))
-                        .background(accentColor.copy(alpha = 0.20f))
-                        .border(1.dp, accentColor.copy(alpha = 0.55f), RoundedCornerShape(11.dp)),
+                        .background(
+                            if (tokens.isLight && pastelFill != null) Color.White.copy(alpha = 0.72f)
+                            else accentColor.copy(alpha = 0.20f)
+                        )
+                        .border(1.dp, accentColor.copy(alpha = if (tokens.isLight) 0.35f else 0.55f), RoundedCornerShape(11.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -258,14 +337,14 @@ fun StatKpiCard(
             Text(
                 text = value,
                 style = MaterialTheme.typography.headlineMedium,
-                color = OffWhiteText,
+                color = tokens.textPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodySmall,
-                color = MutedGreyText,
+                color = tokens.textSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -282,12 +361,16 @@ fun MediaGridCard(
     onEdit: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    val neonAccent = categoryNeonColor(item.categoryEnum)
+    val tokens = LocalZenixTokens.current
+    val accent = themedCategoryColor(item.categoryEnum)
+    val overlayBg = if (tokens.isLight) Color.White.copy(alpha = 0.90f) else Color(0xFF0A0714).copy(alpha = 0.72f)
+    val overlayBorder = if (tokens.isLight) PastelOutlineStrong else Color.White.copy(alpha = 0.26f)
+
     NeonGlassCard(
         modifier = modifier
             .fillMaxWidth()
             .testTag("media_card_${item.id}"),
-        accentColor = neonAccent,
+        accentColor = accent,
         cornerRadius = 22.dp,
         glowAlpha = 0.24f,
         onClick = onClick,
@@ -316,13 +399,13 @@ fun MediaGridCard(
                         modifier = Modifier
                             .size(34.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF0A0714).copy(alpha = 0.72f))
-                            .border(1.dp, Color.White.copy(alpha = 0.26f), CircleShape)
+                            .background(overlayBg)
+                            .border(1.dp, overlayBorder, CircleShape)
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Edit,
                             contentDescription = "Edit ${item.title}",
-                            tint = OffWhiteText,
+                            tint = tokens.textPrimary,
                             modifier = Modifier.size(15.dp)
                         )
                     }
@@ -332,17 +415,17 @@ fun MediaGridCard(
                     modifier = Modifier
                         .size(34.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF0A0714).copy(alpha = 0.72f))
+                        .background(overlayBg)
                         .border(
                             1.dp,
-                            if (item.favourite) NeonPink.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.26f),
+                            if (item.favourite) tokens.dangerAccent.copy(alpha = 0.7f) else overlayBorder,
                             CircleShape
                         )
                 ) {
                     Icon(
                         imageVector = if (item.favourite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                         contentDescription = if (item.favourite) "Unfavourite ${item.title}" else "Favourite ${item.title}",
-                        tint = if (item.favourite) NeonPink else OffWhiteText,
+                        tint = if (item.favourite) tokens.dangerAccent else tokens.textPrimary,
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -360,7 +443,7 @@ fun MediaGridCard(
         Text(
             text = item.title,
             style = MaterialTheme.typography.titleMedium,
-            color = OffWhiteText,
+            color = tokens.textPrimary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -370,7 +453,7 @@ fun MediaGridCard(
                 if (item.streamingPlatform.isNotBlank()) append(" • ${item.streamingPlatform}")
             },
             style = MaterialTheme.typography.bodySmall,
-            color = MutedGreyText,
+            color = tokens.textSecondary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -378,7 +461,7 @@ fun MediaGridCard(
             Text(
                 text = item.genre,
                 style = MaterialTheme.typography.labelSmall,
-                color = neonAccent,
+                color = accent,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(top = 2.dp)
@@ -395,7 +478,7 @@ fun MediaGridCard(
                 Text(
                     text = formatWatchTime(item.runtimeMinutes),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MutedGreyText
+                    color = tokens.textSecondary
                 )
             }
         }
@@ -412,12 +495,17 @@ fun SeriesProgressCard(
     onEdit: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    val neonAccent = categoryNeonColor(item.categoryEnum)
+    val tokens = LocalZenixTokens.current
+    val accent = themedCategoryColor(item.categoryEnum)
+    val barEnd = if (tokens.mode == AppThemeMode.NEON) {
+        if (accent == NeonCyan) NeonGreen else NeonCyan
+    } else tokens.tertiaryAccent
+
     NeonGlassCard(
         modifier = modifier
             .fillMaxWidth()
             .testTag("series_card_${item.id}"),
-        accentColor = neonAccent,
+        accentColor = accent,
         cornerRadius = 22.dp,
         glowAlpha = 0.25f,
         onClick = onClick,
@@ -446,14 +534,14 @@ fun SeriesProgressCard(
                         Text(
                             text = item.title,
                             style = MaterialTheme.typography.titleMedium,
-                            color = OffWhiteText,
+                            color = tokens.textPrimary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = "${item.categoryEnum.label} • ${item.releaseYear} • ${item.streamingPlatform.ifBlank { "Library" }}",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MutedGreyText,
+                            color = tokens.textSecondary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -464,7 +552,7 @@ fun SeriesProgressCard(
                                 Icon(
                                     imageVector = Icons.Rounded.Edit,
                                     contentDescription = "Edit ${item.title}",
-                                    tint = MutedGreyText,
+                                    tint = tokens.textSecondary,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -473,7 +561,7 @@ fun SeriesProgressCard(
                             Icon(
                                 imageVector = if (item.favourite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                                 contentDescription = "Toggle favourite",
-                                tint = if (item.favourite) NeonPink else MutedGreyText,
+                                tint = if (item.favourite) tokens.dangerAccent else tokens.textSecondary,
                                 modifier = Modifier.size(19.dp)
                             )
                         }
@@ -484,7 +572,7 @@ fun SeriesProgressCard(
                 Text(
                     text = item.formattedSeriesProgress(),
                     style = MaterialTheme.typography.labelMedium,
-                    color = neonAccent,
+                    color = accent,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -492,8 +580,8 @@ fun SeriesProgressCard(
                 NeonProgressBar(
                     progress = item.episodeProgressPercent / 100f,
                     height = 8.dp,
-                    startColor = neonAccent,
-                    endColor = if (neonAccent == NeonCyan) NeonGreen else NeonCyan
+                    startColor = accent,
+                    endColor = barEnd
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(
@@ -504,7 +592,7 @@ fun SeriesProgressCard(
                     Text(
                         text = "${item.remainingEpisodes} eps left • ${formatWatchTime(item.watchedTimeMinutes)} watched",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MutedGreyText
+                        color = tokens.textSecondary
                     )
                     if (item.personalRating > 0.0) {
                         RatingPill(rating = item.personalRating)
@@ -526,20 +614,20 @@ fun SeriesProgressCard(
             ) {
                 GlassIconButton(
                     onClick = { if (item.episodesWatched > 0) onStepEpisode(-1) },
-                    glowColor = neonAccent,
+                    glowColor = accent,
                     size = 38.dp
                 ) {
                     Icon(
                         Icons.Rounded.Remove,
                         contentDescription = "Decrease episode",
-                        tint = if (item.episodesWatched > 0) OffWhiteText else MutedGreyText.copy(alpha = 0.4f),
+                        tint = if (item.episodesWatched > 0) tokens.textPrimary else tokens.textSecondary.copy(alpha = 0.4f),
                         modifier = Modifier.size(18.dp)
                     )
                 }
                 Text(
                     text = "${item.episodesWatched}/${item.totalEpisodes}",
                     style = MaterialTheme.typography.labelMedium,
-                    color = OffWhiteText
+                    color = tokens.textPrimary
                 )
                 GlassIconButton(
                     onClick = {
@@ -547,14 +635,14 @@ fun SeriesProgressCard(
                             onStepEpisode(1)
                         }
                     },
-                    glowColor = neonAccent,
+                    glowColor = accent,
                     size = 38.dp,
                     modifier = Modifier.testTag("plus_ep_${item.id}")
                 ) {
                     Icon(
                         Icons.Rounded.Add,
                         contentDescription = "Watch next episode",
-                        tint = if (item.totalEpisodes == 0L || item.episodesWatched < item.totalEpisodes) neonAccent else MutedGreyText.copy(alpha = 0.4f),
+                        tint = if (item.totalEpisodes == 0L || item.episodesWatched < item.totalEpisodes) accent else tokens.textSecondary.copy(alpha = 0.4f),
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -572,6 +660,13 @@ fun MovieTableView(
     accentColor: Color = NeonPurple,
     modifier: Modifier = Modifier
 ) {
+    val tokens = LocalZenixTokens.current
+    val headerBg = when (tokens.mode) {
+        AppThemeMode.NEON -> Color.White.copy(alpha = 0.08f)
+        AppThemeMode.ANDROID_UI -> AndroidSurface
+        AppThemeMode.MINIMAL_PASTEL -> PastelLavender.copy(alpha = 0.55f)
+    }
+
     NeonGlassCard(
         modifier = modifier.fillMaxWidth(),
         accentColor = accentColor,
@@ -581,7 +676,7 @@ fun MovieTableView(
         Column(modifier = Modifier.horizontalScroll(rememberScrollState())) {
             Row(
                 modifier = Modifier
-                    .background(Color.White.copy(alpha = 0.08f))
+                    .background(headerBg)
                     .padding(horizontal = 16.dp, vertical = 13.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -596,7 +691,7 @@ fun MovieTableView(
                 TableHeaderCell("Runtime", 75)
                 TableHeaderCell("Actions", 96)
             }
-            HorizontalDivider(color = Color.White.copy(alpha = 0.16f))
+            HorizontalDivider(color = tokens.outlineSubtle)
             movies.forEach { movie ->
                 Row(
                     modifier = Modifier
@@ -608,7 +703,7 @@ fun MovieTableView(
                     Text(
                         text = movie.title,
                         style = MaterialTheme.typography.titleSmall,
-                        color = OffWhiteText,
+                        color = tokens.textPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.width(170.dp)
@@ -616,13 +711,13 @@ fun MovieTableView(
                     Text(
                         text = movie.releaseYear.toString(),
                         style = MaterialTheme.typography.labelMedium,
-                        color = MutedGreyText,
+                        color = tokens.textSecondary,
                         modifier = Modifier.width(60.dp)
                     )
                     Text(
                         text = movie.genre.ifBlank { "—" },
                         style = MaterialTheme.typography.bodySmall,
-                        color = MutedGreyText,
+                        color = tokens.textSecondary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.width(130.dp)
@@ -630,7 +725,7 @@ fun MovieTableView(
                     Text(
                         text = movie.streamingPlatform.ifBlank { "—" },
                         style = MaterialTheme.typography.bodySmall,
-                        color = MutedGreyText,
+                        color = tokens.textSecondary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.width(100.dp)
@@ -641,31 +736,31 @@ fun MovieTableView(
                     Text(
                         text = if (movie.personalRating > 0) String.format(Locale.US, "%.1f", movie.personalRating) else "—",
                         style = MaterialTheme.typography.labelMedium,
-                        color = GoldRating,
+                        color = tokens.ratingGold,
                         modifier = Modifier.width(75.dp)
                     )
                     Text(
                         text = if (movie.imdbRating > 0) String.format(Locale.US, "%.1f", movie.imdbRating) else "—",
                         style = MaterialTheme.typography.labelMedium,
-                        color = MutedGreyText,
+                        color = tokens.textSecondary,
                         modifier = Modifier.width(65.dp)
                     )
                     Text(
                         text = if (movie.categoryEnum.isEpisodic) "${movie.episodesWatched}/${movie.totalEpisodes} ep" else formatWatchTime(movie.runtimeMinutes),
                         style = MaterialTheme.typography.labelMedium,
-                        color = MutedGreyText,
+                        color = tokens.textSecondary,
                         modifier = Modifier.width(75.dp)
                     )
                     Row(modifier = Modifier.width(96.dp)) {
                         IconButton(onClick = { onEdit(movie) }) {
-                            Icon(Icons.Rounded.Edit, contentDescription = "Edit ${movie.title}", tint = NeonCyan)
+                            Icon(Icons.Rounded.Edit, contentDescription = "Edit ${movie.title}", tint = tokens.tertiaryAccent)
                         }
                         IconButton(onClick = { onDelete(movie) }) {
-                            Icon(Icons.Rounded.Delete, contentDescription = "Delete ${movie.title}", tint = NeonPink)
+                            Icon(Icons.Rounded.Delete, contentDescription = "Delete ${movie.title}", tint = tokens.dangerAccent)
                         }
                     }
                 }
-                HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
+                HorizontalDivider(color = tokens.outlineSubtle.copy(alpha = 0.6f))
             }
         }
     }
@@ -673,11 +768,12 @@ fun MovieTableView(
 
 @Composable
 private fun TableHeaderCell(text: String, widthDp: Int) {
+    val tokens = LocalZenixTokens.current
     Text(
         text = text,
         style = MaterialTheme.typography.labelMedium,
         fontWeight = FontWeight.Bold,
-        color = NeonFuchsia,
+        color = tokens.secondaryAccent,
         modifier = Modifier.width(widthDp.dp)
     )
 }
@@ -691,6 +787,7 @@ fun EmptyStateView(
     accentColor: Color = NeonPurple,
     modifier: Modifier = Modifier
 ) {
+    val tokens = LocalZenixTokens.current
     NeonGlassCard(
         modifier = modifier.fillMaxWidth(),
         accentColor = accentColor,
@@ -710,18 +807,18 @@ fun EmptyStateView(
                     .fillMaxWidth()
                     .height(145.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .border(1.dp, Color.White.copy(alpha = 0.22f), RoundedCornerShape(16.dp))
+                    .border(1.dp, tokens.outlineSubtle, RoundedCornerShape(16.dp))
             )
             Text(
                 text = title,
                 style = MaterialTheme.typography.headlineMedium,
-                color = OffWhiteText,
+                color = tokens.textPrimary,
                 textAlign = TextAlign.Center
             )
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MutedGreyText,
+                color = tokens.textSecondary,
                 textAlign = TextAlign.Center
             )
             if (actionLabel != null && onAction != null) {

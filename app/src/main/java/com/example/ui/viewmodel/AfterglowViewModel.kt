@@ -140,7 +140,7 @@ class AfterglowViewModel(
                 repository.createMediaItem(currentUserId, item)
             }
             res.onSuccess {
-                _events.tryEmit(if (isEdit) "Updated \"${item.title}\"" else "Added \"${item.title}\" to Afterglow")
+                _events.tryEmit(if (isEdit) "Updated \"${item.title}\"" else "Added \"${item.title}\" to Zenix")
             }.onFailure { err ->
                 _events.tryEmit(err.localizedMessage ?: "Failed to save \"${item.title}\"")
             }
@@ -430,7 +430,7 @@ class AfterglowViewModel(
         val reviewCount = items.count { it.personalReview.isNotBlank() }
 
         return listOf(
-            AchievementBadge("first_frame", "First Frame", "Add your first title to Afterglow", items.size, 1),
+            AchievementBadge("first_frame", "First Frame", "Add your first title to Zenix", items.size, 1),
             AchievementBadge("binge_watcher", "Binge Watcher", "Complete 3 series or dramas", completedSeries, 3),
             AchievementBadge("anime_explorer", "Anime Explorer", "Complete 5 anime series", completedAnime, 5),
             AchievementBadge("series_master", "Series Master", "Complete 10 series", completedSeries, 10),

@@ -23,7 +23,7 @@ object LibrarySerializer {
         quotes: List<QuoteItem>
     ): String {
         val root = JSONObject()
-        root.put("app", "Afterglow")
+        root.put("app", "Zenix")
         root.put("schemaVersion", 1)
         root.put("exportedAtMillis", System.currentTimeMillis())
 

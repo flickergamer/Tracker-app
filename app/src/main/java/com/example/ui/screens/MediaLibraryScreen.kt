@@ -59,12 +59,8 @@ import com.example.ui.components.NeonGlassTextField
 import com.example.ui.components.NeonPrimaryButton
 import com.example.ui.components.SeriesProgressCard
 import com.example.ui.components.statusColor
-import com.example.ui.theme.MutedGreyText
-import com.example.ui.theme.NeonCyan
-import com.example.ui.theme.NeonFuchsia
-import com.example.ui.theme.NeonPink
-import com.example.ui.theme.NeonPurple
-import com.example.ui.theme.OffWhiteText
+import com.example.ui.components.themedCategoryColor
+import com.example.ui.theme.LocalZenixTokens
 
 enum class LibraryMode { MOVIES, WEB_SERIES, ANIME, K_DRAMA }
 enum class MediaSortOption(val label: String) {
@@ -170,12 +166,8 @@ fun MediaLibraryScreen(
         LibraryMode.K_DRAMA -> "K-Drama"
     }
 
-    val modeNeon = when (mode) {
-        LibraryMode.MOVIES -> NeonPurple
-        LibraryMode.WEB_SERIES -> NeonCyan
-        LibraryMode.ANIME -> NeonPink
-        LibraryMode.K_DRAMA -> NeonFuchsia
-    }
+    val tokens = LocalZenixTokens.current
+    val modeNeon = themedCategoryColor(defaultAddCategory)
 
     Column(modifier = modifier.fillMaxSize()) {
         Column(
@@ -190,11 +182,11 @@ fun MediaLibraryScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text(headerTitle, style = MaterialTheme.typography.displayMedium, color = OffWhiteText)
+                    Text(headerTitle, style = MaterialTheme.typography.displayMedium, color = tokens.textPrimary)
                     Text(
                         "${filteredItems.size} of ${baseItems.size} titles",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MutedGreyText
+                        color = tokens.textSecondary
                     )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -252,7 +244,7 @@ fun MediaLibraryScreen(
                         expanded = showSortMenu,
                         onDismissRequest = { showSortMenu = false },
                         modifier = Modifier
-                            .background(Color(0xFF140D26))
+                            .background(tokens.dialogBackground)
                             .border(1.dp, modeNeon.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
                     ) {
                         MediaSortOption.entries.forEach { opt ->
@@ -260,7 +252,7 @@ fun MediaLibraryScreen(
                                 text = {
                                     Text(
                                         opt.label,
-                                        color = if (sortOption == opt) modeNeon else OffWhiteText
+                                        color = if (sortOption == opt) modeNeon else tokens.textPrimary
                                     )
                                 },
                                 onClick = { sortOption = opt; showSortMenu = false }
@@ -272,7 +264,7 @@ fun MediaLibraryScreen(
                 Box {
                     GlassSecondaryButton(
                         onClick = { showFilterMenu = true },
-                        accentBorderColor = NeonFuchsia,
+                        accentBorderColor = tokens.secondaryAccent,
                         cornerRadius = 14.dp,
                         contentPadding = PaddingValues(horizontal = 13.dp, vertical = 12.dp)
                     ) {
@@ -282,11 +274,11 @@ fun MediaLibraryScreen(
                         expanded = showFilterMenu,
                         onDismissRequest = { showFilterMenu = false },
                         modifier = Modifier
-                            .background(Color(0xFF140D26))
-                            .border(1.dp, NeonFuchsia.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                            .background(tokens.dialogBackground)
+                            .border(1.dp, tokens.secondaryAccent.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Reset All Filters", color = NeonPink) },
+                            text = { Text("Reset All Filters", color = tokens.dangerAccent) },
                             onClick = {
                                 selectedStatus = null; selectedGenre = null; selectedLanguage = null; selectedYear = null
                                 showFilterMenu = false
@@ -295,7 +287,7 @@ fun MediaLibraryScreen(
                         if (availableGenres.isNotEmpty()) {
                             availableGenres.take(8).forEach { g ->
                                 DropdownMenuItem(
-                                    text = { Text("Genre: $g", color = OffWhiteText) },
+                                    text = { Text("Genre: $g", color = tokens.textPrimary) },
                                     onClick = { selectedGenre = g; showFilterMenu = false }
                                 )
                             }
@@ -303,7 +295,7 @@ fun MediaLibraryScreen(
                         if (availableLanguages.isNotEmpty()) {
                             availableLanguages.take(6).forEach { l ->
                                 DropdownMenuItem(
-                                    text = { Text("Language: $l", color = OffWhiteText) },
+                                    text = { Text("Language: $l", color = tokens.textPrimary) },
                                     onClick = { selectedLanguage = l; showFilterMenu = false }
                                 )
                             }
@@ -311,7 +303,7 @@ fun MediaLibraryScreen(
                         if (availableYears.isNotEmpty()) {
                             availableYears.take(6).forEach { yr ->
                                 DropdownMenuItem(
-                                    text = { Text("Year: $yr", color = OffWhiteText) },
+                                    text = { Text("Year: $yr", color = tokens.textPrimary) },
                                     onClick = { selectedYear = yr; showFilterMenu = false }
                                 )
                             }
@@ -344,7 +336,7 @@ fun MediaLibraryScreen(
                         label = "Genre: $selectedGenre ×",
                         selected = true,
                         onClick = { selectedGenre = null },
-                        accentColor = NeonCyan
+                        accentColor = tokens.tertiaryAccent
                     )
                 }
                 if (selectedLanguage != null) {
@@ -352,7 +344,7 @@ fun MediaLibraryScreen(
                         label = "Lang: $selectedLanguage ×",
                         selected = true,
                         onClick = { selectedLanguage = null },
-                        accentColor = NeonPink
+                        accentColor = tokens.dangerAccent
                     )
                 }
                 if (selectedYear != null) {
@@ -360,7 +352,7 @@ fun MediaLibraryScreen(
                         label = "Year: $selectedYear ×",
                         selected = true,
                         onClick = { selectedYear = null },
-                        accentColor = NeonFuchsia
+                        accentColor = tokens.secondaryAccent
                     )
                 }
             }

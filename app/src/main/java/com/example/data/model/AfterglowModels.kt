@@ -47,7 +47,7 @@ enum class WatchlistPriority(val label: String, val sortWeight: Int) {
 }
 
 enum class AccentColorPreset(val label: String) {
-    AFTERGLOW_PURPLE("Afterglow Purple"),
+    AFTERGLOW_PURPLE("Zenix Purple"),
     MIDNIGHT_ROSE("Midnight Rose"),
     CELESTIAL_INDIGO("Celestial Indigo"),
     NEON_AMETHYST("Neon Amethyst");

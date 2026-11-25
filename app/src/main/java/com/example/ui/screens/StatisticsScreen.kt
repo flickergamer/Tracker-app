@@ -41,14 +41,8 @@ import com.example.ui.components.NeonRatingStars
 import com.example.ui.components.RatingPill
 import com.example.ui.components.StatKpiCard
 import com.example.ui.components.statusColor
-import com.example.ui.theme.GoldRating
-import com.example.ui.theme.MutedGreyText
-import com.example.ui.theme.NeonCyan
-import com.example.ui.theme.NeonFuchsia
-import com.example.ui.theme.NeonGreen
-import com.example.ui.theme.NeonPink
-import com.example.ui.theme.NeonPurple
-import com.example.ui.theme.OffWhiteText
+import com.example.ui.components.themedPastelFill
+import com.example.ui.theme.LocalZenixTokens
 import java.util.Locale
 
 @Composable
@@ -60,6 +54,7 @@ fun StatisticsScreen(
     bottomPadding: Dp = FloatingBottomBarClearance,
     modifier: Modifier = Modifier
 ) {
+    val tokens = LocalZenixTokens.current
     val moviesWatched = allItems.count { it.categoryEnum == MediaCategory.MOVIE && it.statusEnum == WatchStatus.COMPLETED }
     val seriesCompleted = allItems.count { it.categoryEnum.isEpisodic && it.statusEnum == WatchStatus.COMPLETED }
 
@@ -73,12 +68,12 @@ fun StatisticsScreen(
                 Text(
                     text = "Statistics & Analytics",
                     style = MaterialTheme.typography.displayMedium,
-                    color = OffWhiteText
+                    color = tokens.textPrimary
                 )
                 Text(
                     text = "Computed live from ${allItems.size} library records",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MutedGreyText
+                    color = tokens.textSecondary
                 )
             }
         }
@@ -88,29 +83,65 @@ fun StatisticsScreen(
                 EmptyStateView(
                     title = "No Analytics Data Yet",
                     subtitle = "Once you add movies, series, anime, or K-dramas, your real-time charts and watch habits will appear here.",
-                    accentColor = NeonCyan
+                    accentColor = tokens.tertiaryAccent
                 )
             }
         } else {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        StatKpiCard("Movies Watched", moviesWatched.toString(), Icons.Rounded.Movie, NeonPurple, modifier = Modifier.weight(1f))
-                        StatKpiCard("Series Completed", seriesCompleted.toString(), Icons.Rounded.Tv, NeonGreen, modifier = Modifier.weight(1f))
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        StatKpiCard("Episodes Watched", stats.totalEpisodesWatched.toString(), Icons.Rounded.CheckCircle, NeonCyan, modifier = Modifier.weight(1f))
-                        StatKpiCard("Total Watch Time", formatWatchTime(stats.totalWatchTimeMinutes), Icons.Rounded.Schedule, NeonFuchsia, modifier = Modifier.weight(1f))
+                        StatKpiCard(
+                            title = "Movies Watched",
+                            value = moviesWatched.toString(),
+                            icon = Icons.Rounded.Movie,
+                            accentColor = tokens.primaryAccent,
+                            pastelFill = themedPastelFill(0),
+                            modifier = Modifier.weight(1f)
+                        )
+                        StatKpiCard(
+                            title = "Series Completed",
+                            value = seriesCompleted.toString(),
+                            icon = Icons.Rounded.Tv,
+                            accentColor = tokens.positiveAccent,
+                            pastelFill = themedPastelFill(3),
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         StatKpiCard(
-                            "Average Rating",
-                            if (stats.averagePersonalRating <= 0.0) "—" else String.format(Locale.US, "%.2f", stats.averagePersonalRating),
-                            Icons.Rounded.Star,
-                            GoldRating,
+                            title = "Episodes Watched",
+                            value = stats.totalEpisodesWatched.toString(),
+                            icon = Icons.Rounded.CheckCircle,
+                            accentColor = tokens.tertiaryAccent,
+                            pastelFill = themedPastelFill(1),
                             modifier = Modifier.weight(1f)
                         )
-                        StatKpiCard("Top Genre", stats.topGenre, Icons.Rounded.AutoAwesome, NeonPink, modifier = Modifier.weight(1f))
+                        StatKpiCard(
+                            title = "Total Watch Time",
+                            value = formatWatchTime(stats.totalWatchTimeMinutes),
+                            icon = Icons.Rounded.Schedule,
+                            accentColor = tokens.secondaryAccent,
+                            pastelFill = themedPastelFill(2),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        StatKpiCard(
+                            title = "Average Rating",
+                            value = if (stats.averagePersonalRating <= 0.0) "—" else String.format(Locale.US, "%.2f", stats.averagePersonalRating),
+                            icon = Icons.Rounded.Star,
+                            accentColor = tokens.ratingGold,
+                            pastelFill = themedPastelFill(0),
+                            modifier = Modifier.weight(1f)
+                        )
+                        StatKpiCard(
+                            title = "Top Genre",
+                            value = stats.topGenre,
+                            icon = Icons.Rounded.AutoAwesome,
+                            accentColor = tokens.dangerAccent,
+                            pastelFill = themedPastelFill(1),
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
             }
@@ -120,7 +151,7 @@ fun StatisticsScreen(
                 item {
                     NeonGlassCard(
                         modifier = Modifier.fillMaxWidth(),
-                        accentColor = GoldRating,
+                        accentColor = tokens.ratingGold,
                         cornerRadius = 22.dp,
                         onClick = { onSelectItem(top) },
                         contentPadding = PaddingValues(16.dp)
@@ -131,9 +162,9 @@ fun StatisticsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text("Highest Rated Title", style = MaterialTheme.typography.labelMedium, color = GoldRating)
-                                Text(top.title, style = MaterialTheme.typography.titleLarge, color = OffWhiteText)
-                                Text("${top.categoryEnum.label} • ${top.releaseYear}", style = MaterialTheme.typography.bodySmall, color = MutedGreyText)
+                                Text("Highest Rated Title", style = MaterialTheme.typography.labelMedium, color = tokens.ratingGold)
+                                Text(top.title, style = MaterialTheme.typography.titleLarge, color = tokens.textPrimary)
+                                Text("${top.categoryEnum.label} • ${top.releaseYear}", style = MaterialTheme.typography.bodySmall, color = tokens.textSecondary)
                                 NeonRatingStars(ratingOutOfTen = top.personalRating)
                             }
                             RatingPill(rating = top.personalRating)
@@ -144,12 +175,12 @@ fun StatisticsScreen(
 
             // Progress Charts (Yearly Goals)
             item {
-                Text("Goal Progress", style = MaterialTheme.typography.titleLarge, color = OffWhiteText)
+                Text("Goal Progress", style = MaterialTheme.typography.titleLarge, color = tokens.textPrimary)
                 Spacer(modifier = Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    GoalRingCard("Movies", stats.completedMoviesThisYear, profile.yearlyMovieGoal.toInt(), NeonPurple, Modifier.weight(1f))
-                    GoalRingCard("Series", stats.completedSeriesThisYear, profile.yearlySeriesGoal.toInt(), NeonGreen, Modifier.weight(1f))
-                    GoalRingCard("Episodes", stats.episodesWatchedTotal, profile.yearlyEpisodeGoal.toInt(), NeonCyan, Modifier.weight(1f))
+                    GoalRingCard("Movies", stats.completedMoviesThisYear, profile.yearlyMovieGoal.toInt(), tokens.primaryAccent, Modifier.weight(1f))
+                    GoalRingCard("Series", stats.completedSeriesThisYear, profile.yearlySeriesGoal.toInt(), tokens.positiveAccent, Modifier.weight(1f))
+                    GoalRingCard("Episodes", stats.episodesWatchedTotal, profile.yearlyEpisodeGoal.toInt(), tokens.tertiaryAccent, Modifier.weight(1f))
                 }
             }
 
@@ -162,7 +193,7 @@ fun StatisticsScreen(
                     slices = stats.statusDistribution.map { (st, count) ->
                         ChartSlice(st.label, count.toFloat(), statusColor(st))
                     },
-                    accentColor = NeonFuchsia
+                    accentColor = tokens.secondaryAccent
                 )
             }
 
@@ -171,7 +202,7 @@ fun StatisticsScreen(
                 HorizontalBarChartCard(
                     title = "Genre Distribution",
                     items = stats.genreDistribution,
-                    barColor = NeonPurple
+                    barColor = tokens.primaryAccent
                 )
             }
 
@@ -180,7 +211,7 @@ fun StatisticsScreen(
                 HorizontalBarChartCard(
                     title = "Platform Distribution",
                     items = stats.platformDistribution,
-                    barColor = NeonCyan
+                    barColor = tokens.tertiaryAccent
                 )
             }
 
@@ -189,7 +220,7 @@ fun StatisticsScreen(
                 LineActivityChartCard(
                     title = "Monthly Watching Activity",
                     points = stats.monthlyActivity,
-                    lineColor = NeonPink
+                    lineColor = tokens.dangerAccent
                 )
             }
 
@@ -198,7 +229,7 @@ fun StatisticsScreen(
                 LineActivityChartCard(
                     title = "Yearly Completion History",
                     points = stats.yearlyHistory,
-                    lineColor = NeonGreen
+                    lineColor = tokens.positiveAccent
                 )
             }
         }

@@ -253,9 +253,9 @@ fun AuthScreen(
 
                 Spacer(modifier = Modifier.height(22.dp))
 
-                // Title "AFTERGLOW" 38sp bold, wide letter spacing, neon text glow
+                // Title "ZENIX" 38sp bold, wide letter spacing, neon text glow
                 Text(
-                    text = "AFTERGLOW",
+                    text = "ZENIX",
                     style = TextStyle(
                         fontFamily = SpaceGroteskFontFamily,
                         fontWeight = FontWeight.Bold,

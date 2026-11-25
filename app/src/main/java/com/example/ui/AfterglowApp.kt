@@ -1,5 +1,6 @@
 package com.example.ui
 
+import android.app.Activity
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
@@ -39,6 +40,8 @@ import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -53,6 +56,7 @@ import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
@@ -67,10 +71,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
 import androidx.credentials.CredentialManager
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -88,12 +94,12 @@ import com.example.data.model.UserProfile
 import com.example.ui.components.AfterglowBackdrop
 import com.example.ui.components.AfterglowTopBar
 import com.example.ui.components.FloatingBottomBarClearance
-import com.example.ui.components.LiquidGlassBottomBar
 import com.example.ui.components.LiquidNavTab
 import com.example.ui.components.MediaDetailDialog
 import com.example.ui.components.MediaEditorDialog
 import com.example.ui.components.NeonGlassCard
 import com.example.ui.components.NeonPrimaryButton
+import com.example.ui.components.ZenixBottomBar
 import com.example.ui.components.neonGlow
 import com.example.ui.components.rememberSafeHazeState
 import com.example.ui.components.safeHazeSource
@@ -106,13 +112,19 @@ import com.example.ui.screens.SmartHubScreen
 import com.example.ui.screens.StatisticsScreen
 import com.example.ui.screens.WatchlistScreen
 import com.example.ui.theme.AfterglowTheme
-import com.example.ui.theme.MutedGreyText
-import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.AndroidOnPrimary
+import com.example.ui.theme.AndroidOnSecondaryContainer
+import com.example.ui.theme.AndroidPrimary
+import com.example.ui.theme.AndroidSecondaryContainer
+import com.example.ui.theme.AppThemeMode
+import com.example.ui.theme.LocalZenixTokens
 import com.example.ui.theme.NeonFuchsia
 import com.example.ui.theme.NeonPink
 import com.example.ui.theme.NeonPurple
-import com.example.ui.theme.OffWhiteText
-import com.example.ui.theme.SpaceGroteskFontFamily
+import com.example.ui.theme.PastelLavender
+import com.example.ui.theme.PastelOutlineStrong
+import com.example.ui.theme.PastelTextPrimary
+import com.example.ui.theme.ThemePreferences
 import com.example.ui.viewmodel.AfterglowViewModel
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
@@ -136,6 +148,7 @@ enum class AfterglowSection(val label: String, val icon: ImageVector) {
 @Composable
 fun AfterglowApp() {
     var currentUser by remember { mutableStateOf(Firebase.auth.currentUser) }
+    val view = LocalView.current
 
     DisposableEffect(Unit) {
         val listener = FirebaseAuth.AuthStateListener { auth ->
@@ -147,7 +160,16 @@ fun AfterglowApp() {
 
     val user = currentUser
     if (user == null) {
-        AfterglowTheme {
+        // Ensure status/nav bars stay dark-mode light-icon on Neon Login Screen
+        SideEffect {
+            val window = (view.context as? Activity)?.window
+            if (window != null) {
+                val controller = WindowCompat.getInsetsController(window, view)
+                controller.isAppearanceLightStatusBars = false
+                controller.isAppearanceLightNavigationBars = false
+            }
+        }
+        AfterglowTheme(themeMode = AppThemeMode.NEON) {
             AuthScreen(onAuthSuccess = { currentUser = Firebase.auth.currentUser })
         }
     } else {
@@ -170,8 +192,22 @@ private fun AuthenticatedAfterglowShell(
     onSignedOut: () -> Unit
 ) {
     val context = LocalContext.current
+    val view = LocalView.current
     val scope = rememberCoroutineScope()
     val credentialManager = remember(context) { CredentialManager.create(context) }
+
+    val themeMode by ThemePreferences.observeTheme(context)
+        .collectAsStateWithLifecycle(initialValue = AppThemeMode.NEON)
+
+    SideEffect {
+        val window = (view.context as? Activity)?.window
+        if (window != null) {
+            val isLight = themeMode == AppThemeMode.MINIMAL_PASTEL
+            val controller = WindowCompat.getInsetsController(window, view)
+            controller.isAppearanceLightStatusBars = isLight
+            controller.isAppearanceLightNavigationBars = isLight
+        }
+    }
 
     val viewModel: AfterglowViewModel = viewModel(
         key = currentUserId,
@@ -219,7 +255,6 @@ private fun AuthenticatedAfterglowShell(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-    val hazeState = rememberSafeHazeState()
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { msg ->
@@ -231,16 +266,36 @@ private fun AuthenticatedAfterglowShell(
         currentSection = AfterglowSection.DASHBOARD
     }
 
-    AfterglowTheme(accentPreset = profile.accentPreset) {
+    AfterglowTheme(
+        themeMode = themeMode,
+        accentPreset = profile.accentPreset
+    ) {
+        val tokens = LocalZenixTokens.current
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val isExpandedScreen = maxWidth >= 840.dp
-            val screenBottomPadding = if (isExpandedScreen) 24.dp else FloatingBottomBarClearance
+            val screenBottomPadding = when {
+                isExpandedScreen -> 24.dp
+                themeMode == AppThemeMode.ANDROID_UI -> 148.dp
+                else -> FloatingBottomBarClearance
+            }
+            val hazeState = rememberSafeHazeState(
+                enabled = !isExpandedScreen && themeMode == AppThemeMode.NEON
+            )
 
             val openAddEditor: (MediaCategory, Boolean) -> Unit = { cat, isWatchlist ->
                 editorItem = null
                 editorDefaultCategory = cat
                 editorDefaultWatchlist = isWatchlist
                 showEditor = true
+            }
+
+            val defaultCategoryForSection: () -> MediaCategory = {
+                when (currentSection) {
+                    AfterglowSection.WEB_SERIES -> MediaCategory.WEB_SERIES
+                    AfterglowSection.ANIME -> MediaCategory.ANIME
+                    AfterglowSection.K_DRAMA -> MediaCategory.K_DRAMA
+                    else -> MediaCategory.MOVIE
+                }
             }
 
             val bottomSections = remember {
@@ -264,24 +319,20 @@ private fun AuthenticatedAfterglowShell(
 
             val mainShellContent: @Composable () -> Unit = {
                 Box(modifier = Modifier.fillMaxSize()) {
-                    // Backdrop + scrolling content marked as safe Haze blur source when floating bar is active
                     AfterglowBackdrop(
                         modifier = Modifier
                             .fillMaxSize()
-                            .safeHazeSource(if (!isExpandedScreen) hazeState else null)
+                            .safeHazeSource(hazeState)
                     ) {
                         Column(modifier = Modifier.fillMaxSize()) {
                             if (!isExpandedScreen) {
                                 AfterglowTopBar(
                                     onOpenMenu = { scope.launch { drawerState.open() } },
                                     onAddClick = {
-                                        val cat = when (currentSection) {
-                                            AfterglowSection.WEB_SERIES -> MediaCategory.WEB_SERIES
-                                            AfterglowSection.ANIME -> MediaCategory.ANIME
-                                            AfterglowSection.K_DRAMA -> MediaCategory.K_DRAMA
-                                            else -> MediaCategory.MOVIE
-                                        }
-                                        openAddEditor(cat, currentSection == AfterglowSection.WATCHLIST)
+                                        openAddEditor(
+                                            defaultCategoryForSection(),
+                                            currentSection == AfterglowSection.WATCHLIST
+                                        )
                                     }
                                 )
                             } else {
@@ -296,20 +347,20 @@ private fun AuthenticatedAfterglowShell(
                                 when {
                                     mediaItemsState is UiState.Loading -> {
                                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                            CircularProgressIndicator(color = NeonFuchsia)
+                                            CircularProgressIndicator(color = tokens.primaryAccent)
                                         }
                                     }
                                     mediaItemsState is UiState.Error -> {
                                         val err = (mediaItemsState as UiState.Error).message
                                         Box(modifier = Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
                                             NeonGlassCard(
-                                                accentColor = NeonPink,
+                                                accentColor = tokens.dangerAccent,
                                                 cornerRadius = 22.dp,
                                                 contentPadding = PaddingValues(18.dp)
                                             ) {
                                                 Text(
                                                     text = "Unable to sync library: $err",
-                                                    color = NeonPink
+                                                    color = tokens.dangerAccent
                                                 )
                                             }
                                         }
@@ -445,6 +496,12 @@ private fun AuthenticatedAfterglowShell(
                                                 AfterglowSection.SETTINGS -> SettingsScreen(
                                                     userEmail = userEmail,
                                                     profile = profile,
+                                                    currentTheme = themeMode,
+                                                    onApplyTheme = { newMode ->
+                                                        scope.launch {
+                                                            ThemePreferences.saveTheme(context, newMode)
+                                                        }
+                                                    },
                                                     mediaItems = allItems,
                                                     quotes = quotes,
                                                     onUpdateProfile = viewModel::updateProfile,
@@ -464,7 +521,6 @@ private fun AuthenticatedAfterglowShell(
                         }
                     }
 
-                    // Neon Glass Snackbar positioned cleanly above floating bar
                     SnackbarHost(
                         hostState = snackbarHostState,
                         modifier = Modifier
@@ -473,26 +529,47 @@ private fun AuthenticatedAfterglowShell(
                             .padding(
                                 start = 16.dp,
                                 end = 16.dp,
-                                bottom = if (isExpandedScreen) 20.dp else 94.dp
+                                bottom = if (isExpandedScreen) 20.dp else 98.dp
                             )
                     ) { data ->
                         NeonGlassCard(
-                            accentColor = NeonCyan,
+                            accentColor = tokens.tertiaryAccent,
                             cornerRadius = 18.dp,
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
                         ) {
                             Text(
                                 text = data.visuals.message,
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = OffWhiteText
+                                color = tokens.textPrimary
                             )
                         }
                     }
 
-                    // Floating Liquid Glass Bottom Bar (Home, Movies, Series, Anime, K-Drama)
                     if (!isExpandedScreen) {
                         val selectedIndex = bottomSections.indexOf(currentSection)
-                        LiquidGlassBottomBar(
+
+                        if (themeMode == AppThemeMode.ANDROID_UI) {
+                            FloatingActionButton(
+                                onClick = {
+                                    openAddEditor(
+                                        defaultCategoryForSection(),
+                                        currentSection == AfterglowSection.WATCHLIST
+                                    )
+                                },
+                                containerColor = AndroidPrimary,
+                                contentColor = AndroidOnPrimary,
+                                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp),
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .navigationBarsPadding()
+                                    .padding(end = 16.dp, bottom = 96.dp)
+                                    .testTag("android_fab_add")
+                            ) {
+                                Icon(Icons.Rounded.Add, contentDescription = "Add title")
+                            }
+                        }
+
+                        ZenixBottomBar(
                             tabs = bottomTabs,
                             selectedIndex = selectedIndex,
                             onSelectTab = { idx -> currentSection = bottomSections[idx] },
@@ -502,13 +579,10 @@ private fun AuthenticatedAfterglowShell(
                     } else {
                         NeonPrimaryButton(
                             onClick = {
-                                val cat = when (currentSection) {
-                                    AfterglowSection.WEB_SERIES -> MediaCategory.WEB_SERIES
-                                    AfterglowSection.ANIME -> MediaCategory.ANIME
-                                    AfterglowSection.K_DRAMA -> MediaCategory.K_DRAMA
-                                    else -> MediaCategory.MOVIE
-                                }
-                                openAddEditor(cat, currentSection == AfterglowSection.WATCHLIST)
+                                openAddEditor(
+                                    defaultCategoryForSection(),
+                                    currentSection == AfterglowSection.WATCHLIST
+                                )
                             },
                             cornerRadius = 18.dp,
                             modifier = Modifier
@@ -528,10 +602,10 @@ private fun AuthenticatedAfterglowShell(
                 PermanentNavigationDrawer(
                     drawerContent = {
                         PermanentDrawerSheet(
-                            drawerContainerColor = Color(0xFF0A0614),
+                            drawerContainerColor = tokens.drawerBackground,
                             modifier = Modifier
                                 .width(268.dp)
-                                .border(1.dp, Color.White.copy(alpha = 0.14f))
+                                .border(1.dp, tokens.outlineSubtle)
                         ) {
                             DrawerMenuContent(
                                 profile = profile,
@@ -547,10 +621,14 @@ private fun AuthenticatedAfterglowShell(
                     drawerState = drawerState,
                     drawerContent = {
                         ModalDrawerSheet(
-                            drawerContainerColor = Color(0xFF0B0718),
+                            drawerContainerColor = tokens.drawerBackground,
                             modifier = Modifier
                                 .width(284.dp)
-                                .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(topEnd = 24.dp, bottomEnd = 24.dp))
+                                .border(
+                                    1.dp,
+                                    tokens.outlineSubtle,
+                                    RoundedCornerShape(topEnd = 24.dp, bottomEnd = 24.dp)
+                                )
                         ) {
                             DrawerMenuContent(
                                 profile = profile,
@@ -611,6 +689,8 @@ private fun DrawerMenuContent(
     currentSection: AfterglowSection,
     onSelectSection: (AfterglowSection) -> Unit
 ) {
+    val tokens = LocalZenixTokens.current
+
     Column(
         modifier = Modifier
             .fillMaxHeight()
@@ -625,59 +705,131 @@ private fun DrawerMenuContent(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .neonGlow(NeonPink, cornerRadius = 12.dp, alpha = 0.42f, spread = 6.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Brush.linearGradient(listOf(NeonPurple, NeonPink)))
-                    .border(1.dp, Color.White.copy(alpha = 0.45f), RoundedCornerShape(12.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.AutoAwesome,
-                    contentDescription = "Afterglow logo",
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp)
-                )
+            when (tokens.mode) {
+                AppThemeMode.NEON -> {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .neonGlow(NeonPink, cornerRadius = 12.dp, alpha = 0.42f, spread = 6.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Brush.linearGradient(listOf(NeonPurple, NeonPink)))
+                            .border(1.dp, Color.White.copy(alpha = 0.45f), RoundedCornerShape(12.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.AutoAwesome,
+                            contentDescription = "Zenix logo",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+                AppThemeMode.ANDROID_UI -> {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(AndroidPrimary),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.AutoAwesome,
+                            contentDescription = "Zenix logo",
+                            tint = AndroidOnPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+                AppThemeMode.MINIMAL_PASTEL -> {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(PastelLavender)
+                            .border(1.dp, PastelOutlineStrong, RoundedCornerShape(12.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.AutoAwesome,
+                            contentDescription = "Zenix logo",
+                            tint = PastelTextPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
             }
             Column {
                 Text(
-                    text = "AFTERGLOW",
-                    fontFamily = SpaceGroteskFontFamily,
+                    text = "ZENIX",
+                    fontFamily = tokens.fontFamily,
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
                     letterSpacing = 2.2.sp,
-                    color = OffWhiteText
+                    color = tokens.textPrimary
                 )
                 Text(
                     text = profile.displayName,
                     style = MaterialTheme.typography.bodySmall,
-                    color = NeonFuchsia
+                    color = tokens.primaryAccent
                 )
             }
         }
-        HorizontalDivider(color = Color.White.copy(alpha = 0.14f), modifier = Modifier.padding(vertical = 4.dp))
+        HorizontalDivider(color = tokens.outlineSubtle, modifier = Modifier.padding(vertical = 4.dp))
 
         AfterglowSection.entries.forEach { section ->
             val selected = currentSection == section
-            val shape = RoundedCornerShape(16.dp)
+            val shape = RoundedCornerShape(if (tokens.mode == AppThemeMode.ANDROID_UI) 28.dp else 16.dp)
+            val rowMod = when (tokens.mode) {
+                AppThemeMode.NEON -> {
+                    if (selected) {
+                        Modifier
+                            .neonGlow(NeonPurple, cornerRadius = 16.dp, alpha = 0.30f, spread = 5.dp)
+                            .clip(shape)
+                            .background(Brush.horizontalGradient(listOf(NeonFuchsia.copy(alpha = 0.85f), NeonPurple.copy(alpha = 0.85f))))
+                            .border(1.dp, Color.White.copy(alpha = 0.38f), shape)
+                    } else {
+                        Modifier
+                            .clip(shape)
+                            .background(Color.White.copy(alpha = 0.04f))
+                    }
+                }
+                AppThemeMode.ANDROID_UI -> {
+                    if (selected) {
+                        Modifier
+                            .clip(shape)
+                            .background(AndroidSecondaryContainer)
+                    } else {
+                        Modifier.clip(shape)
+                    }
+                }
+                AppThemeMode.MINIMAL_PASTEL -> {
+                    if (selected) {
+                        Modifier
+                            .clip(shape)
+                            .background(PastelLavender)
+                    } else {
+                        Modifier
+                            .clip(shape)
+                            .background(Color.White.copy(alpha = 0.72f))
+                    }
+                }
+            }
+
+            val labelColor = when (tokens.mode) {
+                AppThemeMode.NEON -> if (selected) Color.White else tokens.textPrimary
+                AppThemeMode.ANDROID_UI -> if (selected) AndroidOnSecondaryContainer else tokens.textPrimary
+                AppThemeMode.MINIMAL_PASTEL -> PastelTextPrimary
+            }
+            val iconColor = when (tokens.mode) {
+                AppThemeMode.NEON -> if (selected) Color.White else tokens.textSecondary
+                AppThemeMode.ANDROID_UI -> if (selected) AndroidOnSecondaryContainer else tokens.textSecondary
+                AppThemeMode.MINIMAL_PASTEL -> if (selected) PastelTextPrimary else tokens.textSecondary
+            }
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .then(
-                        if (selected) {
-                            Modifier
-                                .neonGlow(NeonPurple, cornerRadius = 16.dp, alpha = 0.30f, spread = 5.dp)
-                                .clip(shape)
-                                .background(Brush.horizontalGradient(listOf(NeonFuchsia.copy(alpha = 0.85f), NeonPurple.copy(alpha = 0.85f))))
-                                .border(1.dp, Color.White.copy(alpha = 0.38f), shape)
-                        } else {
-                            Modifier
-                                .clip(shape)
-                                .background(Color.White.copy(alpha = 0.04f))
-                        }
-                    )
+                    .then(rowMod)
                     .clickable { onSelectSection(section) }
                     .padding(horizontal = 14.dp, vertical = 12.dp)
                     .testTag("nav_${section.name.lowercase()}"),
@@ -687,14 +839,14 @@ private fun DrawerMenuContent(
                 Icon(
                     imageVector = section.icon,
                     contentDescription = null,
-                    tint = if (selected) Color.White else MutedGreyText,
+                    tint = iconColor,
                     modifier = Modifier.size(20.dp)
                 )
                 Text(
                     text = section.label,
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                    color = if (selected) Color.White else OffWhiteText
+                    color = labelColor
                 )
             }
         }

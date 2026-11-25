@@ -57,13 +57,9 @@ import com.example.ui.components.NeonGlassDialog
 import com.example.ui.components.NeonGlassTextField
 import com.example.ui.components.NeonPrimaryButton
 import com.example.ui.components.PosterArtwork
-import com.example.ui.components.categoryNeonColor
 import com.example.ui.components.priorityColor
-import com.example.ui.theme.MutedGreyText
-import com.example.ui.theme.NeonCyan
-import com.example.ui.theme.NeonPink
-import com.example.ui.theme.NeonPurple
-import com.example.ui.theme.OffWhiteText
+import com.example.ui.components.themedCategoryColor
+import com.example.ui.theme.LocalZenixTokens
 
 @Composable
 fun WatchlistScreen(
@@ -76,6 +72,7 @@ fun WatchlistScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val tokens = LocalZenixTokens.current
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf<MediaCategory?>(null) }
     var selectedPriority by remember { mutableStateOf<WatchlistPriority?>(null) }
@@ -115,8 +112,8 @@ fun WatchlistScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text("Watchlist", style = MaterialTheme.typography.displayMedium, color = OffWhiteText)
-                    Text("${filtered.size} upcoming titles", style = MaterialTheme.typography.bodySmall, color = MutedGreyText)
+                    Text("Watchlist", style = MaterialTheme.typography.displayMedium, color = tokens.textPrimary)
+                    Text("${filtered.size} upcoming titles", style = MaterialTheme.typography.bodySmall, color = tokens.textSecondary)
                 }
                 NeonPrimaryButton(
                     onClick = onAddWatchlistItem,
@@ -135,7 +132,7 @@ fun WatchlistScreen(
                 onValueChange = { searchQuery = it },
                 placeholder = "Search watchlist...",
                 leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                focusNeonColor = NeonCyan,
+                focusNeonColor = tokens.tertiaryAccent,
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -147,7 +144,7 @@ fun WatchlistScreen(
                     label = if (sortByPriority) "Sort: Priority" else "Sort: Date Added",
                     selected = sortByPriority,
                     onClick = { sortByPriority = !sortByPriority },
-                    accentColor = NeonCyan
+                    accentColor = tokens.tertiaryAccent
                 )
                 WatchlistPriority.entries.forEach { p ->
                     NeonGlassChip(
@@ -162,7 +159,7 @@ fun WatchlistScreen(
                         label = c.label,
                         selected = selectedCategory == c,
                         onClick = { selectedCategory = if (selectedCategory == c) null else c },
-                        accentColor = categoryNeonColor(c)
+                        accentColor = themedCategoryColor(c)
                     )
                 }
             }
@@ -178,7 +175,7 @@ fun WatchlistScreen(
                     title = "Your Watchlist Is Empty",
                     subtitle = "Save upcoming movies, series, anime, or K-dramas with priority tags and trailer links.",
                     actionLabel = "Add to Watchlist",
-                    accentColor = NeonCyan,
+                    accentColor = tokens.tertiaryAccent,
                     onAction = onAddWatchlistItem
                 )
             }
@@ -225,26 +222,26 @@ fun WatchlistScreen(
                                             )
                                         }
                                         IconButton(onClick = { onDeleteItem(item) }) {
-                                            Icon(Icons.Rounded.Delete, contentDescription = "Remove from watchlist", tint = NeonPink)
+                                            Icon(Icons.Rounded.Delete, contentDescription = "Remove from watchlist", tint = tokens.dangerAccent)
                                         }
                                     }
                                     Text(
                                         text = item.title,
                                         style = MaterialTheme.typography.titleMedium,
-                                        color = OffWhiteText,
+                                        color = tokens.textPrimary,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
                                     Text(
                                         text = "${item.categoryEnum.label} • ${item.releaseYear} • ${item.streamingPlatform.ifBlank { "TBD" }}",
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MutedGreyText
+                                        color = tokens.textSecondary
                                     )
                                     if (item.dateAdded.isNotBlank()) {
                                         Text(
                                             text = "Added ${item.dateAdded}",
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = MutedGreyText
+                                            color = tokens.textSecondary
                                         )
                                     }
                                 }
@@ -267,7 +264,7 @@ fun WatchlistScreen(
                                                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(item.trailerLink)))
                                             }
                                         },
-                                        accentBorderColor = NeonCyan,
+                                        accentBorderColor = tokens.tertiaryAccent,
                                         cornerRadius = 14.dp,
                                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)
                                     ) {
@@ -289,7 +286,7 @@ fun WatchlistScreen(
         NeonGlassDialog(
             onDismissRequest = { moveCandidate = null },
             title = "Move \"${candidate.title}\"",
-            accentColor = NeonPurple,
+            accentColor = tokens.primaryAccent,
             confirmText = "Start Watching",
             onConfirm = {
                 onMoveToLibrary(candidate, WatchStatus.WATCHING)
@@ -304,7 +301,7 @@ fun WatchlistScreen(
             Text(
                 text = "Choose the library status for this ${candidate.categoryEnum.label}:",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MutedGreyText
+                color = tokens.textSecondary
             )
         }
     }

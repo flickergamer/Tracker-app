@@ -67,16 +67,9 @@ import com.example.ui.components.NeonPrimaryButton
 import com.example.ui.components.NeonProgressBar
 import com.example.ui.components.PosterArtwork
 import com.example.ui.components.RatingPill
-import com.example.ui.components.categoryNeonColor
-import com.example.ui.components.neonPaletteColor
-import com.example.ui.theme.GoldRating
-import com.example.ui.theme.MutedGreyText
-import com.example.ui.theme.NeonCyan
-import com.example.ui.theme.NeonFuchsia
-import com.example.ui.theme.NeonGreen
-import com.example.ui.theme.NeonPink
-import com.example.ui.theme.NeonPurple
-import com.example.ui.theme.OffWhiteText
+import com.example.ui.components.themedCategoryColor
+import com.example.ui.components.themedPaletteColor
+import com.example.ui.theme.LocalZenixTokens
 import kotlin.random.Random
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -96,6 +89,7 @@ fun SmartHubScreen(
     bottomPadding: Dp = FloatingBottomBarClearance,
     modifier: Modifier = Modifier
 ) {
+    val tokens = LocalZenixTokens.current
     val tabs = listOf(
         "Random Picker",
         "Mood Match",
@@ -123,7 +117,7 @@ fun SmartHubScreen(
                 .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Text("Smart Discovery", style = MaterialTheme.typography.displayMedium, color = OffWhiteText)
+            Text("Smart Discovery", style = MaterialTheme.typography.displayMedium, color = tokens.textPrimary)
             Row(
                 modifier = Modifier.horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -133,7 +127,7 @@ fun SmartHubScreen(
                         label = label,
                         selected = selectedTab == idx,
                         onClick = { selectedTab = idx },
-                        accentColor = neonPaletteColor(idx)
+                        accentColor = themedPaletteColor(idx)
                     )
                 }
             }
@@ -149,36 +143,36 @@ fun SmartHubScreen(
                     item {
                         NeonGlassCard(
                             modifier = Modifier.fillMaxWidth(),
-                            accentColor = NeonCyan,
+                            accentColor = tokens.tertiaryAccent,
                             cornerRadius = 22.dp,
                             contentPadding = PaddingValues(18.dp)
                         ) {
                             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Text("Random Tonight Picker", style = MaterialTheme.typography.titleLarge, color = OffWhiteText)
+                                Text("Random Tonight Picker", style = MaterialTheme.typography.titleLarge, color = tokens.textPrimary)
                                 Text(
                                     "Can't decide what to watch? Spin your personal vault or watchlist.",
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = MutedGreyText
+                                    color = tokens.textSecondary
                                 )
                                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     NeonGlassChip(
                                         label = "Unwatched / Watchlist Only",
                                         selected = randomOnlyUnwatched,
                                         onClick = { randomOnlyUnwatched = !randomOnlyUnwatched },
-                                        accentColor = NeonCyan
+                                        accentColor = tokens.tertiaryAccent
                                     )
                                     NeonGlassChip(
                                         label = "Any Category",
                                         selected = randomCategoryFilter == null,
                                         onClick = { randomCategoryFilter = null },
-                                        accentColor = NeonPurple
+                                        accentColor = tokens.primaryAccent
                                     )
                                     MediaCategory.entries.forEach { c ->
                                         NeonGlassChip(
                                             label = c.label,
                                             selected = randomCategoryFilter == c,
                                             onClick = { randomCategoryFilter = c },
-                                            accentColor = categoryNeonColor(c)
+                                            accentColor = themedCategoryColor(c)
                                         )
                                     }
                                 }
@@ -210,7 +204,7 @@ fun SmartHubScreen(
 
                 1 -> {
                     item {
-                        Text("Pick Your Mood", style = MaterialTheme.typography.titleLarge, color = OffWhiteText)
+                        Text("Pick Your Mood", style = MaterialTheme.typography.titleLarge, color = tokens.textPrimary)
                         Spacer(modifier = Modifier.height(8.dp))
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             AVAILABLE_MOODS.forEachIndexed { idx, mood ->
@@ -218,7 +212,7 @@ fun SmartHubScreen(
                                     label = mood,
                                     selected = selectedMood == mood,
                                     onClick = { selectedMood = mood },
-                                    accentColor = neonPaletteColor(idx)
+                                    accentColor = themedPaletteColor(idx)
                                 )
                             }
                         }
@@ -232,7 +226,7 @@ fun SmartHubScreen(
                             EmptyStateView(
                                 title = "No \"$selectedMood\" Matches Yet",
                                 subtitle = "Tag titles with moods in the editor or add matching genres like Thriller, Comedy, or Romance.",
-                                accentColor = NeonPink
+                                accentColor = tokens.dangerAccent
                             )
                         }
                     } else {
@@ -245,9 +239,9 @@ fun SmartHubScreen(
                 2 -> {
                     item {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            NeonGlassChip(label = "Hidden Gems", selected = collectionMode == 0, onClick = { collectionMode = 0 }, accentColor = NeonCyan)
-                            NeonGlassChip(label = "Rewatch", selected = collectionMode == 1, onClick = { collectionMode = 1 }, accentColor = NeonGreen)
-                            NeonGlassChip(label = "Dropped", selected = collectionMode == 2, onClick = { collectionMode = 2 }, accentColor = NeonPink)
+                            NeonGlassChip(label = "Hidden Gems", selected = collectionMode == 0, onClick = { collectionMode = 0 }, accentColor = tokens.tertiaryAccent)
+                            NeonGlassChip(label = "Rewatch", selected = collectionMode == 1, onClick = { collectionMode = 1 }, accentColor = tokens.positiveAccent)
+                            NeonGlassChip(label = "Dropped", selected = collectionMode == 2, onClick = { collectionMode = 2 }, accentColor = tokens.dangerAccent)
                         }
                     }
                     val list = when (collectionMode) {
@@ -264,15 +258,15 @@ fun SmartHubScreen(
                                     1 -> "Mark titles for Rewatch or log a rewatch count to track your comfort classics."
                                     else -> "No dropped titles. Everything you started is still going strong!"
                                 },
-                                accentColor = NeonPurple
+                                accentColor = tokens.primaryAccent
                             )
                         }
                     } else {
                         items(list, key = { "col_${it.id}" }) { item ->
                             val accent = when (collectionMode) {
-                                0 -> NeonCyan
-                                1 -> NeonGreen
-                                else -> NeonPink
+                                0 -> tokens.tertiaryAccent
+                                1 -> tokens.positiveAccent
+                                else -> tokens.dangerAccent
                             }
                             NeonGlassCard(
                                 modifier = Modifier.fillMaxWidth(),
@@ -287,19 +281,19 @@ fun SmartHubScreen(
                                 ) {
                                     PosterArtwork(item.posterUrl, item.title, item.categoryEnum, Modifier.size(56.dp, 80.dp))
                                     Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        Text(item.title, style = MaterialTheme.typography.titleMedium, color = OffWhiteText, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                        Text("${item.categoryEnum.label} • ${item.releaseYear}", style = MaterialTheme.typography.bodySmall, color = MutedGreyText)
+                                        Text(item.title, style = MaterialTheme.typography.titleMedium, color = tokens.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        Text("${item.categoryEnum.label} • ${item.releaseYear}", style = MaterialTheme.typography.bodySmall, color = tokens.textSecondary)
                                         if (collectionMode == 1) {
-                                            Text("Rewatched ${item.rewatchCount}×", style = MaterialTheme.typography.labelMedium, color = NeonGreen)
+                                            Text("Rewatched ${item.rewatchCount}×", style = MaterialTheme.typography.labelMedium, color = tokens.positiveAccent)
                                         }
                                         if (collectionMode == 2 && item.notes.isNotBlank()) {
-                                            Text(item.notes, style = MaterialTheme.typography.bodySmall, color = MutedGreyText, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                            Text(item.notes, style = MaterialTheme.typography.bodySmall, color = tokens.textSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
                                         }
                                     }
                                     when (collectionMode) {
                                         1 -> GlassSecondaryButton(
                                             onClick = { onIncrementRewatch(item) },
-                                            accentBorderColor = NeonGreen,
+                                            accentBorderColor = tokens.positiveAccent,
                                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                                         ) {
                                             Icon(Icons.Rounded.Repeat, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -308,14 +302,14 @@ fun SmartHubScreen(
                                         }
                                         2 -> GlassSecondaryButton(
                                             onClick = { onResumeDropped(item) },
-                                            accentBorderColor = NeonCyan,
+                                            accentBorderColor = tokens.tertiaryAccent,
                                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                                         ) {
                                             Icon(Icons.Rounded.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
                                             Spacer(modifier = Modifier.width(4.dp))
                                             Text("Resume")
                                         }
-                                        else -> Icon(Icons.Rounded.Diamond, contentDescription = null, tint = NeonCyan)
+                                        else -> Icon(Icons.Rounded.Diamond, contentDescription = null, tint = tokens.tertiaryAccent)
                                     }
                                 }
                             }
@@ -325,12 +319,12 @@ fun SmartHubScreen(
 
                 3 -> {
                     item {
-                        Text("Watching Goals", style = MaterialTheme.typography.titleLarge, color = OffWhiteText)
+                        Text("Watching Goals", style = MaterialTheme.typography.titleLarge, color = tokens.textPrimary)
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            GoalRingCard("Movies", stats.completedMoviesThisYear, profile.yearlyMovieGoal.toInt(), NeonPurple, Modifier.weight(1f))
-                            GoalRingCard("Series", stats.completedSeriesThisYear, profile.yearlySeriesGoal.toInt(), NeonGreen, Modifier.weight(1f))
-                            GoalRingCard("Episodes", stats.episodesWatchedTotal, profile.yearlyEpisodeGoal.toInt(), NeonCyan, Modifier.weight(1f))
+                            GoalRingCard("Movies", stats.completedMoviesThisYear, profile.yearlyMovieGoal.toInt(), tokens.primaryAccent, Modifier.weight(1f))
+                            GoalRingCard("Series", stats.completedSeriesThisYear, profile.yearlySeriesGoal.toInt(), tokens.positiveAccent, Modifier.weight(1f))
+                            GoalRingCard("Episodes", stats.episodesWatchedTotal, profile.yearlyEpisodeGoal.toInt(), tokens.tertiaryAccent, Modifier.weight(1f))
                         }
                     }
                     item {
@@ -338,11 +332,11 @@ fun SmartHubScreen(
                         Text(
                             text = "Achievement Badges ($unlocked/${achievements.size} Unlocked)",
                             style = MaterialTheme.typography.titleLarge,
-                            color = OffWhiteText
+                            color = tokens.textPrimary
                         )
                     }
                     items(achievements, key = { it.id }) { badge ->
-                        val accent = if (badge.unlocked) GoldRating else NeonPurple
+                        val accent = if (badge.unlocked) tokens.ratingGold else tokens.primaryAccent
                         NeonGlassCard(
                             modifier = Modifier.fillMaxWidth(),
                             accentColor = accent,
@@ -363,11 +357,11 @@ fun SmartHubScreen(
                                         Icon(
                                             imageVector = if (badge.unlocked) Icons.Rounded.CheckCircle else Icons.Rounded.EmojiEvents,
                                             contentDescription = null,
-                                            tint = if (badge.unlocked) GoldRating else MutedGreyText
+                                            tint = if (badge.unlocked) tokens.ratingGold else tokens.textSecondary
                                         )
                                         Column {
-                                            Text(badge.title, style = MaterialTheme.typography.titleMedium, color = OffWhiteText)
-                                            Text(badge.description, style = MaterialTheme.typography.bodySmall, color = MutedGreyText)
+                                            Text(badge.title, style = MaterialTheme.typography.titleMedium, color = tokens.textPrimary)
+                                            Text(badge.description, style = MaterialTheme.typography.bodySmall, color = tokens.textSecondary)
                                         }
                                     }
                                     Text("${badge.current.coerceAtMost(badge.target)}/${badge.target}", style = MaterialTheme.typography.labelMedium, color = accent)
@@ -375,8 +369,8 @@ fun SmartHubScreen(
                                 NeonProgressBar(
                                     progress = badge.progress,
                                     height = 7.dp,
-                                    startColor = if (badge.unlocked) GoldRating else NeonPurple,
-                                    endColor = if (badge.unlocked) NeonGreen else NeonFuchsia
+                                    startColor = if (badge.unlocked) tokens.ratingGold else tokens.primaryAccent,
+                                    endColor = if (badge.unlocked) tokens.positiveAccent else tokens.secondaryAccent
                                 )
                             }
                         }
@@ -390,7 +384,7 @@ fun SmartHubScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Favourite Quotes", style = MaterialTheme.typography.titleLarge, color = OffWhiteText)
+                            Text("Favourite Quotes", style = MaterialTheme.typography.titleLarge, color = tokens.textPrimary)
                             NeonPrimaryButton(
                                 onClick = { editingQuote = null; showQuoteDialog = true },
                                 cornerRadius = 14.dp,
@@ -408,25 +402,26 @@ fun SmartHubScreen(
                                 title = "No Saved Quotes Yet",
                                 subtitle = "Collect unforgettable dialogue from movies, series, anime, and K-dramas.",
                                 actionLabel = "Add First Quote",
-                                accentColor = NeonFuchsia,
+                                accentColor = tokens.secondaryAccent,
                                 onAction = { editingQuote = null; showQuoteDialog = true }
                             )
                         }
                     } else {
                         items(quotes, key = { it.id }) { q ->
+                            val qAccent = themedCategoryColor(q.categoryEnum)
                             NeonGlassCard(
                                 modifier = Modifier.fillMaxWidth(),
-                                accentColor = categoryNeonColor(q.categoryEnum),
+                                accentColor = qAccent,
                                 cornerRadius = 22.dp,
                                 contentPadding = PaddingValues(16.dp)
                             ) {
                                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Icon(Icons.Rounded.FormatQuote, contentDescription = null, tint = categoryNeonColor(q.categoryEnum))
+                                    Icon(Icons.Rounded.FormatQuote, contentDescription = null, tint = qAccent)
                                     Text(
                                         text = "\"${q.quoteText}\"",
                                         style = MaterialTheme.typography.bodyLarge,
                                         fontStyle = FontStyle.Italic,
-                                        color = OffWhiteText
+                                        color = tokens.textPrimary
                                     )
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
@@ -439,15 +434,15 @@ fun SmartHubScreen(
                                                 append("${q.sourceTitle} (${q.categoryEnum.label})")
                                             },
                                             style = MaterialTheme.typography.labelMedium,
-                                            color = categoryNeonColor(q.categoryEnum),
+                                            color = qAccent,
                                             modifier = Modifier.weight(1f)
                                         )
                                         Row {
                                             IconButton(onClick = { editingQuote = q; showQuoteDialog = true }) {
-                                                Icon(Icons.Rounded.Edit, contentDescription = "Edit quote", tint = NeonCyan)
+                                                Icon(Icons.Rounded.Edit, contentDescription = "Edit quote", tint = tokens.tertiaryAccent)
                                             }
                                             IconButton(onClick = { onDeleteQuote(q) }) {
-                                                Icon(Icons.Rounded.Delete, contentDescription = "Delete quote", tint = NeonPink)
+                                                Icon(Icons.Rounded.Delete, contentDescription = "Delete quote", tint = tokens.dangerAccent)
                                             }
                                         }
                                     }
@@ -460,7 +455,7 @@ fun SmartHubScreen(
                 5 -> {
                     val reviewed = allItems.filter { it.personalReview.isNotBlank() }
                     item {
-                        Text("Recently Watched History", style = MaterialTheme.typography.titleLarge, color = OffWhiteText)
+                        Text("Recently Watched History", style = MaterialTheme.typography.titleLarge, color = tokens.textPrimary)
                     }
                     val history = allItems.filter { it.statusEnum == WatchStatus.COMPLETED || it.statusEnum == WatchStatus.WATCHING }.take(10)
                     if (history.isEmpty()) {
@@ -468,7 +463,7 @@ fun SmartHubScreen(
                             EmptyStateView(
                                 title = "No Watch History Yet",
                                 subtitle = "Start or complete titles to build your chronological viewing log.",
-                                accentColor = NeonPurple
+                                accentColor = tokens.primaryAccent
                             )
                         }
                     } else {
@@ -483,12 +478,12 @@ fun SmartHubScreen(
 
                     item {
                         Spacer(modifier = Modifier.height(6.dp))
-                        Text("Personal Reviews (${reviewed.size})", style = MaterialTheme.typography.titleLarge, color = OffWhiteText)
+                        Text("Personal Reviews (${reviewed.size})", style = MaterialTheme.typography.titleLarge, color = tokens.textPrimary)
                     }
                     items(reviewed, key = { "rev_${it.id}" }) { item ->
                         NeonGlassCard(
                             modifier = Modifier.fillMaxWidth(),
-                            accentColor = categoryNeonColor(item.categoryEnum),
+                            accentColor = themedCategoryColor(item.categoryEnum),
                             cornerRadius = 22.dp,
                             onClick = { onSelectItem(item) },
                             contentPadding = PaddingValues(16.dp)
@@ -499,10 +494,10 @@ fun SmartHubScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(item.title, style = MaterialTheme.typography.titleMedium, color = OffWhiteText, modifier = Modifier.weight(1f))
+                                    Text(item.title, style = MaterialTheme.typography.titleMedium, color = tokens.textPrimary, modifier = Modifier.weight(1f))
                                     if (item.personalRating > 0) RatingPill(item.personalRating)
                                 }
-                                Text(item.personalReview, style = MaterialTheme.typography.bodyMedium, color = MutedGreyText)
+                                Text(item.personalReview, style = MaterialTheme.typography.bodyMedium, color = tokens.textSecondary)
                             }
                         }
                     }
@@ -525,7 +520,8 @@ fun SmartHubScreen(
 
 @Composable
 private fun SmartMediaCard(item: MediaItem, badge: String, onClick: () -> Unit) {
-    val accent = categoryNeonColor(item.categoryEnum)
+    val tokens = LocalZenixTokens.current
+    val accent = themedCategoryColor(item.categoryEnum)
     NeonGlassCard(
         modifier = Modifier.fillMaxWidth(),
         accentColor = accent,
@@ -540,11 +536,11 @@ private fun SmartMediaCard(item: MediaItem, badge: String, onClick: () -> Unit) 
             PosterArtwork(item.posterUrl, item.title, item.categoryEnum, Modifier.size(62.dp, 88.dp))
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(badge, style = MaterialTheme.typography.labelSmall, color = accent)
-                Text(item.title, style = MaterialTheme.typography.titleMedium, color = OffWhiteText, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(item.title, style = MaterialTheme.typography.titleMedium, color = tokens.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
                     text = "${item.categoryEnum.label} • ${item.releaseYear} • ${formatWatchTime(item.runtimeMinutes)}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MutedGreyText
+                    color = tokens.textSecondary
                 )
             }
             if (item.personalRating > 0) RatingPill(item.personalRating)
@@ -559,6 +555,7 @@ private fun QuoteEditorDialog(
     onDismiss: () -> Unit,
     onSave: (QuoteItem, Boolean) -> Unit
 ) {
+    val tokens = LocalZenixTokens.current
     val isEdit = initial != null && initial.id.isNotBlank()
     var quoteText by remember { mutableStateOf(initial?.quoteText ?: "") }
     var sourceTitle by remember { mutableStateOf(initial?.sourceTitle ?: "") }
@@ -568,7 +565,7 @@ private fun QuoteEditorDialog(
     NeonGlassDialog(
         onDismissRequest = onDismiss,
         title = if (isEdit) "Edit Quote" else "Save Favourite Quote",
-        accentColor = NeonFuchsia,
+        accentColor = tokens.secondaryAccent,
         confirmText = "Save",
         confirmEnabled = quoteText.isNotBlank() && sourceTitle.isNotBlank(),
         onConfirm = {
@@ -613,7 +610,7 @@ private fun QuoteEditorDialog(
                         label = c.label,
                         selected = category == c,
                         onClick = { category = c },
-                        accentColor = categoryNeonColor(c)
+                        accentColor = themedCategoryColor(c)
                     )
                 }
             }

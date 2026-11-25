@@ -34,12 +34,10 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.example.ui.theme.MutedGreyText
-import com.example.ui.theme.NeonCyan
-import com.example.ui.theme.NeonFuchsia
-import com.example.ui.theme.NeonPink
+import com.example.ui.theme.AndroidSurface
+import com.example.ui.theme.AppThemeMode
+import com.example.ui.theme.LocalZenixTokens
 import com.example.ui.theme.NeonPurple
-import com.example.ui.theme.OffWhiteText
 
 data class ChartSlice(
     val label: String,
@@ -56,12 +54,14 @@ fun DonutChartCard(
     accentColor: Color = NeonPurple,
     modifier: Modifier = Modifier
 ) {
+    val tokens = LocalZenixTokens.current
     val total = slices.sumOf { it.value.toDouble() }.toFloat()
     val sweepScale by animateFloatAsState(
         targetValue = if (total > 0f) 1f else 0f,
         animationSpec = tween(durationMillis = 700),
         label = "donut_sweep"
     )
+    val trackColor = if (tokens.isLight) Color(0xFFECE6DB) else Color.White.copy(alpha = 0.08f)
 
     NeonGlassCard(
         modifier = modifier.fillMaxWidth(),
@@ -71,14 +71,14 @@ fun DonutChartCard(
         Text(
             text = title,
             style = MaterialTheme.typography.titleLarge,
-            color = OffWhiteText
+            color = tokens.textPrimary
         )
         Spacer(modifier = Modifier.height(16.dp))
         if (total <= 0f) {
             Text(
                 text = "Add titles to visualize distribution.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MutedGreyText
+                color = tokens.textSecondary
             )
         } else {
             Row(
@@ -95,7 +95,7 @@ fun DonutChartCard(
                         val inset = strokeWidth / 2f
                         val arcSize = Size(size.width - strokeWidth, size.height - strokeWidth)
                         drawArc(
-                            color = Color.White.copy(alpha = 0.08f),
+                            color = trackColor,
                             startAngle = 0f,
                             sweepAngle = 360f,
                             useCenter = false,
@@ -107,16 +107,17 @@ fun DonutChartCard(
                         slices.filter { it.value > 0f }.forEach { slice ->
                             val sweep = (slice.value / total) * 360f * sweepScale
                             val activeSweep = (sweep - 3f).coerceAtLeast(1f)
-                            // Soft neon halo under each arc
-                            drawArc(
-                                color = slice.color.copy(alpha = 0.30f),
-                                startAngle = startAngle,
-                                sweepAngle = activeSweep,
-                                useCenter = false,
-                                topLeft = Offset(inset, inset),
-                                size = arcSize,
-                                style = Stroke(width = strokeWidth + 8.dp.toPx(), cap = StrokeCap.Round)
-                            )
+                            if (tokens.useGlow) {
+                                drawArc(
+                                    color = slice.color.copy(alpha = 0.30f),
+                                    startAngle = startAngle,
+                                    sweepAngle = activeSweep,
+                                    useCenter = false,
+                                    topLeft = Offset(inset, inset),
+                                    size = arcSize,
+                                    style = Stroke(width = strokeWidth + 8.dp.toPx(), cap = StrokeCap.Round)
+                                )
+                            }
                             drawArc(
                                 color = slice.color,
                                 startAngle = startAngle,
@@ -133,12 +134,12 @@ fun DonutChartCard(
                         Text(
                             text = centerLabel,
                             style = MaterialTheme.typography.headlineMedium,
-                            color = OffWhiteText
+                            color = tokens.textPrimary
                         )
                         Text(
                             text = centerSubLabel,
                             style = MaterialTheme.typography.labelSmall,
-                            color = MutedGreyText
+                            color = tokens.textSecondary
                         )
                     }
                 }
@@ -161,7 +162,10 @@ fun DonutChartCard(
                                 Box(
                                     modifier = Modifier
                                         .size(10.dp)
-                                        .neonGlow(slice.color, cornerRadius = 5.dp, alpha = 0.45f, spread = 3.dp)
+                                        .then(
+                                            if (tokens.useGlow) Modifier.neonGlow(slice.color, cornerRadius = 5.dp, alpha = 0.45f, spread = 3.dp)
+                                            else Modifier
+                                        )
                                         .clip(CircleShape)
                                         .background(slice.color)
                                 )
@@ -169,7 +173,7 @@ fun DonutChartCard(
                                 Text(
                                     text = slice.label,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = OffWhiteText,
+                                    color = tokens.textPrimary,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -195,7 +199,13 @@ fun HorizontalBarChartCard(
     emptyMessage: String = "No records yet.",
     modifier: Modifier = Modifier
 ) {
+    val tokens = LocalZenixTokens.current
     val maxVal = (items.maxOfOrNull { it.second } ?: 1).coerceAtLeast(1)
+    val trackBg = when (tokens.mode) {
+        AppThemeMode.NEON -> Color.White.copy(alpha = 0.08f)
+        AppThemeMode.ANDROID_UI -> AndroidSurface
+        AppThemeMode.MINIMAL_PASTEL -> Color(0xFFECE6DB)
+    }
 
     NeonGlassCard(
         modifier = modifier.fillMaxWidth(),
@@ -205,14 +215,14 @@ fun HorizontalBarChartCard(
         Text(
             text = title,
             style = MaterialTheme.typography.titleLarge,
-            color = OffWhiteText
+            color = tokens.textPrimary
         )
         Spacer(modifier = Modifier.height(14.dp))
         if (items.isEmpty()) {
             Text(
                 text = emptyMessage,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MutedGreyText
+                color = tokens.textSecondary
             )
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
@@ -222,11 +232,7 @@ fun HorizontalBarChartCard(
                         animationSpec = tween(600),
                         label = "bar_$label"
                     )
-                    val endColor = when (idx % 3) {
-                        0 -> NeonFuchsia
-                        1 -> NeonCyan
-                        else -> NeonPink
-                    }
+                    val endColor = themedPaletteColor(idx + 1)
                     Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -235,7 +241,7 @@ fun HorizontalBarChartCard(
                             Text(
                                 text = label,
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = OffWhiteText,
+                                color = tokens.textPrimary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f)
@@ -251,19 +257,25 @@ fun HorizontalBarChartCard(
                                 .fillMaxWidth()
                                 .height(9.dp)
                                 .clip(RoundedCornerShape(5.dp))
-                                .background(Color.White.copy(alpha = 0.08f))
-                                .border(0.5.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(5.dp))
+                                .background(trackBg)
+                                .then(
+                                    if (tokens.mode == AppThemeMode.NEON) {
+                                        Modifier.border(0.5.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(5.dp))
+                                    } else Modifier
+                                )
                         ) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth(ratio)
                                     .height(9.dp)
-                                    .neonGlow(endColor, cornerRadius = 5.dp, alpha = 0.36f, spread = 4.dp)
+                                    .then(
+                                        if (tokens.useGlow) Modifier.neonGlow(endColor, cornerRadius = 5.dp, alpha = 0.36f, spread = 4.dp)
+                                        else Modifier
+                                    )
                                     .clip(RoundedCornerShape(5.dp))
                                     .background(
-                                        Brush.horizontalGradient(
-                                            colors = listOf(barColor, endColor)
-                                        )
+                                        if (tokens.mode == AppThemeMode.ANDROID_UI) Brush.horizontalGradient(listOf(barColor, barColor))
+                                        else Brush.horizontalGradient(colors = listOf(barColor, endColor))
                                     )
                             )
                         }
@@ -282,6 +294,10 @@ fun LineActivityChartCard(
     emptyMessage: String = "Log titles with dates to unlock trend lines.",
     modifier: Modifier = Modifier
 ) {
+    val tokens = LocalZenixTokens.current
+    val gridColor = if (tokens.isLight) Color(0xFFDDD6C9) else Color.White.copy(alpha = 0.12f)
+    val pointCenterColor = if (tokens.isLight) Color.White else Color.White
+
     NeonGlassCard(
         modifier = modifier.fillMaxWidth(),
         accentColor = lineColor,
@@ -290,14 +306,14 @@ fun LineActivityChartCard(
         Text(
             text = title,
             style = MaterialTheme.typography.titleLarge,
-            color = OffWhiteText
+            color = tokens.textPrimary
         )
         Spacer(modifier = Modifier.height(14.dp))
         if (points.isEmpty()) {
             Text(
                 text = emptyMessage,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MutedGreyText
+                color = tokens.textSecondary
             )
         } else {
             val maxVal = (points.maxOfOrNull { it.second } ?: 1).coerceAtLeast(1)
@@ -313,7 +329,7 @@ fun LineActivityChartCard(
                 for (i in 0..3) {
                     val y = h * (i / 3f)
                     drawLine(
-                        color = Color.White.copy(alpha = 0.12f),
+                        color = gridColor,
                         start = Offset(0f, y),
                         end = Offset(w, y),
                         strokeWidth = 1.dp.toPx()
@@ -337,20 +353,21 @@ fun LineActivityChartCard(
                     drawPath(
                         path = fillPath,
                         brush = Brush.verticalGradient(
-                            colors = listOf(lineColor.copy(alpha = 0.42f), Color.Transparent)
+                            colors = listOf(lineColor.copy(alpha = if (tokens.isLight) 0.22f else 0.42f), Color.Transparent)
                         )
                     )
                     for (i in 0 until coords.size - 1) {
-                        // Glow stroke
+                        if (tokens.useGlow) {
+                            drawLine(
+                                color = lineColor.copy(alpha = 0.35f),
+                                start = coords[i],
+                                end = coords[i + 1],
+                                strokeWidth = 8.dp.toPx(),
+                                cap = StrokeCap.Round
+                            )
+                        }
                         drawLine(
-                            color = lineColor.copy(alpha = 0.35f),
-                            start = coords[i],
-                            end = coords[i + 1],
-                            strokeWidth = 8.dp.toPx(),
-                            cap = StrokeCap.Round
-                        )
-                        drawLine(
-                            brush = Brush.horizontalGradient(listOf(lineColor, NeonFuchsia)),
+                            brush = Brush.horizontalGradient(listOf(lineColor, tokens.secondaryAccent)),
                             start = coords[i],
                             end = coords[i + 1],
                             strokeWidth = 3.dp.toPx(),
@@ -360,9 +377,11 @@ fun LineActivityChartCard(
                 }
 
                 coords.forEach { pt ->
-                    drawCircle(color = lineColor.copy(alpha = 0.35f), radius = 9.dp.toPx(), center = pt)
+                    if (tokens.useGlow) {
+                        drawCircle(color = lineColor.copy(alpha = 0.35f), radius = 9.dp.toPx(), center = pt)
+                    }
                     drawCircle(color = lineColor, radius = 5.dp.toPx(), center = pt)
-                    drawCircle(color = Color.White, radius = 2.2.dp.toPx(), center = pt)
+                    drawCircle(color = pointCenterColor, radius = 2.2.dp.toPx(), center = pt)
                 }
             }
 
@@ -381,7 +400,7 @@ fun LineActivityChartCard(
                         Text(
                             text = label,
                             style = MaterialTheme.typography.labelSmall,
-                            color = MutedGreyText
+                            color = tokens.textSecondary
                         )
                     }
                 }
@@ -398,12 +417,14 @@ fun GoalRingCard(
     accentColor: Color,
     modifier: Modifier = Modifier
 ) {
+    val tokens = LocalZenixTokens.current
     val progress = if (target <= 0) 0f else (current.toFloat() / target.toFloat()).coerceIn(0f, 1f)
     val animatedSweep by animateFloatAsState(
         targetValue = progress * 360f,
         animationSpec = tween(700),
         label = "goal_$label"
     )
+    val trackColor = if (tokens.isLight) Color(0xFFECE6DB) else Color.White.copy(alpha = 0.10f)
 
     NeonGlassCard(
         modifier = modifier,
@@ -424,7 +445,7 @@ fun GoalRingCard(
                     val inset = stroke / 2f
                     val arcSize = Size(size.width - stroke, size.height - stroke)
                     drawArc(
-                        color = Color.White.copy(alpha = 0.10f),
+                        color = trackColor,
                         startAngle = 0f,
                         sweepAngle = 360f,
                         useCenter = false,
@@ -432,18 +453,19 @@ fun GoalRingCard(
                         size = arcSize,
                         style = Stroke(width = stroke)
                     )
-                    // Glow halo
+                    if (tokens.useGlow) {
+                        drawArc(
+                            color = accentColor.copy(alpha = 0.30f),
+                            startAngle = -90f,
+                            sweepAngle = animatedSweep,
+                            useCenter = false,
+                            topLeft = Offset(inset, inset),
+                            size = arcSize,
+                            style = Stroke(width = stroke + 5.dp.toPx(), cap = StrokeCap.Round)
+                        )
+                    }
                     drawArc(
-                        color = accentColor.copy(alpha = 0.30f),
-                        startAngle = -90f,
-                        sweepAngle = animatedSweep,
-                        useCenter = false,
-                        topLeft = Offset(inset, inset),
-                        size = arcSize,
-                        style = Stroke(width = stroke + 5.dp.toPx(), cap = StrokeCap.Round)
-                    )
-                    drawArc(
-                        brush = Brush.sweepGradient(listOf(accentColor, NeonFuchsia, accentColor)),
+                        brush = Brush.sweepGradient(listOf(accentColor, tokens.secondaryAccent, accentColor)),
                         startAngle = -90f,
                         sweepAngle = animatedSweep,
                         useCenter = false,
@@ -455,21 +477,21 @@ fun GoalRingCard(
                 Text(
                     text = "${(progress * 100).toInt()}%",
                     style = MaterialTheme.typography.labelMedium,
-                    color = OffWhiteText
+                    color = tokens.textPrimary
                 )
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = label,
                 style = MaterialTheme.typography.titleSmall,
-                color = OffWhiteText,
+                color = tokens.textPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
                 text = "$current / $target",
                 style = MaterialTheme.typography.labelSmall,
-                color = MutedGreyText
+                color = tokens.textSecondary
             )
         }
     }
