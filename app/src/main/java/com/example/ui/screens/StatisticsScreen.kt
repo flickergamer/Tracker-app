@@ -23,7 +23,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.example.data.model.DashboardStats
 import com.example.data.model.MediaCategory
 import com.example.data.model.MediaItem
@@ -38,15 +41,20 @@ import com.example.ui.components.GoalRingCard
 import com.example.ui.components.HorizontalBarChartCard
 import com.example.ui.components.LineActivityChartCard
 import com.example.ui.components.NeonGlassCard
+import com.example.ui.components.NeonProgressBar
 import com.example.ui.components.NeonRatingStars
 import com.example.ui.components.RatingPill
 import com.example.ui.components.StatKpiCard
+import com.example.ui.components.rememberAnimatedLongCount
 import com.example.ui.components.statusColor
 import com.example.ui.components.themedPastelFill
 import com.example.ui.components.zenixHeading
 import com.example.ui.theme.LocalZenixRadii
 import com.example.ui.theme.LocalZenixSpacing
 import com.example.ui.theme.LocalZenixTokens
+import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.NeonGreen
+import com.example.ui.theme.NeonPink
 import java.util.Locale
 
 @Composable
@@ -68,6 +76,9 @@ fun StatisticsScreen(
     val seriesCompleted = remember(allItems) {
         allItems.count { it.categoryEnum.isEpisodic && it.statusEnum == WatchStatus.COMPLETED }
     }
+    val animatedAnimeMins = rememberAnimatedLongCount(stats.animeWatchTimeMinutes.coerceAtLeast(0L))
+    val animatedMovieMins = rememberAnimatedLongCount(stats.moviesWatchTimeMinutes.coerceAtLeast(0L))
+    val animatedSeriesMins = rememberAnimatedLongCount(stats.seriesWatchTimeMinutes.coerceAtLeast(0L))
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -156,6 +167,54 @@ fun StatisticsScreen(
                             accentColor = tokens.dangerAccent,
                             pastelFill = themedPastelFill(1),
                             modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+
+            // Watch time (minutes) breakdown card
+            item {
+                val maxMins = remember(stats) {
+                    maxOf(
+                        stats.animeWatchTimeMinutes.coerceAtLeast(0L),
+                        stats.moviesWatchTimeMinutes.coerceAtLeast(0L),
+                        stats.seriesWatchTimeMinutes.coerceAtLeast(0L),
+                        1L
+                    ).toFloat()
+                }
+                NeonGlassCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    accentColor = NeonCyan,
+                    cornerRadius = radii.lg,
+                    contentPadding = PaddingValues(spacing.space4)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(spacing.space3)) {
+                        Text(
+                            text = "Watch time (minutes)",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = tokens.textPrimary,
+                            modifier = Modifier.zenixHeading()
+                        )
+                        StatWatchTimeBarRow(
+                            label = "Anime & K-Drama",
+                            minutes = animatedAnimeMins,
+                            progress = stats.animeWatchTimeMinutes.coerceAtLeast(0L).toFloat() / maxMins,
+                            startColor = NeonGreen,
+                            endColor = NeonCyan
+                        )
+                        StatWatchTimeBarRow(
+                            label = "Movies",
+                            minutes = animatedMovieMins,
+                            progress = stats.moviesWatchTimeMinutes.coerceAtLeast(0L).toFloat() / maxMins,
+                            startColor = NeonCyan,
+                            endColor = NeonCyan
+                        )
+                        StatWatchTimeBarRow(
+                            label = "Web Series",
+                            minutes = animatedSeriesMins,
+                            progress = stats.seriesWatchTimeMinutes.coerceAtLeast(0L).toFloat() / maxMins,
+                            startColor = NeonPink,
+                            endColor = NeonPink
                         )
                     }
                 }
@@ -253,5 +312,42 @@ fun StatisticsScreen(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun StatWatchTimeBarRow(
+    label: String,
+    minutes: Long,
+    progress: Float,
+    startColor: Color,
+    endColor: Color
+) {
+    val tokens = LocalZenixTokens.current
+    val spacing = LocalZenixSpacing.current
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.space1)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = tokens.textPrimary
+            )
+            Text(
+                text = "${minutes}m",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = endColor
+            )
+        }
+        NeonProgressBar(
+            progress = progress,
+            height = 8.dp,
+            startColor = startColor,
+            endColor = endColor
+        )
     }
 }

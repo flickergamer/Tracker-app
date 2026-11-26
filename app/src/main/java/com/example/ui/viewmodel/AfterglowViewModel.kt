@@ -422,15 +422,38 @@ class AfterglowViewModel(
 
         val top5 = items
             .filter { it.personalRating > 0.0 }
-            .sortedWith(compareByDescending<MediaItem> { it.personalRating }.thenByDescending { it.imdbRating })
+            .sortedWith(
+                compareByDescending<MediaItem> { it.personalRating }
+                    .thenByDescending { if (it.statusEnum == WatchStatus.COMPLETED) 1 else 0 }
+                    .thenByDescending { it.completionDate }
+                    .thenByDescending {
+                        if (it.statusEnum == WatchStatus.COMPLETED && it.completionDate.isBlank()) {
+                            (it.updatedAt ?: it.createdAt)?.seconds ?: 0L
+                        } else 0L
+                    }
+                    .thenBy { it.title.lowercase(Locale.US) }
+            )
             .take(5)
 
-        val watchingNow = items.filter { it.statusEnum == WatchStatus.WATCHING }
+        val watchingNow = items
+            .filter { it.statusEnum == WatchStatus.WATCHING }
+            .sortedByDescending { (it.updatedAt ?: it.createdAt)?.seconds ?: 0L }
         val recentAdded = items.sortedByDescending { it.createdAt ?: Timestamp(0, 0) }.take(6)
         val recentCompleted = items
             .filter { it.statusEnum == WatchStatus.COMPLETED }
             .sortedWith(compareByDescending<MediaItem> { it.completionDate }.thenByDescending { it.updatedAt ?: Timestamp(0, 0) })
             .take(6)
+        val nextUp = items
+            .filter { it.watchlistItem || it.statusEnum == WatchStatus.PLAN_TO_WATCH || it.statusEnum == WatchStatus.ON_HOLD }
+            .sortedWith(
+                compareBy<MediaItem> { if (it.statusEnum == WatchStatus.PLAN_TO_WATCH || it.watchlistItem) 0 else 1 }
+                    .thenBy { it.priorityEnum.sortWeight }
+                    .thenByDescending { it.dateAdded }
+                    .thenByDescending { (it.createdAt ?: it.updatedAt)?.seconds ?: 0L }
+            )
+            .firstOrNull()
+            ?: items.filter { it != top5.firstOrNull() }
+                .maxByOrNull { (it.createdAt ?: it.updatedAt)?.seconds ?: 0L }
 
         val completedMoviesYr = items.count {
             it.categoryEnum == MediaCategory.MOVIE &&
@@ -461,6 +484,7 @@ class AfterglowViewModel(
             animeWatchTimeMinutes = animeMins,
             topGenre = sortedGenres.firstOrNull()?.first ?: "—",
             highestRatedTitle = top5.firstOrNull(),
+            nextUpTitle = nextUp,
             genreDistribution = sortedGenres.take(8),
             platformDistribution = platformCounts.take(7),
             statusDistribution = statusDist,

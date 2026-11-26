@@ -239,6 +239,9 @@ data class MediaItem(
     fun formattedSeriesProgress(): String =
         "$title • Season ${currentSeason.coerceAtLeast(1)} • Episode $episodesWatched/$totalEpisodes • $episodeProgressPercent% Progress"
 
+    fun formattedCompactSeriesProgress(): String =
+        "S${currentSeason.coerceAtLeast(1)} · E$episodesWatched/$totalEpisodes · $episodeProgressPercent%"
+
     fun toCreateMap(uid: String): Map<String, Any> = buildBaseMap(uid) + mapOf(
         "userId" to uid,
         "createdAt" to FieldValue.serverTimestamp(),
@@ -363,6 +366,7 @@ data class DashboardStats(
     val animeWatchTimeMinutes: Long = 0L,
     val topGenre: String = "—",
     val highestRatedTitle: MediaItem? = null,
+    val nextUpTitle: MediaItem? = null,
     val genreDistribution: List<Pair<String, Int>> = emptyList(),
     val platformDistribution: List<Pair<String, Int>> = emptyList(),
     val statusDistribution: List<Pair<WatchStatus, Int>> = emptyList(),

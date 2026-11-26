@@ -47,6 +47,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -204,7 +205,8 @@ fun StatusPill(status: WatchStatus, modifier: Modifier = Modifier) {
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Medium,
             color = c,
-            maxLines = 1
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
@@ -365,30 +367,30 @@ fun MediaGridCard(
             Row(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(5.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    .padding(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 if (onEdit != null) {
-                    IconButton(
-                        onClick = onEdit,
+                    Box(
                         modifier = Modifier
-                            .size(34.dp)
+                            .size(32.dp)
                             .clip(CircleShape)
                             .background(overlayBg)
                             .border(1.dp, overlayBorder, CircleShape)
+                            .clickable(role = Role.Button, onClick = onEdit),
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Edit,
                             contentDescription = "Edit ${item.title}",
                             tint = tokens.textPrimary,
-                            modifier = Modifier.size(15.dp)
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                 }
-                IconButton(
-                    onClick = onToggleFavourite,
+                Box(
                     modifier = Modifier
-                        .size(34.dp)
+                        .size(32.dp)
                         .clip(CircleShape)
                         .background(overlayBg)
                         .border(
@@ -396,6 +398,8 @@ fun MediaGridCard(
                             if (item.favourite) tokens.dangerAccent.copy(alpha = 0.7f) else overlayBorder,
                             CircleShape
                         )
+                        .clickable(role = Role.Button, onClick = onToggleFavourite),
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = if (item.favourite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
@@ -404,14 +408,6 @@ fun MediaGridCard(
                         modifier = Modifier.size(16.dp)
                     )
                 }
-            }
-            if (item.personalRating > 0.0) {
-                RatingPill(
-                    rating = item.personalRating,
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(6.dp)
-                )
             }
         }
         Spacer(modifier = Modifier.height(10.dp))
@@ -422,16 +418,28 @@ fun MediaGridCard(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
-        Text(
-            text = buildString {
-                append(item.releaseYear)
-                if (item.streamingPlatform.isNotBlank()) append(" • ${item.streamingPlatform}")
-            },
-            style = MaterialTheme.typography.bodySmall,
-            color = tokens.textSecondary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = buildString {
+                    append(item.releaseYear)
+                    if (item.streamingPlatform.isNotBlank()) append(" • ${item.streamingPlatform}")
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = tokens.textSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+            if (item.personalRating > 0.0) {
+                Spacer(modifier = Modifier.width(6.dp))
+                RatingPill(rating = item.personalRating)
+            }
+        }
         if (item.genre.isNotBlank()) {
             Text(
                 text = item.genre,
@@ -545,10 +553,10 @@ fun SeriesProgressCard(
 
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = item.formattedSeriesProgress(),
+                    text = item.formattedCompactSeriesProgress(),
                     style = MaterialTheme.typography.labelMedium,
                     color = accent,
-                    maxLines = 2,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(6.dp))
@@ -582,7 +590,10 @@ fun SeriesProgressCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            StatusPill(status = item.statusEnum)
+            Box(modifier = Modifier.weight(1f, fill = false)) {
+                StatusPill(status = item.statusEnum)
+            }
+            Spacer(modifier = Modifier.width(8.dp))
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically

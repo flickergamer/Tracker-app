@@ -56,6 +56,7 @@ import com.example.ui.components.EmptyStateView
 import com.example.ui.components.FloatingBottomBarClearance
 import com.example.ui.components.GlassIconButton
 import com.example.ui.components.GlassSecondaryButton
+import com.example.ui.components.HorizontalScrollFadeBox
 import com.example.ui.components.MediaGridCard
 import com.example.ui.components.MovieTableView
 import com.example.ui.components.NeonGlassChip
@@ -249,7 +250,7 @@ fun MediaLibraryScreen(
                 Box {
                     GlassSecondaryButton(
                         onClick = { showSortMenu = true },
-                        accentBorderColor = modeNeon,
+                        accentBorderColor = tokens.tertiaryAccent,
                         cornerRadius = radii.sm,
                         contentPadding = PaddingValues(horizontal = spacing.space3, vertical = spacing.space3)
                     ) {
@@ -260,14 +261,14 @@ fun MediaLibraryScreen(
                         onDismissRequest = { showSortMenu = false },
                         modifier = Modifier
                             .background(tokens.dialogBackground)
-                            .border(1.dp, modeNeon.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                            .border(1.dp, tokens.tertiaryAccent.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
                     ) {
                         MediaSortOption.entries.forEach { opt ->
                             DropdownMenuItem(
                                 text = {
                                     Text(
                                         opt.label,
-                                        color = if (sortOption == opt) modeNeon else tokens.textPrimary
+                                        color = if (sortOption == opt) tokens.tertiaryAccent else tokens.textPrimary
                                     )
                                 },
                                 onClick = { sortOption = opt; showSortMenu = false }
@@ -279,7 +280,7 @@ fun MediaLibraryScreen(
                 Box {
                     GlassSecondaryButton(
                         onClick = { showFilterMenu = true },
-                        accentBorderColor = tokens.secondaryAccent,
+                        accentBorderColor = tokens.tertiaryAccent,
                         cornerRadius = radii.sm,
                         contentPadding = PaddingValues(horizontal = spacing.space3, vertical = spacing.space3)
                     ) {
@@ -290,7 +291,7 @@ fun MediaLibraryScreen(
                         onDismissRequest = { showFilterMenu = false },
                         modifier = Modifier
                             .background(tokens.dialogBackground)
-                            .border(1.dp, tokens.secondaryAccent.copy(alpha = 0.5f), RoundedCornerShape(radii.sm))
+                            .border(1.dp, tokens.tertiaryAccent.copy(alpha = 0.5f), RoundedCornerShape(radii.sm))
                     ) {
                         DropdownMenuItem(
                             text = { Text("Reset All Filters", color = tokens.dangerAccent) },
@@ -327,11 +328,16 @@ fun MediaLibraryScreen(
                 }
             }
 
-            // Status filter chips
-            Row(
-                modifier = Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(spacing.space2)
+            // Status filter chips with right-edge scroll fade
+            val chipScrollState = rememberScrollState()
+            HorizontalScrollFadeBox(
+                scrollState = chipScrollState,
+                modifier = Modifier.fillMaxWidth()
             ) {
+                Row(
+                    modifier = Modifier.horizontalScroll(chipScrollState),
+                    horizontalArrangement = Arrangement.spacedBy(spacing.space2)
+                ) {
                 NeonGlassChip(
                     label = "All Statuses",
                     selected = selectedStatus == null,
@@ -369,6 +375,7 @@ fun MediaLibraryScreen(
                         onClick = { selectedYear = null },
                         accentColor = tokens.secondaryAccent
                     )
+                }
                 }
             }
         }

@@ -60,6 +60,7 @@ import com.example.ui.components.EmptyStateView
 import com.example.ui.components.FloatingBottomBarClearance
 import com.example.ui.components.GlassSecondaryButton
 import com.example.ui.components.GoalRingCard
+import com.example.ui.components.HorizontalScrollFadeBox
 import com.example.ui.components.NeonGlassCard
 import com.example.ui.components.NeonGlassChip
 import com.example.ui.components.NeonGlassDialog
@@ -129,17 +130,23 @@ fun SmartHubScreen(
                 color = tokens.textPrimary,
                 modifier = Modifier.zenixHeading()
             )
-            Row(
-                modifier = Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(spacing.space2)
+            val tabScrollState = rememberScrollState()
+            HorizontalScrollFadeBox(
+                scrollState = tabScrollState,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                tabs.forEachIndexed { idx, label ->
-                    NeonGlassChip(
-                        label = label,
-                        selected = selectedTab == idx,
-                        onClick = { selectedTab = idx },
-                        accentColor = themedPaletteColor(idx)
-                    )
+                Row(
+                    modifier = Modifier.horizontalScroll(tabScrollState),
+                    horizontalArrangement = Arrangement.spacedBy(spacing.space2)
+                ) {
+                    tabs.forEachIndexed { idx, label ->
+                        NeonGlassChip(
+                            label = label,
+                            selected = selectedTab == idx,
+                            onClick = { selectedTab = idx },
+                            accentColor = themedPaletteColor(idx)
+                        )
+                    }
                 }
             }
         }

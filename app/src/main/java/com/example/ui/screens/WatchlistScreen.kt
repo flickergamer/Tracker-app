@@ -55,6 +55,7 @@ import com.example.data.model.WatchlistPriority
 import com.example.ui.components.FloatingBottomBarClearance
 import com.example.ui.components.GlassIconButton
 import com.example.ui.components.GlassSecondaryButton
+import com.example.ui.components.HorizontalScrollFadeBox
 import com.example.ui.components.NeonGlassCard
 import com.example.ui.components.NeonGlassChip
 import com.example.ui.components.NeonGlassDialog
@@ -185,31 +186,37 @@ fun WatchlistScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Row(
-                    modifier = Modifier.horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(spacing.space2)
+                val chipScrollState = rememberScrollState()
+                HorizontalScrollFadeBox(
+                    scrollState = chipScrollState,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    NeonGlassChip(
-                        label = if (sortByPriority) "Sort: Priority" else "Sort: Date Added",
-                        selected = sortByPriority,
-                        onClick = { sortByPriority = !sortByPriority },
-                        accentColor = tokens.tertiaryAccent
-                    )
-                    WatchlistPriority.entries.forEach { p ->
+                    Row(
+                        modifier = Modifier.horizontalScroll(chipScrollState),
+                        horizontalArrangement = Arrangement.spacedBy(spacing.space2)
+                    ) {
                         NeonGlassChip(
-                            label = p.label,
-                            selected = selectedPriority == p,
-                            onClick = { selectedPriority = if (selectedPriority == p) null else p },
-                            accentColor = priorityColor(p)
+                            label = if (sortByPriority) "Sort: Priority" else "Sort: Date Added",
+                            selected = sortByPriority,
+                            onClick = { sortByPriority = !sortByPriority },
+                            accentColor = tokens.tertiaryAccent
                         )
-                    }
-                    MediaCategory.entries.forEach { c ->
-                        NeonGlassChip(
-                            label = c.label,
-                            selected = selectedCategory == c,
-                            onClick = { selectedCategory = if (selectedCategory == c) null else c },
-                            accentColor = themedCategoryColor(c)
-                        )
+                        WatchlistPriority.entries.forEach { p ->
+                            NeonGlassChip(
+                                label = p.label,
+                                selected = selectedPriority == p,
+                                onClick = { selectedPriority = if (selectedPriority == p) null else p },
+                                accentColor = priorityColor(p)
+                            )
+                        }
+                        MediaCategory.entries.forEach { c ->
+                            NeonGlassChip(
+                                label = c.label,
+                                selected = selectedCategory == c,
+                                onClick = { selectedCategory = if (selectedCategory == c) null else c },
+                                accentColor = themedCategoryColor(c)
+                            )
+                        }
                     }
                 }
             }

@@ -35,12 +35,16 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -55,15 +59,23 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Menu
+import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Tv
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -138,6 +150,37 @@ import kotlin.math.max
 import kotlin.math.roundToLong
 
 val FloatingBottomBarClearance: Dp = 112.dp
+
+@Composable
+fun rememberFloatingBottomBarClearance(): Dp {
+    val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    return 80.dp + navBarBottom + 16.dp
+}
+
+@Composable
+fun HorizontalScrollFadeBox(
+    scrollState: ScrollState,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    val tokens = LocalZenixTokens.current
+    Box(modifier = modifier) {
+        content()
+        if (scrollState.canScrollForward) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .width(28.dp)
+                    .height(48.dp)
+                    .background(
+                        Brush.horizontalGradient(
+                            colors = listOf(Color.Transparent, tokens.background)
+                        )
+                    )
+            )
+        }
+    }
+}
 
 fun categoryNeonColor(category: MediaCategory): Color = when (category) {
     MediaCategory.MOVIE -> NeonCyan
@@ -446,13 +489,12 @@ fun AfterglowBackdrop(
 /**
  * Screen Header:
  * Left: Menu icon button (48dp) + "Z" gradient logo + "ZENIX"
- * Right: Search + "+" glass icon buttons (48dp)
+ * Right: Search glass icon button (48dp)
  */
 @Composable
 fun AfterglowTopBar(
     onOpenMenu: () -> Unit,
     onSearchClick: () -> Unit,
-    onAddClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val tokens = LocalZenixTokens.current
@@ -499,36 +541,18 @@ fun AfterglowTopBar(
             )
         }
 
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(spacing.space2)
+        GlassIconButton(
+            onClick = onSearchClick,
+            glowColor = NeonCyan,
+            size = 48.dp,
+            modifier = Modifier.testTag("topbar_search_button")
         ) {
-            GlassIconButton(
-                onClick = onSearchClick,
-                glowColor = NeonCyan,
-                size = 48.dp,
-                modifier = Modifier.testTag("topbar_search_button")
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Search,
-                    contentDescription = "Search library",
-                    tint = tokens.textPrimary,
-                    modifier = Modifier.size(21.dp)
-                )
-            }
-            GlassIconButton(
-                onClick = onAddClick,
-                glowColor = tokens.primaryAccent,
-                size = 48.dp,
-                modifier = Modifier.testTag("topbar_add_button")
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Add,
-                    contentDescription = "Add title",
-                    tint = tokens.textPrimary,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
+            Icon(
+                imageVector = Icons.Rounded.Search,
+                contentDescription = "Search library",
+                tint = tokens.textPrimary,
+                modifier = Modifier.size(21.dp)
+            )
         }
     }
 }
@@ -1591,10 +1615,11 @@ fun LiquidGlassBottomBar(
                             Text(
                                 text = tab.label,
                                 fontFamily = tokens.fontFamily,
-                                fontSize = 10.sp,
+                                fontSize = 12.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 color = tint,
                                 maxLines = 1,
+                                softWrap = false,
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
@@ -2020,5 +2045,155 @@ fun ZenixOfflineBanner(modifier: Modifier = Modifier) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddCategoryBottomSheet(
+    preselectedCategory: MediaCategory?,
+    onDismiss: () -> Unit,
+    onSelectCategory: (MediaCategory) -> Unit
+) {
+    val tokens = LocalZenixTokens.current
+    val spacing = LocalZenixSpacing.current
+    val radii = LocalZenixRadii.current
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var selectedCategory by remember(preselectedCategory) { mutableStateOf(preselectedCategory) }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = tokens.dialogBackground,
+        contentColor = tokens.textPrimary,
+        shape = RoundedCornerShape(topStart = radii.lg, topEnd = radii.lg)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = spacing.space4, vertical = spacing.space2),
+            verticalArrangement = Arrangement.spacedBy(spacing.space3)
+        ) {
+            Text(
+                text = "Add to ZENIX",
+                style = MaterialTheme.typography.headlineMedium,
+                color = tokens.textPrimary,
+                modifier = Modifier.zenixHeading()
+            )
+            Text(
+                text = if (preselectedCategory != null) {
+                    "Preselected ${preselectedCategory.label}. Tap another category or continue below."
+                } else {
+                    "Choose what kind of title you want to log."
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = tokens.textSecondary
+            )
+
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.space2)) {
+                MediaCategory.entries.forEach { category ->
+                    val accent = themedCategoryColor(category)
+                    val isSelected = selectedCategory == category
+                    val icon = when (category) {
+                        MediaCategory.MOVIE -> Icons.Rounded.Movie
+                        MediaCategory.WEB_SERIES -> Icons.Rounded.Tv
+                        MediaCategory.ANIME -> Icons.Rounded.AutoAwesome
+                        MediaCategory.K_DRAMA -> Icons.Rounded.Favorite
+                    }
+                    val subtitle = when (category) {
+                        MediaCategory.MOVIE -> "Feature films, documentaries & animated movies"
+                        MediaCategory.WEB_SERIES -> "Multi-season shows with episode progress"
+                        MediaCategory.ANIME -> "Seasonal anime series & cours"
+                        MediaCategory.K_DRAMA -> "Korean dramas & limited miniseries"
+                    }
+                    val shape = RoundedCornerShape(radii.md)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .defaultMinSize(minHeight = 56.dp)
+                            .clip(shape)
+                            .background(
+                                if (isSelected) accent.copy(alpha = 0.18f)
+                                else Color.White.copy(alpha = 0.05f)
+                            )
+                            .border(
+                                width = if (isSelected) 1.5.dp else 1.dp,
+                                color = if (isSelected) accent else tokens.outlineSubtle,
+                                shape = shape
+                            )
+                            .zenixFocusRing(accent, radii.md)
+                            .clickable(role = Role.Button) {
+                                if (preselectedCategory == null || selectedCategory == category) {
+                                    onSelectCategory(category)
+                                } else {
+                                    selectedCategory = category
+                                }
+                            }
+                            .padding(horizontal = spacing.space3, vertical = spacing.space3)
+                            .testTag("add_sheet_category_${category.name.lowercase()}"),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(spacing.space3)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(radii.sm))
+                                .background(accent.copy(alpha = 0.18f))
+                                .border(1.dp, accent.copy(alpha = 0.55f), RoundedCornerShape(radii.sm)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                tint = accent,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = category.label,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = tokens.textPrimary
+                            )
+                            Text(
+                                text = subtitle,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = tokens.textSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        if (isSelected) {
+                            Icon(
+                                imageVector = Icons.Rounded.Check,
+                                contentDescription = "Selected",
+                                tint = accent,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            val chosen = selectedCategory
+            if (chosen != null) {
+                NeonPrimaryButton(
+                    onClick = { onSelectCategory(chosen) },
+                    accentColor = themedCategoryColor(chosen),
+                    cornerRadius = radii.md,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("add_sheet_continue_button")
+                ) {
+                    Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(spacing.space2))
+                    Text("Continue as ${chosen.label}", fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(spacing.space2))
+        }
     }
 }

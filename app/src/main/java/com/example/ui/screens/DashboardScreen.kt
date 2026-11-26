@@ -23,7 +23,6 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.Casino
-import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -46,7 +45,6 @@ import com.example.data.model.MediaItem
 import com.example.data.model.UserProfile
 import com.example.data.model.formatWatchTime
 import com.example.ui.components.FloatingBottomBarClearance
-import com.example.ui.components.GlassSecondaryButton
 import com.example.ui.components.LiquidGlassHeroCard
 import com.example.ui.components.NeonGlassCard
 import com.example.ui.components.NeonGlassChip
@@ -76,7 +74,7 @@ import kotlin.math.roundToInt
 fun DashboardScreen(
     profile: UserProfile,
     stats: DashboardStats,
-    onAddTitle: (MediaCategory, Boolean) -> Unit,
+    onOpenAddPicker: () -> Unit,
     onSelectItem: (MediaItem) -> Unit,
     @Suppress("UNUSED_PARAMETER") onStepEpisode: (MediaItem, Int) -> Unit,
     @Suppress("UNUSED_PARAMETER") onToggleFavourite: (MediaItem) -> Unit,
@@ -91,10 +89,9 @@ fun DashboardScreen(
     val spacing = LocalZenixSpacing.current
     val radii = LocalZenixRadii.current
 
-    val topPick = remember(stats) {
-        stats.highestRatedTitle
-            ?: stats.currentlyWatching.firstOrNull()
-            ?: stats.recentlyAdded.firstOrNull()
+    val isContinuing = stats.currentlyWatching.isNotEmpty()
+    val spotlightItem = remember(stats) {
+        stats.currentlyWatching.firstOrNull() ?: stats.nextUpTitle
     }
 
     val completionRatio = remember(stats.totalTitles, stats.completedCount) {
@@ -110,10 +107,6 @@ fun DashboardScreen(
     val animatedSeries = rememberAnimatedIntCount(stats.totalWebSeries)
     val animatedAnimeKd = rememberAnimatedIntCount(stats.totalAnimeAndKDrama)
     val animatedPct = rememberAnimatedIntCount((completionRatio * 100f).roundToInt())
-
-    val animatedAnimeMins = rememberAnimatedLongCount(stats.animeWatchTimeMinutes.coerceAtLeast(0L))
-    val animatedMovieMins = rememberAnimatedLongCount(stats.moviesWatchTimeMinutes.coerceAtLeast(0L))
-    val animatedSeriesMins = rememberAnimatedLongCount(stats.seriesWatchTimeMinutes.coerceAtLeast(0L))
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -144,19 +137,25 @@ fun DashboardScreen(
             }
         }
 
-        // 2. TOP PICK card
+        // 2. CONTINUE WATCHING / NEXT UP card
         item {
+            val spotlightAccent = if (isContinuing) NeonCyan else NeonAmber
             LiquidGlassHeroCard(
-                accentColor = NeonAmber,
+                accentColor = spotlightAccent,
                 contentPadding = PaddingValues(spacing.space4)
             ) {
-                if (topPick != null) {
-                    val ratingLabel = if (topPick.personalRating > 0.0) {
-                        "★ ${String.format(Locale.US, "%.1f", topPick.personalRating)}"
-                    } else if (topPick.imdbRating > 0.0) {
-                        "★ ${String.format(Locale.US, "%.1f", topPick.imdbRating)}"
+                if (spotlightItem != null) {
+                    val ratingLabel = if (spotlightItem.personalRating > 0.0) {
+                        "★ ${String.format(Locale.US, "%.1f", spotlightItem.personalRating)}"
+                    } else if (spotlightItem.imdbRating > 0.0) {
+                        "★ ${String.format(Locale.US, "%.1f", spotlightItem.imdbRating)}"
                     } else {
                         "Unrated"
+                    }
+                    val metaText = if (isContinuing && spotlightItem.categoryEnum.isEpisodic) {
+                        spotlightItem.formattedCompactSeriesProgress()
+                    } else {
+                        "${spotlightItem.categoryEnum.label} · ${spotlightItem.releaseYear} · $ratingLabel"
                     }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -164,9 +163,9 @@ fun DashboardScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         PosterArtwork(
-                            posterUrl = topPick.posterUrl,
-                            title = topPick.title,
-                            category = topPick.categoryEnum,
+                            posterUrl = spotlightItem.posterUrl,
+                            title = spotlightItem.title,
+                            category = spotlightItem.categoryEnum,
                             modifier = Modifier.size(width = 84.dp, height = 122.dp)
                         )
                         Column(
@@ -174,32 +173,32 @@ fun DashboardScreen(
                             verticalArrangement = Arrangement.spacedBy(spacing.space2)
                         ) {
                             Text(
-                                text = "TOP PICK",
+                                text = if (isContinuing) "CONTINUE WATCHING" else "NEXT UP",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = 1.4.sp,
-                                color = NeonAmber
+                                color = spotlightAccent
                             )
                             Text(
-                                text = topPick.title,
+                                text = spotlightItem.title,
                                 style = MaterialTheme.typography.titleLarge,
                                 color = tokens.textPrimary,
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
-                                text = "${topPick.categoryEnum.label} · ${topPick.releaseYear} · $ratingLabel",
+                                text = metaText,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = tokens.textSecondary,
+                                color = if (isContinuing && spotlightItem.categoryEnum.isEpisodic) NeonCyan else tokens.textSecondary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                             NeonPrimaryButton(
-                                onClick = { onSelectItem(topPick) },
+                                onClick = { onSelectItem(spotlightItem) },
                                 accentColor = NeonPurple,
                                 cornerRadius = radii.sm,
                                 contentPadding = PaddingValues(horizontal = spacing.space4, vertical = spacing.space2),
-                                modifier = Modifier.testTag("top_pick_view_details")
+                                modifier = Modifier.testTag("continue_watching_view_details")
                             ) {
                                 Text("View details", fontWeight = FontWeight.Bold)
                             }
@@ -222,7 +221,7 @@ fun DashboardScreen(
                             verticalArrangement = Arrangement.spacedBy(spacing.space2)
                         ) {
                             Text(
-                                text = "TOP PICK",
+                                text = "NEXT UP",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = 1.4.sp,
@@ -234,13 +233,13 @@ fun DashboardScreen(
                                 color = tokens.textPrimary
                             )
                             Text(
-                                text = "Log your first movie or series to showcase your top pick.",
+                                text = "Log your first movie, series, anime, or K-drama to get started.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = tokens.textSecondary,
                                 maxLines = 2
                             )
                             NeonPrimaryButton(
-                                onClick = { onAddTitle(MediaCategory.MOVIE, false) },
+                                onClick = onOpenAddPicker,
                                 accentColor = NeonPurple,
                                 cornerRadius = radii.sm,
                                 contentPadding = PaddingValues(horizontal = spacing.space4, vertical = spacing.space2),
@@ -303,36 +302,19 @@ fun DashboardScreen(
             }
         }
 
-        // 4. Two buttons: "Add Movie", "Add Series"
+        // 4. Single "+ Add" button -> opens category bottom sheet
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(spacing.space3)
+            NeonPrimaryButton(
+                onClick = onOpenAddPicker,
+                accentColor = NeonPurple,
+                cornerRadius = radii.md,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("dashboard_add_button")
             ) {
-                NeonPrimaryButton(
-                    onClick = { onAddTitle(MediaCategory.MOVIE, false) },
-                    accentColor = NeonPurple,
-                    cornerRadius = radii.md,
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("dashboard_add_movie")
-                ) {
-                    Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(spacing.space2))
-                    Text("Add Movie", fontWeight = FontWeight.Bold, maxLines = 1)
-                }
-                GlassSecondaryButton(
-                    onClick = { onAddTitle(MediaCategory.WEB_SERIES, false) },
-                    accentBorderColor = NeonCyan,
-                    cornerRadius = radii.md,
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("dashboard_add_series")
-                ) {
-                    Icon(Icons.Rounded.Tv, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(spacing.space2))
-                    Text("Add Series", fontWeight = FontWeight.SemiBold, maxLines = 1)
-                }
+                Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(spacing.space2))
+                Text("Add", fontWeight = FontWeight.Bold)
             }
         }
 
@@ -405,56 +387,6 @@ fun DashboardScreen(
                         .weight(1f)
                         .testTag("dashboard_analytics_chip")
                 )
-            }
-        }
-
-        // 7. "Watch time (minutes)" card with 3 colored progress bars
-        item {
-            val maxMins = remember(stats) {
-                maxOf(
-                    stats.animeWatchTimeMinutes.coerceAtLeast(0L),
-                    stats.moviesWatchTimeMinutes.coerceAtLeast(0L),
-                    stats.seriesWatchTimeMinutes.coerceAtLeast(0L),
-                    1L
-                ).toFloat()
-            }
-
-            NeonGlassCard(
-                modifier = Modifier.fillMaxWidth(),
-                accentColor = NeonCyan,
-                cornerRadius = radii.lg,
-                contentPadding = PaddingValues(spacing.space4)
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(spacing.space3)) {
-                    Text(
-                        text = "Watch time (minutes)",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = tokens.textPrimary,
-                        modifier = Modifier.zenixHeading()
-                    )
-
-                    WatchTimeBarRow(
-                        label = "Anime & K-Drama",
-                        minutes = animatedAnimeMins,
-                        progress = stats.animeWatchTimeMinutes.coerceAtLeast(0L).toFloat() / maxMins,
-                        startColor = NeonGreen,
-                        endColor = NeonCyan
-                    )
-                    WatchTimeBarRow(
-                        label = "Movies",
-                        minutes = animatedMovieMins,
-                        progress = stats.moviesWatchTimeMinutes.coerceAtLeast(0L).toFloat() / maxMins,
-                        startColor = NeonCyan,
-                        endColor = NeonCyan
-                    )
-                    WatchTimeBarRow(
-                        label = "Web Series",
-                        minutes = animatedSeriesMins,
-                        progress = stats.seriesWatchTimeMinutes.coerceAtLeast(0L).toFloat() / maxMins,
-                        startColor = NeonPink,
-                        endColor = NeonPink
-                    )
-                }
             }
         }
 
@@ -620,43 +552,6 @@ private fun DashboardStatCell(
                 overflow = TextOverflow.Ellipsis
             )
         }
-    }
-}
-
-@Composable
-private fun WatchTimeBarRow(
-    label: String,
-    minutes: Long,
-    progress: Float,
-    startColor: Color,
-    endColor: Color
-) {
-    val tokens = LocalZenixTokens.current
-    val spacing = LocalZenixSpacing.current
-    Column(verticalArrangement = Arrangement.spacedBy(spacing.space1)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodyMedium,
-                color = tokens.textPrimary
-            )
-            Text(
-                text = "${minutes}m",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = endColor
-            )
-        }
-        NeonProgressBar(
-            progress = progress,
-            height = 8.dp,
-            startColor = startColor,
-            endColor = endColor
-        )
     }
 }
 
