@@ -65,7 +65,6 @@ import com.example.data.tmdb.TmdbPreferences
 import com.example.data.tmdb.TmdbPrefillResult
 import com.example.ui.theme.AppThemeMode
 import com.example.ui.theme.LocalZenixTokens
-import com.example.ui.theme.PastelLavender
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -335,9 +334,8 @@ fun MediaEditorDialog(
                                 )
                             }
                             val resultBg = when (tokens.mode) {
-                                AppThemeMode.NEON -> Color.White.copy(alpha = 0.08f)
-                                AppThemeMode.ANDROID_UI -> tokens.tonalContainer.copy(alpha = 0.55f)
-                                AppThemeMode.MINIMAL_PASTEL -> PastelLavender.copy(alpha = 0.55f)
+                                AppThemeMode.NEON_GLOSSY -> Color.White.copy(alpha = 0.08f)
+                                AppThemeMode.MINIMAL_DARK, AppThemeMode.AMOLED_BLACK -> tokens.tonalContainer.copy(alpha = 0.72f)
                             }
                             tmdbResults.forEach { res ->
                                 val label = res.title ?: res.name ?: "Untitled"
@@ -745,7 +743,7 @@ private fun ToggleRow(label: String, checked: Boolean, onCheckedChange: (Boolean
             checked = checked,
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = if (tokens.mode == AppThemeMode.ANDROID_UI) tokens.primaryButtonText else Color.White,
+                checkedThumbColor = tokens.primaryButtonText,
                 checkedTrackColor = tokens.primaryAccent,
                 uncheckedThumbColor = tokens.textSecondary,
                 uncheckedTrackColor = tokens.outlineSubtle,

@@ -8,32 +8,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.example.R
 
-val SpaceGroteskFontFamily = FontFamily(
-    Font(R.font.space_grotesk, FontWeight.Normal),
-    Font(R.font.space_grotesk, FontWeight.Medium),
-    Font(R.font.space_grotesk, FontWeight.SemiBold),
-    Font(R.font.space_grotesk, FontWeight.Bold)
+val InterFontFamily = FontFamily(
+    Font(R.font.inter, FontWeight.Normal),
+    Font(R.font.inter, FontWeight.Medium),
+    Font(R.font.inter, FontWeight.SemiBold),
+    Font(R.font.inter, FontWeight.Bold)
 )
 
-val RobotoFontFamily = FontFamily(
-    Font(R.font.roboto, FontWeight.Normal),
-    Font(R.font.roboto, FontWeight.Medium),
-    Font(R.font.roboto, FontWeight.SemiBold),
-    Font(R.font.roboto, FontWeight.Bold)
-)
-
-val DmSansFontFamily = FontFamily(
-    Font(R.font.dm_sans, FontWeight.Normal),
-    Font(R.font.dm_sans, FontWeight.Medium),
-    Font(R.font.dm_sans, FontWeight.SemiBold),
-    Font(R.font.dm_sans, FontWeight.Bold)
-)
-
-fun fontFamilyForTheme(mode: AppThemeMode): FontFamily = when (mode) {
-    AppThemeMode.NEON -> SpaceGroteskFontFamily
-    AppThemeMode.ANDROID_UI -> RobotoFontFamily
-    AppThemeMode.MINIMAL_PASTEL -> DmSansFontFamily
-}
+fun fontFamilyForTheme(@Suppress("UNUSED_PARAMETER") mode: AppThemeMode): FontFamily = InterFontFamily
 
 fun typographyForTheme(mode: AppThemeMode): Typography {
     val family = fontFamilyForTheme(mode)
@@ -41,22 +23,23 @@ fun typographyForTheme(mode: AppThemeMode): Typography {
         displayLarge = TextStyle(
             fontFamily = family,
             fontWeight = FontWeight.Bold,
-            fontSize = 34.sp,
-            lineHeight = 40.sp,
-            letterSpacing = (-0.4).sp
+            fontSize = 32.sp,
+            lineHeight = 38.sp,
+            letterSpacing = (-0.5).sp
         ),
         displayMedium = TextStyle(
             fontFamily = family,
             fontWeight = FontWeight.Bold,
-            fontSize = 26.sp,
-            lineHeight = 32.sp,
-            letterSpacing = (-0.2).sp
+            fontSize = 25.sp,
+            lineHeight = 31.sp,
+            letterSpacing = (-0.3).sp
         ),
         headlineLarge = TextStyle(
             fontFamily = family,
             fontWeight = FontWeight.Bold,
             fontSize = 22.sp,
-            lineHeight = 28.sp
+            lineHeight = 28.sp,
+            letterSpacing = (-0.2).sp
         ),
         headlineMedium = TextStyle(
             fontFamily = family,
@@ -72,13 +55,13 @@ fun typographyForTheme(mode: AppThemeMode): Typography {
         ),
         titleMedium = TextStyle(
             fontFamily = family,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.SemiBold,
             fontSize = 15.sp,
             lineHeight = 20.sp
         ),
         titleSmall = TextStyle(
             fontFamily = family,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.SemiBold,
             fontSize = 13.sp,
             lineHeight = 18.sp
         ),
@@ -102,26 +85,26 @@ fun typographyForTheme(mode: AppThemeMode): Typography {
         ),
         labelLarge = TextStyle(
             fontFamily = family,
-            fontWeight = FontWeight.Medium,
+            fontWeight = FontWeight.SemiBold,
             fontSize = 13.sp,
             lineHeight = 18.sp,
-            letterSpacing = 0.2.sp
+            letterSpacing = 0.1.sp
         ),
         labelMedium = TextStyle(
             fontFamily = family,
-            fontWeight = FontWeight.Medium,
+            fontWeight = FontWeight.SemiBold,
             fontSize = 11.sp,
             lineHeight = 15.sp,
-            letterSpacing = 0.3.sp
+            letterSpacing = 0.2.sp
         ),
         labelSmall = TextStyle(
             fontFamily = family,
-            fontWeight = FontWeight.Normal,
+            fontWeight = FontWeight.Medium,
             fontSize = 10.sp,
             lineHeight = 14.sp,
-            letterSpacing = 0.3.sp
+            letterSpacing = 0.2.sp
         )
     )
 }
 
-val AfterglowTypography = typographyForTheme(AppThemeMode.NEON)
+val AfterglowTypography = typographyForTheme(AppThemeMode.NEON_GLOSSY)

@@ -34,9 +34,10 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.example.ui.theme.AndroidSurface
+import com.example.ui.theme.AmoledCard
 import com.example.ui.theme.AppThemeMode
 import com.example.ui.theme.LocalZenixTokens
+import com.example.ui.theme.MinimalDarkCard
 import com.example.ui.theme.NeonPurple
 
 data class ChartSlice(
@@ -202,9 +203,9 @@ fun HorizontalBarChartCard(
     val tokens = LocalZenixTokens.current
     val maxVal = (items.maxOfOrNull { it.second } ?: 1).coerceAtLeast(1)
     val trackBg = when (tokens.mode) {
-        AppThemeMode.NEON -> Color.White.copy(alpha = 0.08f)
-        AppThemeMode.ANDROID_UI -> AndroidSurface
-        AppThemeMode.MINIMAL_PASTEL -> Color(0xFFECE6DB)
+        AppThemeMode.NEON_GLOSSY -> Color.White.copy(alpha = 0.08f)
+        AppThemeMode.MINIMAL_DARK -> MinimalDarkCard
+        AppThemeMode.AMOLED_BLACK -> AmoledCard
     }
 
     NeonGlassCard(
@@ -259,7 +260,7 @@ fun HorizontalBarChartCard(
                                 .clip(RoundedCornerShape(5.dp))
                                 .background(trackBg)
                                 .then(
-                                    if (tokens.mode == AppThemeMode.NEON) {
+                                    if (tokens.mode == AppThemeMode.NEON_GLOSSY) {
                                         Modifier.border(0.5.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(5.dp))
                                     } else Modifier
                                 )
@@ -274,7 +275,7 @@ fun HorizontalBarChartCard(
                                     )
                                     .clip(RoundedCornerShape(5.dp))
                                     .background(
-                                        if (tokens.mode == AppThemeMode.ANDROID_UI) Brush.horizontalGradient(listOf(barColor, barColor))
+                                        if (tokens.mode == AppThemeMode.MINIMAL_DARK) Brush.horizontalGradient(listOf(barColor, barColor))
                                         else Brush.horizontalGradient(colors = listOf(barColor, endColor))
                                     )
                             )
@@ -429,7 +430,7 @@ fun GoalRingCard(
     NeonGlassCard(
         modifier = modifier,
         accentColor = accentColor,
-        cornerRadius = 22.dp,
+        cornerRadius = 24.dp,
         contentPadding = PaddingValues(14.dp)
     ) {
         Column(

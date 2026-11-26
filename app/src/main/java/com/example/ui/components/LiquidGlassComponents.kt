@@ -36,7 +36,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -44,14 +43,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Menu
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
@@ -66,7 +62,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -74,6 +69,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.LocalView
@@ -88,44 +84,21 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.data.model.MediaCategory
-import com.example.ui.theme.AndroidBackground
-import com.example.ui.theme.AndroidCardSurface
-import com.example.ui.theme.AndroidOnPrimary
-import com.example.ui.theme.AndroidOnSecondaryContainer
-import com.example.ui.theme.AndroidOutline
-import com.example.ui.theme.AndroidOutlineVariant
-import com.example.ui.theme.AndroidPrimary
-import com.example.ui.theme.AndroidSecondaryContainer
-import com.example.ui.theme.AndroidSurface
-import com.example.ui.theme.AndroidTextPrimary
-import com.example.ui.theme.AndroidTextSecondary
+import com.example.ui.theme.AmoledCard
+import com.example.ui.theme.AmoledOutline
+import com.example.ui.theme.AmoledSurface
 import com.example.ui.theme.AppThemeMode
-import com.example.ui.theme.GoldRating
-import com.example.ui.theme.LocalAppThemeMode
+import com.example.ui.theme.InterFontFamily
 import com.example.ui.theme.LocalZenixTokens
-import com.example.ui.theme.NeonButtonDarkText
-import com.example.ui.theme.NeonButtonDeep
-import com.example.ui.theme.NeonButtonLight
+import com.example.ui.theme.MinimalDarkCard
+import com.example.ui.theme.MinimalDarkOutline
+import com.example.ui.theme.MinimalDarkSurface
+import com.example.ui.theme.NeonAmber
 import com.example.ui.theme.NeonCyan
-import com.example.ui.theme.NeonFuchsia
 import com.example.ui.theme.NeonGreen
 import com.example.ui.theme.NeonPink
 import com.example.ui.theme.NeonPurple
 import com.example.ui.theme.OffWhiteText
-import com.example.ui.theme.PastelAccentCoral
-import com.example.ui.theme.PastelAccentMint
-import com.example.ui.theme.PastelAccentPlum
-import com.example.ui.theme.PastelAccentRose
-import com.example.ui.theme.PastelAccentTeal
-import com.example.ui.theme.PastelBackground
-import com.example.ui.theme.PastelLavender
-import com.example.ui.theme.PastelMint
-import com.example.ui.theme.PastelOutline
-import com.example.ui.theme.PastelOutlineStrong
-import com.example.ui.theme.PastelPeach
-import com.example.ui.theme.PastelSky
-import com.example.ui.theme.PastelTextPrimary
-import com.example.ui.theme.PastelTextSecondary
 import com.example.ui.theme.RadialGlowCyan
 import com.example.ui.theme.RadialGlowMagenta
 import dev.chrisbanes.haze.HazeDefaults
@@ -139,10 +112,10 @@ import kotlin.math.max
 val FloatingBottomBarClearance: Dp = 112.dp
 
 fun categoryNeonColor(category: MediaCategory): Color = when (category) {
-    MediaCategory.MOVIE -> NeonPurple
-    MediaCategory.WEB_SERIES -> NeonCyan
-    MediaCategory.ANIME -> NeonPink
-    MediaCategory.K_DRAMA -> NeonFuchsia
+    MediaCategory.MOVIE -> NeonCyan
+    MediaCategory.WEB_SERIES -> NeonPink
+    MediaCategory.ANIME -> NeonGreen
+    MediaCategory.K_DRAMA -> NeonPurple
 }
 
 fun neonPaletteColor(index: Int): Color = when (index % 5) {
@@ -150,63 +123,40 @@ fun neonPaletteColor(index: Int): Color = when (index % 5) {
     1 -> NeonCyan
     2 -> NeonPink
     3 -> NeonGreen
-    else -> NeonFuchsia
+    else -> NeonAmber
 }
 
 @Composable
-fun themedCategoryColor(category: MediaCategory): Color = when (LocalAppThemeMode.current) {
-    AppThemeMode.NEON -> categoryNeonColor(category)
-    AppThemeMode.ANDROID_UI -> when (category) {
-        MediaCategory.MOVIE -> AndroidPrimary
-        MediaCategory.WEB_SERIES -> Color(0xFF80D8FF)
-        MediaCategory.ANIME -> Color(0xFFEFB8C8)
-        MediaCategory.K_DRAMA -> Color(0xFFCE93D8)
-    }
-    AppThemeMode.MINIMAL_PASTEL -> when (category) {
-        MediaCategory.MOVIE -> PastelAccentPlum
-        MediaCategory.WEB_SERIES -> PastelAccentTeal
-        MediaCategory.ANIME -> PastelAccentCoral
-        MediaCategory.K_DRAMA -> PastelAccentRose
-    }
-}
-
-@Composable
-fun themedPaletteColor(index: Int): Color = when (LocalAppThemeMode.current) {
-    AppThemeMode.NEON -> neonPaletteColor(index)
-    AppThemeMode.ANDROID_UI -> when (index % 5) {
-        0 -> AndroidPrimary
-        1 -> Color(0xFF80D8FF)
-        2 -> Color(0xFFEFB8C8)
-        3 -> Color(0xFF81C784)
-        else -> Color(0xFFCE93D8)
-    }
-    AppThemeMode.MINIMAL_PASTEL -> when (index % 5) {
-        0 -> PastelAccentPlum
-        1 -> PastelAccentTeal
-        2 -> PastelAccentCoral
-        3 -> PastelAccentMint
-        else -> PastelAccentRose
-    }
-}
-
-@Composable
-fun themedPastelFill(index: Int): Color? =
-    if (LocalAppThemeMode.current == AppThemeMode.MINIMAL_PASTEL) {
-        when (index % 4) {
-            0 -> PastelLavender
-            1 -> PastelSky
-            2 -> PastelPeach
-            else -> PastelMint
+fun themedCategoryColor(category: MediaCategory): Color {
+    val tokens = LocalZenixTokens.current
+    return if (tokens.mode == AppThemeMode.MINIMAL_DARK) {
+        when (category) {
+            MediaCategory.MOVIE -> tokens.primaryAccent
+            MediaCategory.WEB_SERIES -> tokens.primaryAccent.copy(alpha = 0.88f)
+            MediaCategory.ANIME -> NeonCyan
+            MediaCategory.K_DRAMA -> NeonPink
         }
-    } else null
+    } else {
+        categoryNeonColor(category)
+    }
+}
 
-/**
- * Draws a soft, multi-layered neon outer glow behind any rounded component
- * without clipping or requiring RenderEffect-only APIs.
- */
+@Composable
+fun themedPaletteColor(index: Int): Color {
+    val tokens = LocalZenixTokens.current
+    return if (tokens.mode == AppThemeMode.MINIMAL_DARK && index % 5 == 0) {
+        tokens.primaryAccent
+    } else {
+        neonPaletteColor(index)
+    }
+}
+
+@Composable
+fun themedPastelFill(@Suppress("UNUSED_PARAMETER") index: Int): Color? = null
+
 fun Modifier.neonGlow(
     color: Color,
-    cornerRadius: Dp = 22.dp,
+    cornerRadius: Dp = 24.dp,
     alpha: Float = 0.28f,
     spread: Dp = 8.dp
 ): Modifier = drawBehind {
@@ -247,10 +197,57 @@ fun Modifier.pressScale(
 }
 
 /**
+ * ZENIX "Z" Gradient Brand Logo
+ */
+@Composable
+fun ZenixBrandLogo(
+    size: Dp = 32.dp,
+    modifier: Modifier = Modifier
+) {
+    val tokens = LocalZenixTokens.current
+    val corner = (size.value * 0.31f).dp
+    val shape = RoundedCornerShape(corner)
+    val startCol = tokens.primaryAccent
+    val endCol = if (tokens.mode == AppThemeMode.MINIMAL_DARK) {
+        lerp(tokens.primaryAccent, Color.White, 0.22f)
+    } else {
+        NeonPink
+    }
+
+    Box(
+        modifier = modifier
+            .size(size)
+            .then(
+                if (tokens.useGlow) {
+                    Modifier.neonGlow(color = startCol, cornerRadius = corner, alpha = 0.45f, spread = 6.dp)
+                } else Modifier
+            )
+            .clip(shape)
+            .background(Brush.linearGradient(colors = listOf(startCol, endCol)))
+            .border(
+                width = 1.dp,
+                brush = Brush.verticalGradient(
+                    colors = listOf(Color.White.copy(alpha = 0.55f), Color.White.copy(alpha = 0.14f))
+                ),
+                shape = shape
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "Z",
+            fontFamily = InterFontFamily,
+            fontWeight = FontWeight.Bold,
+            fontSize = (size.value * 0.54f).sp,
+            color = Color.White
+        )
+    }
+}
+
+/**
  * Global themed backdrop:
- * - NEON: #07050F with soft radial glows (magenta top-right, cyan left-middle, purple bottom)
- * - ANDROID_UI: flat #141218
- * - MINIMAL_PASTEL: warm light cream #FAF7F2
+ * - NEON_GLOSSY: #07050F with radial neon glows
+ * - MINIMAL_DARK: clean flat dark #101016
+ * - AMOLED_BLACK: true #000000 black
  */
 @Composable
 fun AfterglowBackdrop(
@@ -266,12 +263,13 @@ fun AfterglowBackdrop(
         if (tokens.useGlow) {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val maxDim = max(size.width, size.height).coerceAtLeast(1f)
-                val magentaCenter = Offset(size.width * 0.92f, size.height * 0.06f)
+                val primaryGlow = tokens.primaryAccent
+                val magentaCenter = Offset(size.width * 0.90f, size.height * 0.06f)
                 drawCircle(
                     brush = Brush.radialGradient(
                         colorStops = arrayOf(
-                            0.0f to RadialGlowMagenta.copy(alpha = 0.45f),
-                            0.45f to RadialGlowMagenta.copy(alpha = 0.16f),
+                            0.0f to lerp(RadialGlowMagenta, primaryGlow, 0.5f).copy(alpha = 0.38f),
+                            0.45f to RadialGlowMagenta.copy(alpha = 0.14f),
                             1.0f to Color.Transparent
                         ),
                         center = magentaCenter,
@@ -285,8 +283,8 @@ fun AfterglowBackdrop(
                 drawCircle(
                     brush = Brush.radialGradient(
                         colorStops = arrayOf(
-                            0.0f to RadialGlowCyan.copy(alpha = 0.28f),
-                            0.45f to RadialGlowCyan.copy(alpha = 0.10f),
+                            0.0f to RadialGlowCyan.copy(alpha = 0.24f),
+                            0.45f to RadialGlowCyan.copy(alpha = 0.08f),
                             1.0f to Color.Transparent
                         ),
                         center = cyanCenter,
@@ -300,8 +298,8 @@ fun AfterglowBackdrop(
                 drawCircle(
                     brush = Brush.radialGradient(
                         colorStops = arrayOf(
-                            0.0f to NeonPurple.copy(alpha = 0.20f),
-                            0.6f to NeonPurple.copy(alpha = 0.06f),
+                            0.0f to primaryGlow.copy(alpha = 0.18f),
+                            0.6f to primaryGlow.copy(alpha = 0.05f),
                             1.0f to Color.Transparent
                         ),
                         center = bottomCenter,
@@ -317,16 +315,18 @@ fun AfterglowBackdrop(
 }
 
 /**
- * Screen Header: menu icon, themed ZENIX logo, "ZENIX" title with letter spacing, "+" button.
+ * Screen Header:
+ * Left: Menu icon button + "Z" gradient logo + "ZENIX"
+ * Right: Search + "+" glass icon buttons
  */
 @Composable
 fun AfterglowTopBar(
     onOpenMenu: () -> Unit,
+    onSearchClick: () -> Unit,
     onAddClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val tokens = LocalZenixTokens.current
-    val mode = tokens.mode
 
     Row(
         modifier = modifier
@@ -343,99 +343,61 @@ fun AfterglowTopBar(
             GlassIconButton(
                 onClick = onOpenMenu,
                 glowColor = tokens.primaryAccent,
+                size = 44.dp,
                 modifier = Modifier.testTag("open_drawer_button")
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Menu,
                     contentDescription = "Open navigation menu",
                     tint = tokens.textPrimary,
-                    modifier = Modifier.size(21.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
 
-            when (mode) {
-                AppThemeMode.NEON -> {
-                    Box(
-                        modifier = Modifier
-                            .size(30.dp)
-                            .neonGlow(color = NeonPink, cornerRadius = 10.dp, alpha = 0.45f, spread = 6.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(Brush.linearGradient(colors = listOf(NeonPurple, NeonPink)))
-                            .border(
-                                width = 1.dp,
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(Color.White.copy(alpha = 0.55f), Color.White.copy(alpha = 0.12f))
-                                ),
-                                shape = RoundedCornerShape(10.dp)
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.AutoAwesome,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-                AppThemeMode.ANDROID_UI -> {
-                    Box(
-                        modifier = Modifier
-                            .size(30.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(AndroidPrimary),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.AutoAwesome,
-                            contentDescription = null,
-                            tint = AndroidOnPrimary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-                AppThemeMode.MINIMAL_PASTEL -> {
-                    Box(
-                        modifier = Modifier
-                            .size(30.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(PastelLavender)
-                            .border(1.dp, PastelOutlineStrong, RoundedCornerShape(10.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.AutoAwesome,
-                            contentDescription = null,
-                            tint = PastelTextPrimary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-            }
+            ZenixBrandLogo(size = 32.dp)
 
             Text(
                 text = "ZENIX",
-                fontFamily = tokens.fontFamily,
+                fontFamily = InterFontFamily,
                 fontWeight = FontWeight.Bold,
                 fontSize = 18.sp,
-                letterSpacing = 2.6.sp,
+                letterSpacing = 2.4.sp,
                 color = tokens.textPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         }
 
-        GlassIconButton(
-            onClick = onAddClick,
-            glowColor = tokens.secondaryAccent,
-            modifier = Modifier.testTag("topbar_add_button")
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Icon(
-                imageVector = Icons.Rounded.Add,
-                contentDescription = "Add title",
-                tint = tokens.textPrimary,
-                modifier = Modifier.size(22.dp)
-            )
+            GlassIconButton(
+                onClick = onSearchClick,
+                glowColor = NeonCyan,
+                size = 44.dp,
+                modifier = Modifier.testTag("topbar_search_button")
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Search,
+                    contentDescription = "Search library",
+                    tint = tokens.textPrimary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            GlassIconButton(
+                onClick = onAddClick,
+                glowColor = tokens.primaryAccent,
+                size = 44.dp,
+                modifier = Modifier.testTag("topbar_add_button")
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Add,
+                    contentDescription = "Add title",
+                    tint = tokens.textPrimary,
+                    modifier = Modifier.size(21.dp)
+                )
+            }
         }
     }
 }
@@ -449,20 +411,20 @@ fun GlassIconButton(
     content: @Composable BoxScope.() -> Unit
 ) {
     val tokens = LocalZenixTokens.current
-    val shape = RoundedCornerShape(15.dp)
+    val shape = RoundedCornerShape(14.dp)
     val interactionSource = remember { MutableInteractionSource() }
 
     val baseMod = when (tokens.mode) {
-        AppThemeMode.NEON -> modifier
+        AppThemeMode.NEON_GLOSSY -> modifier
             .size(size)
             .pressScale(interactionSource, 0.94f)
-            .neonGlow(color = glowColor, cornerRadius = 15.dp, alpha = 0.24f, spread = 5.dp)
+            .neonGlow(color = glowColor, cornerRadius = 14.dp, alpha = 0.24f, spread = 5.dp)
             .clip(shape)
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        Color.White.copy(alpha = 0.16f),
-                        Color.White.copy(alpha = 0.05f)
+                        Color.White.copy(alpha = 0.14f),
+                        Color.White.copy(alpha = 0.04f)
                     )
                 )
             )
@@ -470,27 +432,26 @@ fun GlassIconButton(
                 width = 1.dp,
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color.White.copy(alpha = 0.34f),
-                        Color.White.copy(alpha = 0.12f)
+                        Color.White.copy(alpha = 0.30f),
+                        Color.White.copy(alpha = 0.10f)
                     )
                 ),
                 shape = shape
             )
 
-        AppThemeMode.ANDROID_UI -> modifier
+        AppThemeMode.MINIMAL_DARK -> modifier
             .size(size)
             .pressScale(interactionSource, 0.96f)
             .clip(shape)
-            .background(AndroidCardSurface)
-            .border(1.dp, AndroidOutlineVariant, shape)
+            .background(MinimalDarkCard)
+            .border(1.dp, MinimalDarkOutline, shape)
 
-        AppThemeMode.MINIMAL_PASTEL -> modifier
+        AppThemeMode.AMOLED_BLACK -> modifier
             .size(size)
             .pressScale(interactionSource, 0.96f)
-            .shadow(elevation = 4.dp, shape = shape, ambientColor = PastelTextPrimary.copy(alpha = 0.08f), spotColor = PastelTextPrimary.copy(alpha = 0.08f))
             .clip(shape)
-            .background(Color.White)
-            .border(1.dp, PastelOutline, shape)
+            .background(AmoledCard)
+            .border(1.dp, AmoledOutline, shape)
     }
 
     Box(
@@ -505,28 +466,30 @@ fun GlassIconButton(
 }
 
 /**
- * Hero / Top Card: adapts across Neon (glossy liquid glass + glow), Android UI (flat M3 tonal container), and Minimal Pastel (lavender/sky soft card with shadow).
+ * Hero / Highlight 24dp Card
  */
 @Composable
 fun LiquidGlassHeroCard(
     modifier: Modifier = Modifier,
+    accentColor: Color = LocalZenixTokens.current.primaryAccent,
+    contentPadding: PaddingValues = PaddingValues(18.dp),
     content: @Composable ColumnScope.() -> Unit
 ) {
     val tokens = LocalZenixTokens.current
-    val shape = RoundedCornerShape(tokens.heroRadius)
+    val shape = RoundedCornerShape(24.dp)
 
     val cardMod = when (tokens.mode) {
-        AppThemeMode.NEON -> modifier
+        AppThemeMode.NEON_GLOSSY -> modifier
             .fillMaxWidth()
-            .neonGlow(color = NeonPurple, cornerRadius = 28.dp, alpha = 0.38f, spread = 11.dp)
+            .neonGlow(color = accentColor, cornerRadius = 24.dp, alpha = 0.34f, spread = 10.dp)
             .clip(shape)
-            .background(Color(0xFF100A22).copy(alpha = 0.65f))
+            .background(Color(0xFF100A22).copy(alpha = 0.72f))
             .background(
                 Brush.linearGradient(
                     colors = listOf(
-                        NeonPurple.copy(alpha = 0.34f),
-                        NeonPink.copy(alpha = 0.24f),
-                        NeonCyan.copy(alpha = 0.20f)
+                        accentColor.copy(alpha = 0.28f),
+                        NeonPink.copy(alpha = 0.16f),
+                        NeonCyan.copy(alpha = 0.16f)
                     ),
                     start = Offset(0f, 0f),
                     end = Offset(1200f, 700f)
@@ -535,129 +498,111 @@ fun LiquidGlassHeroCard(
             .drawBehind {
                 drawRect(
                     brush = Brush.verticalGradient(
-                        0.0f to Color.White.copy(alpha = 0.22f),
-                        0.52f to Color.Transparent,
+                        0.0f to Color.White.copy(alpha = 0.18f),
+                        0.50f to Color.Transparent,
                         startY = 0f,
                         endY = size.height.coerceAtLeast(1f)
                     )
                 )
             }
-            .border(1.dp, Color.White.copy(alpha = 0.35f), shape)
-
-        AppThemeMode.ANDROID_UI -> modifier
-            .fillMaxWidth()
-            .clip(shape)
-            .background(Color(0xFF2B2738))
-            .border(1.dp, AndroidOutlineVariant, shape)
-
-        AppThemeMode.MINIMAL_PASTEL -> modifier
-            .fillMaxWidth()
-            .shadow(
-                elevation = 8.dp,
-                shape = shape,
-                ambientColor = PastelTextPrimary.copy(alpha = 0.10f),
-                spotColor = PastelTextPrimary.copy(alpha = 0.10f)
-            )
-            .clip(shape)
-            .background(
-                Brush.linearGradient(
-                    colors = listOf(
-                        PastelLavender,
-                        PastelSky.copy(alpha = 0.85f),
-                        Color.White
+            .border(
+                width = 1.dp,
+                brush = Brush.linearGradient(
+                    listOf(
+                        accentColor.copy(alpha = 0.72f),
+                        Color.White.copy(alpha = 0.26f),
+                        NeonCyan.copy(alpha = 0.45f)
                     )
-                )
+                ),
+                shape = shape
             )
-            .border(1.dp, PastelOutline, shape)
+
+        AppThemeMode.MINIMAL_DARK -> modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(MinimalDarkCard)
+            .border(1.dp, MinimalDarkOutline, shape)
+
+        AppThemeMode.AMOLED_BLACK -> modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(AmoledCard)
+            .border(1.dp, accentColor.copy(alpha = 0.36f), shape)
     }
 
     Box(modifier = cardMod) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
+                .padding(contentPadding),
             content = content
         )
     }
 }
 
 /**
- * Primary Button:
- * - NEON: gradient #F0ABFC -> #C084FC, dark text, fuchsia glow, white inner top highlight
- * - ANDROID_UI: filled M3 pill button (#D0BCFF fill, #381E72 text, flat)
- * - MINIMAL_PASTEL: dark #2D2A32 pill button with white text
+ * Primary Button (Purple/Theme-Accent filled with gloss + glow in Neon Glossy)
  */
 @Composable
 fun NeonPrimaryButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    accentColor: Color = LocalZenixTokens.current.primaryAccent,
     cornerRadius: Dp = 16.dp,
     contentPadding: PaddingValues = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
     content: @Composable RowScope.() -> Unit
 ) {
     val tokens = LocalZenixTokens.current
-    val effectiveRadius = if (tokens.mode == AppThemeMode.NEON) cornerRadius else 50.dp
-    val shape = RoundedCornerShape(effectiveRadius)
+    val shape = RoundedCornerShape(cornerRadius)
     val interactionSource = remember { MutableInteractionSource() }
     val alphaMult = if (enabled) 1f else 0.45f
 
+    val deepColor = lerp(accentColor, Color(0xFF340B6E), 0.26f)
+    val lightColor = lerp(accentColor, Color.White, 0.18f)
+
     val buttonMod = when (tokens.mode) {
-        AppThemeMode.NEON -> modifier
+        AppThemeMode.NEON_GLOSSY -> modifier
             .defaultMinSize(minHeight = 48.dp)
             .then(if (enabled) Modifier.pressScale(interactionSource, 0.97f) else Modifier)
             .neonGlow(
-                color = NeonFuchsia,
-                cornerRadius = effectiveRadius,
+                color = accentColor,
+                cornerRadius = cornerRadius,
                 alpha = if (enabled) 0.40f else 0.10f,
                 spread = 8.dp
             )
             .clip(shape)
             .background(
-                Brush.verticalGradient(
+                Brush.linearGradient(
                     colors = listOf(
-                        NeonButtonLight.copy(alpha = alphaMult),
-                        NeonButtonDeep.copy(alpha = alphaMult)
+                        lightColor.copy(alpha = alphaMult),
+                        deepColor.copy(alpha = alphaMult)
                     )
                 )
             )
             .drawBehind {
                 drawRoundRect(
                     brush = Brush.verticalGradient(
-                        0.0f to Color.White.copy(alpha = 0.55f * alphaMult),
+                        0.0f to Color.White.copy(alpha = 0.35f * alphaMult),
                         0.45f to Color.Transparent
                     ),
-                    cornerRadius = CornerRadius(effectiveRadius.toPx(), effectiveRadius.toPx())
-                )
-                drawLine(
-                    color = Color.White.copy(alpha = 0.65f * alphaMult),
-                    start = Offset(effectiveRadius.toPx() * 0.6f, 1.dp.toPx()),
-                    end = Offset(size.width - effectiveRadius.toPx() * 0.6f, 1.dp.toPx()),
-                    strokeWidth = 1.2.dp.toPx()
+                    cornerRadius = CornerRadius(cornerRadius.toPx(), cornerRadius.toPx())
                 )
             }
-            .border(1.dp, Color.White.copy(alpha = 0.35f * alphaMult), shape)
+            .border(1.dp, Color.White.copy(alpha = 0.30f * alphaMult), shape)
 
-        AppThemeMode.ANDROID_UI -> modifier
+        AppThemeMode.MINIMAL_DARK, AppThemeMode.AMOLED_BLACK -> modifier
             .defaultMinSize(minHeight = 48.dp)
             .then(if (enabled) Modifier.pressScale(interactionSource, 0.97f) else Modifier)
             .clip(shape)
-            .background(AndroidPrimary.copy(alpha = alphaMult))
-
-        AppThemeMode.MINIMAL_PASTEL -> modifier
-            .defaultMinSize(minHeight = 48.dp)
-            .then(if (enabled) Modifier.pressScale(interactionSource, 0.97f) else Modifier)
-            .shadow(
-                elevation = if (enabled) 4.dp else 0.dp,
-                shape = shape,
-                ambientColor = PastelTextPrimary.copy(alpha = 0.18f),
-                spotColor = PastelTextPrimary.copy(alpha = 0.18f)
-            )
-            .clip(shape)
-            .background(PastelTextPrimary.copy(alpha = alphaMult))
+            .background(accentColor.copy(alpha = alphaMult))
     }
 
-    val contentColor = tokens.primaryButtonText.copy(alpha = if (enabled) 1f else 0.7f)
+    val contentColor = if (accentColor == NeonCyan || accentColor == NeonGreen || accentColor == NeonAmber) {
+        Color(0xFF0A0812).copy(alpha = if (enabled) 1f else 0.7f)
+    } else {
+        Color.White.copy(alpha = if (enabled) 1f else 0.7f)
+    }
 
     Box(
         modifier = buttonMod
@@ -681,10 +626,7 @@ fun NeonPrimaryButton(
 }
 
 /**
- * Secondary Button:
- * - NEON: glass fill (white 12%) with thin border
- * - ANDROID_UI: flat tonal/outlined pill
- * - MINIMAL_PASTEL: white pill with soft shadow & subtle border
+ * Secondary Button (Glass / Outlined)
  */
 @Composable
 fun GlassSecondaryButton(
@@ -697,64 +639,49 @@ fun GlassSecondaryButton(
     content: @Composable RowScope.() -> Unit
 ) {
     val tokens = LocalZenixTokens.current
-    val effectiveRadius = if (tokens.mode == AppThemeMode.NEON) cornerRadius else 50.dp
-    val shape = RoundedCornerShape(effectiveRadius)
+    val shape = RoundedCornerShape(cornerRadius)
     val interactionSource = remember { MutableInteractionSource() }
     val alphaMult = if (enabled) 1f else 0.45f
 
     val buttonMod = when (tokens.mode) {
-        AppThemeMode.NEON -> {
-            val borderCol = accentBorderColor?.copy(alpha = 0.60f * alphaMult)
-                ?: Color.White.copy(alpha = 0.28f * alphaMult)
+        AppThemeMode.NEON_GLOSSY -> {
+            val borderCol = accentBorderColor?.copy(alpha = 0.75f * alphaMult)
+                ?: Color.White.copy(alpha = 0.26f * alphaMult)
             modifier
                 .defaultMinSize(minHeight = 48.dp)
                 .then(if (enabled) Modifier.pressScale(interactionSource, 0.97f) else Modifier)
                 .then(
                     if (accentBorderColor != null && enabled) {
-                        Modifier.neonGlow(accentBorderColor, effectiveRadius, alpha = 0.22f, spread = 6.dp)
+                        Modifier.neonGlow(accentBorderColor, cornerRadius, alpha = 0.24f, spread = 6.dp)
                     } else Modifier
                 )
                 .clip(shape)
-                .background(Color.White.copy(alpha = 0.12f * alphaMult))
-                .drawBehind {
-                    drawRect(
-                        brush = Brush.verticalGradient(
-                            0.0f to Color.White.copy(alpha = 0.14f * alphaMult),
-                            0.45f to Color.Transparent
-                        )
-                    )
-                }
+                .background((accentBorderColor ?: Color.White).copy(alpha = 0.10f * alphaMult))
                 .border(1.dp, borderCol, shape)
         }
 
-        AppThemeMode.ANDROID_UI -> {
-            val borderCol = accentBorderColor?.copy(alpha = 0.65f * alphaMult) ?: AndroidOutline.copy(alpha = alphaMult)
+        AppThemeMode.MINIMAL_DARK -> {
+            val borderCol = accentBorderColor?.copy(alpha = 0.65f * alphaMult) ?: MinimalDarkOutline.copy(alpha = alphaMult)
             modifier
                 .defaultMinSize(minHeight = 48.dp)
                 .then(if (enabled) Modifier.pressScale(interactionSource, 0.97f) else Modifier)
                 .clip(shape)
-                .background(AndroidSecondaryContainer.copy(alpha = 0.72f * alphaMult))
+                .background(MinimalDarkCard.copy(alpha = alphaMult))
                 .border(1.dp, borderCol, shape)
         }
 
-        AppThemeMode.MINIMAL_PASTEL -> {
-            val borderCol = accentBorderColor?.copy(alpha = 0.55f * alphaMult) ?: PastelOutlineStrong.copy(alpha = alphaMult)
+        AppThemeMode.AMOLED_BLACK -> {
+            val borderCol = accentBorderColor?.copy(alpha = 0.70f * alphaMult) ?: AmoledOutline.copy(alpha = alphaMult)
             modifier
                 .defaultMinSize(minHeight = 48.dp)
                 .then(if (enabled) Modifier.pressScale(interactionSource, 0.97f) else Modifier)
-                .shadow(
-                    elevation = if (enabled) 3.dp else 0.dp,
-                    shape = shape,
-                    ambientColor = PastelTextPrimary.copy(alpha = 0.08f),
-                    spotColor = PastelTextPrimary.copy(alpha = 0.08f)
-                )
                 .clip(shape)
-                .background(Color.White.copy(alpha = alphaMult))
+                .background(AmoledCard.copy(alpha = alphaMult))
                 .border(1.dp, borderCol, shape)
         }
     }
 
-    val contentColor = tokens.secondaryButtonText.copy(alpha = if (enabled) 1f else 0.6f)
+    val contentColor = (accentBorderColor ?: tokens.secondaryButtonText).copy(alpha = if (enabled) 1f else 0.6f)
 
     Box(
         modifier = buttonMod
@@ -778,46 +705,42 @@ fun GlassSecondaryButton(
 }
 
 /**
- * Cards (metric cards, title cards, list items):
- * - NEON: 22dp rounded, white 14%->3% gradient, 1dp neon border, soft glow
- * - ANDROID_UI: flat #2B2930 M3 card with subtle outline, no glow
- * - MINIMAL_PASTEL: white (or optional pastelFill) 22dp card with soft shadow
+ * Rounded 24dp Glass Card with Soft Neon Glow Borders
  */
 @Composable
 fun NeonGlassCard(
     modifier: Modifier = Modifier,
-    accentColor: Color = NeonPurple,
-    cornerRadius: Dp = 22.dp,
-    glowAlpha: Float = 0.25f,
-    pastelFill: Color? = null,
+    accentColor: Color = LocalZenixTokens.current.primaryAccent,
+    cornerRadius: Dp = 24.dp,
+    glowAlpha: Float = 0.24f,
+    @Suppress("UNUSED_PARAMETER") pastelFill: Color? = null,
     onClick: (() -> Unit)? = null,
     contentPadding: PaddingValues = PaddingValues(16.dp),
     content: @Composable ColumnScope.() -> Unit
 ) {
     val tokens = LocalZenixTokens.current
-    val effectiveRadius = if (tokens.mode == AppThemeMode.ANDROID_UI) cornerRadius.coerceAtMost(20.dp) else cornerRadius
-    val shape = RoundedCornerShape(effectiveRadius)
+    val shape = RoundedCornerShape(cornerRadius)
     val interactionSource = remember { MutableInteractionSource() }
 
     val cardMod = when (tokens.mode) {
-        AppThemeMode.NEON -> modifier
+        AppThemeMode.NEON_GLOSSY -> modifier
             .then(if (onClick != null) Modifier.pressScale(interactionSource, 0.985f) else Modifier)
-            .neonGlow(color = accentColor, cornerRadius = effectiveRadius, alpha = glowAlpha, spread = 8.dp)
+            .neonGlow(color = accentColor, cornerRadius = cornerRadius, alpha = glowAlpha, spread = 8.dp)
             .clip(shape)
-            .background(Color(0xFF0D0919).copy(alpha = 0.62f))
+            .background(Color(0xFF0E0A1B).copy(alpha = 0.74f))
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        Color.White.copy(alpha = 0.14f),
+                        Color.White.copy(alpha = 0.12f),
                         Color.White.copy(alpha = 0.03f)
                     )
                 )
             )
             .drawBehind {
                 drawLine(
-                    color = Color.White.copy(alpha = 0.22f),
-                    start = Offset(effectiveRadius.toPx() * 0.7f, 1.dp.toPx()),
-                    end = Offset(size.width - effectiveRadius.toPx() * 0.7f, 1.dp.toPx()),
+                    color = Color.White.copy(alpha = 0.20f),
+                    start = Offset(cornerRadius.toPx() * 0.65f, 1.dp.toPx()),
+                    end = Offset(size.width - cornerRadius.toPx() * 0.65f, 1.dp.toPx()),
                     strokeWidth = 1.dp.toPx()
                 )
             }
@@ -825,34 +748,25 @@ fun NeonGlassCard(
                 width = 1.dp,
                 brush = Brush.linearGradient(
                     colors = listOf(
-                        accentColor.copy(alpha = 0.80f),
-                        accentColor.copy(alpha = 0.42f),
-                        Color.White.copy(alpha = 0.25f)
+                        accentColor.copy(alpha = 0.72f),
+                        accentColor.copy(alpha = 0.34f),
+                        Color.White.copy(alpha = 0.20f)
                     )
                 ),
                 shape = shape
             )
 
-        AppThemeMode.ANDROID_UI -> modifier
+        AppThemeMode.MINIMAL_DARK -> modifier
             .then(if (onClick != null) Modifier.pressScale(interactionSource, 0.99f) else Modifier)
             .clip(shape)
-            .background(AndroidCardSurface)
-            .border(1.dp, AndroidOutlineVariant, shape)
+            .background(MinimalDarkCard)
+            .border(1.dp, MinimalDarkOutline, shape)
 
-        AppThemeMode.MINIMAL_PASTEL -> {
-            val fill = pastelFill ?: Color.White
-            modifier
-                .then(if (onClick != null) Modifier.pressScale(interactionSource, 0.988f) else Modifier)
-                .shadow(
-                    elevation = 6.dp,
-                    shape = shape,
-                    ambientColor = PastelTextPrimary.copy(alpha = 0.08f),
-                    spotColor = PastelTextPrimary.copy(alpha = 0.08f)
-                )
-                .clip(shape)
-                .background(fill)
-                .border(1.dp, PastelOutline.copy(alpha = if (pastelFill != null) 0.55f else 1f), shape)
-        }
+        AppThemeMode.AMOLED_BLACK -> modifier
+            .then(if (onClick != null) Modifier.pressScale(interactionSource, 0.99f) else Modifier)
+            .clip(shape)
+            .background(AmoledCard)
+            .border(1.dp, AmoledOutline, shape)
     }
 
     Box(
@@ -860,7 +774,7 @@ fun NeonGlassCard(
             if (onClick != null) {
                 Modifier.clickable(
                     interactionSource = interactionSource,
-                    indication = ripple(color = if (tokens.isLight) PastelTextPrimary else accentColor),
+                    indication = ripple(color = accentColor),
                     onClick = onClick
                 )
             } else Modifier
@@ -874,10 +788,7 @@ fun NeonGlassCard(
 }
 
 /**
- * Chips and filters:
- * - NEON: pill, glass fill, 1dp neon border with glow; selected = neon gradient
- * - ANDROID_UI: 8dp outlined chips, #4A4458 selected container
- * - MINIMAL_PASTEL: white pill with border; selected = lavender #E4DDF7 pill
+ * Chips and Pills
  */
 @Composable
 fun NeonGlassChip(
@@ -885,7 +796,7 @@ fun NeonGlassChip(
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    accentColor: Color = NeonPurple,
+    accentColor: Color = LocalZenixTokens.current.primaryAccent,
     leadingIcon: ImageVector? = null
 ) {
     val tokens = LocalZenixTokens.current
@@ -893,14 +804,18 @@ fun NeonGlassChip(
     val interactionSource = remember { MutableInteractionSource() }
 
     val glowAlpha by animateFloatAsState(
-        targetValue = if (tokens.useGlow) (if (selected) 0.38f else 0.16f) else 0f,
+        targetValue = if (tokens.useGlow) (if (selected) 0.36f else 0.14f) else 0f,
         animationSpec = tween(220),
         label = "chip_glow"
     )
-    val targetTextColor = when (tokens.mode) {
-        AppThemeMode.NEON -> if (selected) Color.White else OffWhiteText
-        AppThemeMode.ANDROID_UI -> if (selected) AndroidOnSecondaryContainer else AndroidTextPrimary
-        AppThemeMode.MINIMAL_PASTEL -> PastelTextPrimary
+    val targetTextColor = if (selected) {
+        if (tokens.mode == AppThemeMode.NEON_GLOSSY && (accentColor == NeonCyan || accentColor == NeonGreen || accentColor == NeonAmber)) {
+            Color(0xFF0A0812)
+        } else {
+            Color.White
+        }
+    } else {
+        tokens.textPrimary
     }
     val textColor by animateColorAsState(
         targetValue = targetTextColor,
@@ -909,73 +824,53 @@ fun NeonGlassChip(
     )
 
     val chipSurfaceMod = when (tokens.mode) {
-        AppThemeMode.NEON -> {
+        AppThemeMode.NEON_GLOSSY -> {
             if (selected) {
+                val gradEnd = lerp(accentColor, Color(0xFF5D21D1), 0.35f)
                 Modifier
                     .neonGlow(color = accentColor, cornerRadius = 20.dp, alpha = glowAlpha, spread = 6.dp)
                     .clip(shape)
-                    .background(Brush.horizontalGradient(colors = listOf(NeonFuchsia, NeonPurple)))
-                    .drawBehind {
-                        drawRect(
-                            brush = Brush.verticalGradient(
-                                0f to Color.White.copy(alpha = 0.28f),
-                                0.55f to Color.Transparent
-                            )
-                        )
-                    }
-                    .border(1.dp, Color.White.copy(alpha = 0.45f), shape)
+                    .background(Brush.horizontalGradient(colors = listOf(accentColor, gradEnd)))
+                    .border(1.dp, Color.White.copy(alpha = 0.40f), shape)
             } else {
                 Modifier
-                    .neonGlow(color = accentColor, cornerRadius = 20.dp, alpha = glowAlpha, spread = 6.dp)
+                    .neonGlow(color = accentColor, cornerRadius = 20.dp, alpha = glowAlpha, spread = 5.dp)
                     .clip(shape)
-                    .background(Color(0xFF0E0A1C).copy(alpha = 0.55f))
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = 0.11f),
-                                Color.White.copy(alpha = 0.04f)
-                            )
-                        )
-                    )
-                    .border(1.dp, accentColor.copy(alpha = 0.55f), shape)
+                    .background(Color(0xFF0E0A1C).copy(alpha = 0.65f))
+                    .border(1.dp, accentColor.copy(alpha = 0.52f), shape)
             }
         }
 
-        AppThemeMode.ANDROID_UI -> {
+        AppThemeMode.MINIMAL_DARK -> {
             if (selected) {
                 Modifier
                     .clip(shape)
-                    .background(AndroidSecondaryContainer)
-                    .border(1.dp, AndroidPrimary.copy(alpha = 0.65f), shape)
+                    .background(tokens.primaryAccent.copy(alpha = 0.24f))
+                    .border(1.dp, tokens.primaryAccent, shape)
             } else {
                 Modifier
                     .clip(shape)
-                    .background(Color.Transparent)
-                    .border(1.dp, AndroidOutline, shape)
+                    .background(MinimalDarkCard)
+                    .border(1.dp, MinimalDarkOutline, shape)
             }
         }
 
-        AppThemeMode.MINIMAL_PASTEL -> {
+        AppThemeMode.AMOLED_BLACK -> {
             if (selected) {
                 Modifier
                     .clip(shape)
-                    .background(PastelLavender)
-                    .border(1.dp, PastelAccentPlum.copy(alpha = 0.45f), shape)
+                    .background(accentColor.copy(alpha = 0.24f))
+                    .border(1.dp, accentColor, shape)
             } else {
                 Modifier
-                    .shadow(2.dp, shape, ambientColor = PastelTextPrimary.copy(alpha = 0.06f), spotColor = PastelTextPrimary.copy(alpha = 0.06f))
                     .clip(shape)
-                    .background(Color.White)
-                    .border(1.dp, PastelOutlineStrong, shape)
+                    .background(AmoledCard)
+                    .border(1.dp, AmoledOutline, shape)
             }
         }
     }
 
-    val iconTint = when (tokens.mode) {
-        AppThemeMode.NEON -> if (selected) Color.White else accentColor
-        AppThemeMode.ANDROID_UI -> if (selected) AndroidPrimary else AndroidTextSecondary
-        AppThemeMode.MINIMAL_PASTEL -> if (selected) PastelAccentPlum else accentColor
-    }
+    val iconTint = if (selected && tokens.mode == AppThemeMode.NEON_GLOSSY) textColor else accentColor
 
     Box(
         modifier = modifier
@@ -984,7 +879,7 @@ fun NeonGlassChip(
             .then(chipSurfaceMod)
             .clickable(
                 interactionSource = interactionSource,
-                indication = ripple(color = if (tokens.isLight) PastelTextPrimary else accentColor),
+                indication = ripple(color = accentColor),
                 onClick = onClick
             )
             .padding(horizontal = 14.dp, vertical = 9.dp),
@@ -1015,7 +910,7 @@ fun NeonGlassChip(
 }
 
 /**
- * Text fields adapted across Neon, Android UI, and Minimal Pastel.
+ * Text Fields
  */
 @Composable
 fun NeonGlassTextField(
@@ -1031,23 +926,19 @@ fun NeonGlassTextField(
     maxLines: Int = if (singleLine) 1 else 6,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     visualTransformation: VisualTransformation = VisualTransformation.None,
-    focusNeonColor: Color = NeonFuchsia
+    focusNeonColor: Color = LocalZenixTokens.current.primaryAccent
 ) {
     val tokens = LocalZenixTokens.current
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
-    val corner = if (tokens.mode == AppThemeMode.ANDROID_UI) 12.dp else 16.dp
+    val corner = 16.dp
     val shape = RoundedCornerShape(corner)
 
-    val focusedColor = when (tokens.mode) {
-        AppThemeMode.NEON -> focusNeonColor
-        AppThemeMode.ANDROID_UI -> AndroidPrimary
-        AppThemeMode.MINIMAL_PASTEL -> PastelTextPrimary
-    }
+    val focusedColor = if (tokens.mode == AppThemeMode.MINIMAL_DARK) tokens.primaryAccent else focusNeonColor
     val unfocusedBorder = when (tokens.mode) {
-        AppThemeMode.NEON -> Color.White.copy(alpha = 0.22f)
-        AppThemeMode.ANDROID_UI -> AndroidOutline
-        AppThemeMode.MINIMAL_PASTEL -> PastelOutlineStrong
+        AppThemeMode.NEON_GLOSSY -> Color.White.copy(alpha = 0.22f)
+        AppThemeMode.MINIMAL_DARK -> MinimalDarkOutline
+        AppThemeMode.AMOLED_BLACK -> AmoledOutline
     }
 
     val borderColor by animateColorAsState(
@@ -1089,43 +980,26 @@ fun NeonGlassTextField(
             ),
             decorationBox = { innerTextField ->
                 val boxMod = when (tokens.mode) {
-                    AppThemeMode.NEON -> Modifier
+                    AppThemeMode.NEON_GLOSSY -> Modifier
                         .fillMaxWidth()
                         .defaultMinSize(minHeight = if (minLines > 1) 76.dp else 48.dp)
                         .neonGlow(color = focusNeonColor, cornerRadius = corner, alpha = glowAlpha, spread = 6.dp)
                         .clip(shape)
-                        .background(Color(0xFF0B0717).copy(alpha = 0.78f))
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.White.copy(alpha = 0.08f),
-                                    Color.White.copy(alpha = 0.02f)
-                                )
-                            )
-                        )
-                        .drawBehind {
-                            drawLine(
-                                color = Color.White.copy(alpha = 0.26f),
-                                start = Offset(14.dp.toPx(), 1.dp.toPx()),
-                                end = Offset(size.width - 14.dp.toPx(), 1.dp.toPx()),
-                                strokeWidth = 1.dp.toPx()
-                            )
-                        }
+                        .background(Color(0xFF0B0717).copy(alpha = 0.80f))
                         .border(1.dp, borderColor, shape)
 
-                    AppThemeMode.ANDROID_UI -> Modifier
+                    AppThemeMode.MINIMAL_DARK -> Modifier
                         .fillMaxWidth()
                         .defaultMinSize(minHeight = if (minLines > 1) 76.dp else 48.dp)
                         .clip(shape)
-                        .background(AndroidCardSurface)
+                        .background(MinimalDarkSurface)
                         .border(if (isFocused) 1.5.dp else 1.dp, borderColor, shape)
 
-                    AppThemeMode.MINIMAL_PASTEL -> Modifier
+                    AppThemeMode.AMOLED_BLACK -> Modifier
                         .fillMaxWidth()
                         .defaultMinSize(minHeight = if (minLines > 1) 76.dp else 48.dp)
-                        .shadow(2.dp, shape, ambientColor = PastelTextPrimary.copy(alpha = 0.06f), spotColor = PastelTextPrimary.copy(alpha = 0.06f))
                         .clip(shape)
-                        .background(Color.White)
+                        .background(AmoledSurface)
                         .border(if (isFocused) 1.5.dp else 1.dp, borderColor, shape)
                 }
 
@@ -1163,13 +1037,13 @@ fun NeonGlassTextField(
 }
 
 /**
- * Themed Dialog adapted across Neon, Android UI, and Minimal Pastel.
+ * Dialog
  */
 @Composable
 fun NeonGlassDialog(
     onDismissRequest: () -> Unit,
     title: String,
-    accentColor: Color = NeonPurple,
+    accentColor: Color = LocalZenixTokens.current.primaryAccent,
     confirmText: String? = null,
     onConfirm: (() -> Unit)? = null,
     confirmEnabled: Boolean = true,
@@ -1184,46 +1058,29 @@ fun NeonGlassDialog(
         onDismissRequest = onDismissRequest,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        val shape = RoundedCornerShape(28.dp)
+        val shape = RoundedCornerShape(24.dp)
         val dialogMod = when (tokens.mode) {
-            AppThemeMode.NEON -> Modifier
+            AppThemeMode.NEON_GLOSSY -> Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
-                .neonGlow(color = accentColor, cornerRadius = 28.dp, alpha = 0.36f, spread = 10.dp)
+                .neonGlow(color = accentColor, cornerRadius = 24.dp, alpha = 0.34f, spread = 10.dp)
                 .clip(shape)
-                .background(Color(0xFF100A21).copy(alpha = 0.94f))
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.White.copy(alpha = 0.12f),
-                            Color.White.copy(alpha = 0.02f)
-                        )
-                    )
-                )
-                .drawBehind {
-                    drawRect(
-                        brush = Brush.verticalGradient(
-                            0f to Color.White.copy(alpha = 0.16f),
-                            0.35f to Color.Transparent
-                        )
-                    )
-                }
+                .background(Color(0xFF100A21).copy(alpha = 0.95f))
                 .border(1.dp, accentColor.copy(alpha = 0.72f), shape)
 
-            AppThemeMode.ANDROID_UI -> Modifier
+            AppThemeMode.MINIMAL_DARK -> Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
                 .clip(shape)
-                .background(AndroidCardSurface)
-                .border(1.dp, AndroidOutlineVariant, shape)
+                .background(MinimalDarkSurface)
+                .border(1.dp, MinimalDarkOutline, shape)
 
-            AppThemeMode.MINIMAL_PASTEL -> Modifier
+            AppThemeMode.AMOLED_BLACK -> Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
-                .shadow(16.dp, shape, ambientColor = PastelTextPrimary.copy(alpha = 0.14f), spotColor = PastelTextPrimary.copy(alpha = 0.14f))
                 .clip(shape)
-                .background(Color.White)
-                .border(1.dp, PastelOutline, shape)
+                .background(AmoledSurface)
+                .border(1.dp, AmoledOutline, shape)
         }
 
         Box(modifier = dialogMod) {
@@ -1266,11 +1123,11 @@ fun NeonGlassDialog(
                             GlassSecondaryButton(
                                 onClick = onConfirm,
                                 enabled = confirmEnabled,
-                                accentBorderColor = tokens.dangerAccent,
+                                accentBorderColor = NeonPink,
                                 cornerRadius = 14.dp,
                                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
                             ) {
-                                Text(confirmText, style = MaterialTheme.typography.labelLarge, color = tokens.dangerAccent, fontWeight = FontWeight.Bold)
+                                Text(confirmText, style = MaterialTheme.typography.labelLarge, color = NeonPink, fontWeight = FontWeight.Bold)
                             }
                         } else {
                             NeonPrimaryButton(
@@ -1337,10 +1194,8 @@ fun Modifier.safeHazeSource(hazeState: HazeState?): Modifier {
 }
 
 /**
- * Multi-theme Bottom Navigation Bar:
- * - NEON: Floating liquid glass pill with Haze blur (safe fallback below Android 12) + fuchsia->purple active pill
- * - ANDROID_UI: Standard full-width Material 3 NavigationBar (80dp, selected icon in 64x32 #4A4458 pill)
- * - MINIMAL_PASTEL: Floating white pill with soft shadow + lavender (#E4DDF7) active pill
+ * Floating Glass Bottom Nav (Home, Movies, Series, Anime, K-Drama)
+ * Active tab = purple/accent gradient pill across all 3 dark themes.
  */
 @Composable
 fun ZenixBottomBar(
@@ -1350,196 +1205,15 @@ fun ZenixBottomBar(
     hazeState: HazeState?,
     modifier: Modifier = Modifier
 ) {
-    when (LocalAppThemeMode.current) {
-        AppThemeMode.NEON -> LiquidGlassBottomBar(
-            tabs = tabs,
-            selectedIndex = selectedIndex,
-            onSelectTab = onSelectTab,
-            hazeState = hazeState,
-            modifier = modifier
-        )
-
-        AppThemeMode.ANDROID_UI -> AndroidMaterialBottomBar(
-            tabs = tabs,
-            selectedIndex = selectedIndex,
-            onSelectTab = onSelectTab,
-            modifier = modifier
-        )
-
-        AppThemeMode.MINIMAL_PASTEL -> PastelFloatingBottomBar(
-            tabs = tabs,
-            selectedIndex = selectedIndex,
-            onSelectTab = onSelectTab,
-            modifier = modifier
-        )
-    }
-}
-
-@Composable
-private fun AndroidMaterialBottomBar(
-    tabs: List<LiquidNavTab>,
-    selectedIndex: Int,
-    onSelectTab: (Int) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    NavigationBar(
-        modifier = modifier.fillMaxWidth(),
-        containerColor = AndroidSurface,
-        contentColor = AndroidTextPrimary,
-        tonalElevation = 0.dp
-    ) {
-        tabs.forEachIndexed { index, tab ->
-            val selected = index == selectedIndex
-            NavigationBarItem(
-                selected = selected,
-                onClick = { onSelectTab(index) },
-                icon = {
-                    Icon(
-                        imageVector = tab.icon,
-                        contentDescription = tab.label,
-                        modifier = Modifier.size(22.dp)
-                    )
-                },
-                label = {
-                    Text(
-                        text = tab.label,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                },
-                alwaysShowLabel = true,
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = AndroidOnSecondaryContainer,
-                    selectedTextColor = AndroidTextPrimary,
-                    indicatorColor = AndroidSecondaryContainer,
-                    unselectedIconColor = AndroidTextSecondary,
-                    unselectedTextColor = AndroidTextSecondary
-                ),
-                modifier = Modifier.testTag("bottom_tab_${tab.id}")
-            )
-        }
-    }
-}
-
-@Composable
-private fun PastelFloatingBottomBar(
-    tabs: List<LiquidNavTab>,
-    selectedIndex: Int,
-    onSelectTab: (Int) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val pillShape = RoundedCornerShape(36.dp)
-    val hasActiveTab = selectedIndex in tabs.indices
-    val safeIndex = if (hasActiveTab) selectedIndex else 0
-    val pillAlpha by animateFloatAsState(
-        targetValue = if (hasActiveTab) 1f else 0f,
-        animationSpec = tween(220),
-        label = "pastel_bar_pill_alpha"
-    )
-    val tokens = LocalZenixTokens.current
-
-    Box(
+    LiquidGlassBottomBar(
+        tabs = tabs,
+        selectedIndex = selectedIndex,
+        onSelectTab = onSelectTab,
+        hazeState = hazeState,
         modifier = modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(start = 14.dp, end = 14.dp, bottom = 10.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(72.dp)
-                .shadow(
-                    elevation = 12.dp,
-                    shape = pillShape,
-                    ambientColor = PastelTextPrimary.copy(alpha = 0.12f),
-                    spotColor = PastelTextPrimary.copy(alpha = 0.12f)
-                )
-                .clip(pillShape)
-                .background(Color.White)
-                .border(1.dp, PastelOutline, pillShape)
-        ) {
-            BoxWithConstraints(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(6.dp)
-            ) {
-                val slotWidth = maxWidth / tabs.size.coerceAtLeast(1)
-                val indicatorOffset by animateDpAsState(
-                    targetValue = slotWidth * safeIndex,
-                    animationSpec = spring(
-                        dampingRatio = 0.80f,
-                        stiffness = Spring.StiffnessMediumLow
-                    ),
-                    label = "pastel_bar_pill_offset"
-                )
-
-                // Animated Lavender Pill
-                Box(
-                    modifier = Modifier
-                        .offset(x = indicatorOffset)
-                        .width(slotWidth)
-                        .fillMaxHeight()
-                        .padding(2.dp)
-                        .graphicsLayer { alpha = pillAlpha }
-                        .clip(RoundedCornerShape(28.dp))
-                        .background(PastelLavender)
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    tabs.forEachIndexed { index, tab ->
-                        val isSelected = index == selectedIndex
-                        val tint by animateColorAsState(
-                            targetValue = if (isSelected) PastelTextPrimary else PastelTextSecondary,
-                            animationSpec = tween(200),
-                            label = "pastel_tab_tint_$index"
-                        )
-                        val interactionSource = remember { MutableInteractionSource() }
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .clip(RoundedCornerShape(28.dp))
-                                .clickable(
-                                    interactionSource = interactionSource,
-                                    indication = ripple(color = PastelTextPrimary),
-                                    onClick = { onSelectTab(index) }
-                                )
-                                .testTag("bottom_tab_${tab.id}"),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                imageVector = tab.icon,
-                                contentDescription = tab.label,
-                                tint = tint,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = tab.label,
-                                fontFamily = tokens.fontFamily,
-                                fontSize = 10.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = tint,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
+    )
 }
 
-/**
- * Floating Liquid Glass Bottom Bar (Neon Theme)
- */
 @Composable
 fun LiquidGlassBottomBar(
     tabs: List<LiquidNavTab>,
@@ -1548,6 +1222,7 @@ fun LiquidGlassBottomBar(
     hazeState: HazeState?,
     modifier: Modifier = Modifier
 ) {
+    val tokens = LocalZenixTokens.current
     val pillShape = RoundedCornerShape(36.dp)
     val hasActiveTab = selectedIndex in tabs.indices
     val safeIndex = if (hasActiveTab) selectedIndex else 0
@@ -1556,9 +1231,20 @@ fun LiquidGlassBottomBar(
         animationSpec = tween(220),
         label = "bottom_bar_pill_alpha"
     )
-    val canBlur = hazeState != null && rememberSafeBlurEnabled()
-    val fallbackGlassColor = Color(0xFF130D24).copy(alpha = 0.88f)
-    val tokens = LocalZenixTokens.current
+    val canBlur = tokens.useBlur && hazeState != null && rememberSafeBlurEnabled()
+    val fallbackGlassColor = when (tokens.mode) {
+        AppThemeMode.NEON_GLOSSY -> Color(0xFF130D24).copy(alpha = 0.88f)
+        AppThemeMode.MINIMAL_DARK -> MinimalDarkSurface.copy(alpha = 0.96f)
+        AppThemeMode.AMOLED_BLACK -> AmoledSurface.copy(alpha = 0.96f)
+    }
+    val borderColor = when (tokens.mode) {
+        AppThemeMode.NEON_GLOSSY -> Color.White.copy(alpha = 0.24f)
+        AppThemeMode.MINIMAL_DARK -> MinimalDarkOutline
+        AppThemeMode.AMOLED_BLACK -> AmoledOutline
+    }
+
+    val activeStart = tokens.primaryAccent
+    val activeEnd = lerp(tokens.primaryAccent, Color(0xFF531ED4), 0.42f)
 
     Box(
         modifier = modifier
@@ -1589,30 +1275,30 @@ fun LiquidGlassBottomBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(72.dp)
-                .neonGlow(color = NeonPurple, cornerRadius = 36.dp, alpha = 0.38f, spread = 10.dp)
+                .then(
+                    if (tokens.useGlow) {
+                        Modifier.neonGlow(color = tokens.primaryAccent, cornerRadius = 36.dp, alpha = 0.34f, spread = 10.dp)
+                    } else Modifier
+                )
                 .clip(pillShape)
         ) {
             Box(
                 modifier = Modifier
                     .matchParentSize()
                     .then(blurLayerModifier)
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = 0.16f),
-                                Color.White.copy(alpha = 0.05f)
+                    .then(
+                        if (tokens.useGloss) {
+                            Modifier.background(
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.White.copy(alpha = 0.14f),
+                                        Color.White.copy(alpha = 0.04f)
+                                    )
+                                )
                             )
-                        )
+                        } else Modifier
                     )
-                    .drawBehind {
-                        drawLine(
-                            color = Color.White.copy(alpha = 0.34f),
-                            start = Offset(32.dp.toPx(), 1.dp.toPx()),
-                            end = Offset(size.width - 32.dp.toPx(), 1.dp.toPx()),
-                            strokeWidth = 1.2.dp.toPx()
-                        )
-                    }
-                    .border(1.dp, Color.White.copy(alpha = 0.28f), pillShape)
+                    .border(1.dp, borderColor, pillShape)
             )
 
             BoxWithConstraints(
@@ -1637,22 +1323,14 @@ fun LiquidGlassBottomBar(
                         .fillMaxHeight()
                         .padding(2.dp)
                         .graphicsLayer { alpha = pillAlpha }
-                        .neonGlow(color = NeonFuchsia, cornerRadius = 28.dp, alpha = 0.42f * pillAlpha, spread = 6.dp)
-                        .clip(RoundedCornerShape(28.dp))
-                        .background(
-                            Brush.linearGradient(
-                                colors = listOf(NeonPink, NeonPurple)
-                            )
+                        .then(
+                            if (tokens.useGlow) {
+                                Modifier.neonGlow(color = activeStart, cornerRadius = 28.dp, alpha = 0.40f * pillAlpha, spread = 6.dp)
+                            } else Modifier
                         )
-                        .drawBehind {
-                            drawRect(
-                                brush = Brush.verticalGradient(
-                                    0.0f to Color.White.copy(alpha = 0.34f),
-                                    0.55f to Color.Transparent
-                                )
-                            )
-                        }
-                        .border(1.dp, Color.White.copy(alpha = 0.42f), RoundedCornerShape(28.dp))
+                        .clip(RoundedCornerShape(28.dp))
+                        .background(Brush.linearGradient(colors = listOf(activeStart, activeEnd)))
+                        .border(1.dp, Color.White.copy(alpha = 0.32f), RoundedCornerShape(28.dp))
                 )
 
                 Row(
@@ -1662,7 +1340,7 @@ fun LiquidGlassBottomBar(
                     tabs.forEachIndexed { index, tab ->
                         val isSelected = index == selectedIndex
                         val tint by animateColorAsState(
-                            targetValue = if (isSelected) Color.White else tokens.textSecondary,
+                            targetValue = if (isSelected) tokens.primaryButtonText else tokens.textSecondary,
                             animationSpec = tween(200),
                             label = "tab_tint_$index"
                         )
@@ -1726,9 +1404,9 @@ fun NeonProgressBar(
     val shape = RoundedCornerShape(50)
 
     val trackBg = when (tokens.mode) {
-        AppThemeMode.NEON -> Color.White.copy(alpha = 0.08f)
-        AppThemeMode.ANDROID_UI -> AndroidSurface
-        AppThemeMode.MINIMAL_PASTEL -> Color(0xFFECE6DB)
+        AppThemeMode.NEON_GLOSSY -> Color.White.copy(alpha = 0.08f)
+        AppThemeMode.MINIMAL_DARK -> MinimalDarkSurface
+        AppThemeMode.AMOLED_BLACK -> AmoledSurface
     }
 
     Box(
@@ -1738,35 +1416,21 @@ fun NeonProgressBar(
             .clip(shape)
             .background(trackBg)
             .then(
-                if (tokens.mode == AppThemeMode.NEON) {
+                if (tokens.mode == AppThemeMode.NEON_GLOSSY) {
                     Modifier.border(0.5.dp, Color.White.copy(alpha = 0.16f), shape)
                 } else Modifier
             )
     ) {
         if (animated > 0f) {
             val fillMod = when (tokens.mode) {
-                AppThemeMode.NEON -> Modifier
+                AppThemeMode.NEON_GLOSSY -> Modifier
                     .fillMaxWidth(animated.coerceAtLeast(0.03f))
                     .fillMaxHeight()
-                    .neonGlow(color = endColor, cornerRadius = height / 2, alpha = 0.40f, spread = 4.dp)
+                    .neonGlow(color = endColor, cornerRadius = height / 2, alpha = 0.38f, spread = 4.dp)
                     .clip(shape)
-                    .background(Brush.horizontalGradient(listOf(startColor, NeonFuchsia, endColor)))
-                    .drawBehind {
-                        drawLine(
-                            color = Color.White.copy(alpha = 0.55f),
-                            start = Offset(0f, 1.dp.toPx()),
-                            end = Offset(size.width, 1.dp.toPx()),
-                            strokeWidth = 1.dp.toPx()
-                        )
-                    }
+                    .background(Brush.horizontalGradient(listOf(startColor, endColor)))
 
-                AppThemeMode.ANDROID_UI -> Modifier
-                    .fillMaxWidth(animated.coerceAtLeast(0.03f))
-                    .fillMaxHeight()
-                    .clip(shape)
-                    .background(startColor)
-
-                AppThemeMode.MINIMAL_PASTEL -> Modifier
+                AppThemeMode.MINIMAL_DARK, AppThemeMode.AMOLED_BLACK -> Modifier
                     .fillMaxWidth(animated.coerceAtLeast(0.03f))
                     .fillMaxHeight()
                     .clip(shape)

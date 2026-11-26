@@ -6,7 +6,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
@@ -16,27 +15,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.example.data.model.AccentColorPreset
 
 val AfterglowShapes = Shapes(
     extraSmall = RoundedCornerShape(10.dp),
     small = RoundedCornerShape(14.dp),
     medium = RoundedCornerShape(18.dp),
-    large = RoundedCornerShape(22.dp),
-    extraLarge = RoundedCornerShape(28.dp)
-)
-
-val AndroidUiShapes = Shapes(
-    extraSmall = RoundedCornerShape(4.dp),
-    small = RoundedCornerShape(8.dp),
-    medium = RoundedCornerShape(12.dp),
-    large = RoundedCornerShape(16.dp),
+    large = RoundedCornerShape(24.dp),
     extraLarge = RoundedCornerShape(28.dp)
 )
 
 @Immutable
 data class ZenixThemeTokens(
     val mode: AppThemeMode,
+    val accentOption: ZenixAccentColor,
     val isLight: Boolean,
     val useGlow: Boolean,
     val useGloss: Boolean,
@@ -72,24 +63,34 @@ data class ZenixThemeTokens(
     val fontFamily: FontFamily
 )
 
-val LocalAppThemeMode = staticCompositionLocalOf { AppThemeMode.NEON }
+val LocalAppThemeMode = staticCompositionLocalOf { AppThemeMode.NEON_GLOSSY }
 val LocalZenixTokens = staticCompositionLocalOf {
-    buildStaticTokens(AppThemeMode.NEON, AccentColorPreset.AFTERGLOW_PURPLE)
+    buildStaticTokens(AppThemeMode.NEON_GLOSSY, ZenixAccentColor.PURPLE)
+}
+
+private fun accentSecondaryPair(accent: ZenixAccentColor): Color = when (accent) {
+    ZenixAccentColor.PURPLE -> NeonPink
+    ZenixAccentColor.CYAN -> NeonPurple
+    ZenixAccentColor.PINK -> NeonPurple
+    ZenixAccentColor.GREEN -> NeonCyan
+    ZenixAccentColor.AMBER -> NeonPink
 }
 
 private fun buildStaticTokens(
     mode: AppThemeMode,
-    accentPreset: AccentColorPreset
-): ZenixThemeTokens = when (mode) {
-    AppThemeMode.NEON -> {
-        val (primary, secondary) = when (accentPreset) {
-            AccentColorPreset.AFTERGLOW_PURPLE -> NeonPurple to NeonFuchsia
-            AccentColorPreset.MIDNIGHT_ROSE -> MidnightRosePrimary to MidnightRoseSecondary
-            AccentColorPreset.CELESTIAL_INDIGO -> CelestialIndigoPrimary to CelestialIndigoSecondary
-            AccentColorPreset.NEON_AMETHYST -> NeonAmethystPrimary to NeonAmethystSecondary
-        }
-        ZenixThemeTokens(
-            mode = AppThemeMode.NEON,
+    accentOption: ZenixAccentColor
+): ZenixThemeTokens {
+    val primary = accentOption.color
+    val secondary = accentSecondaryPair(accentOption)
+    val buttonTextOnAccent = when (accentOption) {
+        ZenixAccentColor.CYAN, ZenixAccentColor.GREEN, ZenixAccentColor.AMBER -> Color(0xFF0A0812)
+        ZenixAccentColor.PURPLE, ZenixAccentColor.PINK -> Color.White
+    }
+
+    return when (mode) {
+        AppThemeMode.NEON_GLOSSY -> ZenixThemeTokens(
+            mode = AppThemeMode.NEON_GLOSSY,
+            accentOption = accentOption,
             isLight = false,
             useGlow = true,
             useGloss = true,
@@ -106,99 +107,101 @@ private fun buildStaticTokens(
             secondaryAccent = secondary,
             tertiaryAccent = NeonCyan,
             positiveAccent = NeonGreen,
-            warningAccent = StatusOnHold,
+            warningAccent = NeonAmber,
             dangerAccent = NeonPink,
-            ratingGold = GoldRating,
-            outline = Color.White.copy(alpha = 0.28f),
-            outlineSubtle = Color.White.copy(alpha = 0.14f),
-            primaryButtonBg = NeonButtonDeep,
-            primaryButtonText = NeonButtonDarkText,
-            secondaryButtonBg = Color.White.copy(alpha = 0.12f),
+            ratingGold = NeonAmber,
+            outline = Color.White.copy(alpha = 0.24f),
+            outlineSubtle = Color.White.copy(alpha = 0.13f),
+            primaryButtonBg = primary,
+            primaryButtonText = buttonTextOnAccent,
+            secondaryButtonBg = Color.White.copy(alpha = 0.10f),
             secondaryButtonText = OffWhiteText,
-            chipUnselectedBg = Color(0xFF0E0A1C).copy(alpha = 0.55f),
-            chipSelectedBg = NeonPurple,
-            chipSelectedText = Color.White,
+            chipUnselectedBg = Color(0xFF0E0A1C).copy(alpha = 0.58f),
+            chipSelectedBg = primary,
+            chipSelectedText = buttonTextOnAccent,
             chipRadius = 50.dp,
-            cardRadius = 22.dp,
-            heroRadius = 28.dp,
+            cardRadius = 24.dp,
+            heroRadius = 24.dp,
             cardElevation = 0.dp,
-            fontFamily = SpaceGroteskFontFamily
+            fontFamily = InterFontFamily
+        )
+
+        AppThemeMode.MINIMAL_DARK -> ZenixThemeTokens(
+            mode = AppThemeMode.MINIMAL_DARK,
+            accentOption = accentOption,
+            isLight = false,
+            useGlow = false,
+            useGloss = false,
+            useBlur = false,
+            background = MinimalDarkBackground,
+            surface = MinimalDarkSurface,
+            cardBackground = MinimalDarkCard,
+            tonalContainer = MinimalDarkContainer,
+            dialogBackground = MinimalDarkSurface,
+            drawerBackground = MinimalDarkSurface,
+            textPrimary = MinimalDarkTextPrimary,
+            textSecondary = MinimalDarkTextSecondary,
+            primaryAccent = primary,
+            secondaryAccent = primary,
+            tertiaryAccent = NeonCyan,
+            positiveAccent = NeonGreen,
+            warningAccent = NeonAmber,
+            dangerAccent = NeonPink,
+            ratingGold = NeonAmber,
+            outline = MinimalDarkOutline,
+            outlineSubtle = MinimalDarkOutline.copy(alpha = 0.72f),
+            primaryButtonBg = primary,
+            primaryButtonText = buttonTextOnAccent,
+            secondaryButtonBg = MinimalDarkContainer,
+            secondaryButtonText = MinimalDarkTextPrimary,
+            chipUnselectedBg = MinimalDarkSurface,
+            chipSelectedBg = primary.copy(alpha = 0.22f),
+            chipSelectedText = MinimalDarkTextPrimary,
+            chipRadius = 50.dp,
+            cardRadius = 24.dp,
+            heroRadius = 24.dp,
+            cardElevation = 0.dp,
+            fontFamily = InterFontFamily
+        )
+
+        AppThemeMode.AMOLED_BLACK -> ZenixThemeTokens(
+            mode = AppThemeMode.AMOLED_BLACK,
+            accentOption = accentOption,
+            isLight = false,
+            useGlow = false,
+            useGloss = false,
+            useBlur = false,
+            background = AmoledBackground,
+            surface = AmoledSurface,
+            cardBackground = AmoledCard,
+            tonalContainer = AmoledContainer,
+            dialogBackground = AmoledSurface,
+            drawerBackground = AmoledBackground,
+            textPrimary = AmoledTextPrimary,
+            textSecondary = AmoledTextSecondary,
+            primaryAccent = primary,
+            secondaryAccent = secondary,
+            tertiaryAccent = NeonCyan,
+            positiveAccent = NeonGreen,
+            warningAccent = NeonAmber,
+            dangerAccent = NeonPink,
+            ratingGold = NeonAmber,
+            outline = AmoledOutline,
+            outlineSubtle = AmoledOutline.copy(alpha = 0.85f),
+            primaryButtonBg = primary,
+            primaryButtonText = buttonTextOnAccent,
+            secondaryButtonBg = AmoledContainer,
+            secondaryButtonText = AmoledTextPrimary,
+            chipUnselectedBg = AmoledCard,
+            chipSelectedBg = primary.copy(alpha = 0.24f),
+            chipSelectedText = AmoledTextPrimary,
+            chipRadius = 50.dp,
+            cardRadius = 24.dp,
+            heroRadius = 24.dp,
+            cardElevation = 0.dp,
+            fontFamily = InterFontFamily
         )
     }
-
-    AppThemeMode.ANDROID_UI -> ZenixThemeTokens(
-        mode = AppThemeMode.ANDROID_UI,
-        isLight = false,
-        useGlow = false,
-        useGloss = false,
-        useBlur = false,
-        background = AndroidBackground,
-        surface = AndroidSurface,
-        cardBackground = AndroidCardSurface,
-        tonalContainer = AndroidSecondaryContainer,
-        dialogBackground = AndroidSurface,
-        drawerBackground = AndroidSurface,
-        textPrimary = AndroidTextPrimary,
-        textSecondary = AndroidTextSecondary,
-        primaryAccent = AndroidPrimary,
-        secondaryAccent = AndroidTertiary,
-        tertiaryAccent = Color(0xFF80D8FF),
-        positiveAccent = Color(0xFF81C784),
-        warningAccent = Color(0xFFFFD54F),
-        dangerAccent = Color(0xFFF2B8B5),
-        ratingGold = Color(0xFFFFD54F),
-        outline = AndroidOutline,
-        outlineSubtle = AndroidOutlineVariant,
-        primaryButtonBg = AndroidPrimary,
-        primaryButtonText = AndroidOnPrimary,
-        secondaryButtonBg = AndroidSecondaryContainer,
-        secondaryButtonText = AndroidOnSecondaryContainer,
-        chipUnselectedBg = Color.Transparent,
-        chipSelectedBg = AndroidSecondaryContainer,
-        chipSelectedText = AndroidOnSecondaryContainer,
-        chipRadius = 8.dp,
-        cardRadius = 20.dp,
-        heroRadius = 24.dp,
-        cardElevation = 0.dp,
-        fontFamily = RobotoFontFamily
-    )
-
-    AppThemeMode.MINIMAL_PASTEL -> ZenixThemeTokens(
-        mode = AppThemeMode.MINIMAL_PASTEL,
-        isLight = true,
-        useGlow = false,
-        useGloss = false,
-        useBlur = false,
-        background = PastelBackground,
-        surface = Color.White,
-        cardBackground = Color.White,
-        tonalContainer = PastelLavender,
-        dialogBackground = Color.White,
-        drawerBackground = PastelBackground,
-        textPrimary = PastelTextPrimary,
-        textSecondary = PastelTextSecondary,
-        primaryAccent = PastelAccentPlum,
-        secondaryAccent = PastelAccentRose,
-        tertiaryAccent = PastelAccentTeal,
-        positiveAccent = PastelAccentMint,
-        warningAccent = PastelAccentGold,
-        dangerAccent = PastelAccentCoral,
-        ratingGold = PastelAccentGold,
-        outline = PastelOutlineStrong,
-        outlineSubtle = PastelOutline,
-        primaryButtonBg = PastelTextPrimary,
-        primaryButtonText = Color.White,
-        secondaryButtonBg = Color.White,
-        secondaryButtonText = PastelTextPrimary,
-        chipUnselectedBg = Color.White,
-        chipSelectedBg = PastelLavender,
-        chipSelectedText = PastelTextPrimary,
-        chipRadius = 50.dp,
-        cardRadius = 22.dp,
-        heroRadius = 28.dp,
-        cardElevation = 5.dp,
-        fontFamily = DmSansFontFamily
-    )
 }
 
 @Composable
@@ -217,6 +220,8 @@ private fun rememberAnimatedTokens(
     val primaryAccent by animateColorAsState(target.primaryAccent, animSpec, label = "theme_pa")
     val secondaryAccent by animateColorAsState(target.secondaryAccent, animSpec, label = "theme_sa")
     val tertiaryAccent by animateColorAsState(target.tertiaryAccent, animSpec, label = "theme_ta")
+    val primaryBtnBg by animateColorAsState(target.primaryButtonBg, animSpec, label = "theme_pbb")
+    val primaryBtnText by animateColorAsState(target.primaryButtonText, animSpec, label = "theme_pbt")
 
     return target.copy(
         background = bg,
@@ -229,105 +234,47 @@ private fun rememberAnimatedTokens(
         textSecondary = textSecondary,
         primaryAccent = primaryAccent,
         secondaryAccent = secondaryAccent,
-        tertiaryAccent = tertiaryAccent
+        tertiaryAccent = tertiaryAccent,
+        primaryButtonBg = primaryBtnBg,
+        primaryButtonText = primaryBtnText
     )
 }
 
 @Composable
 fun AfterglowTheme(
-    themeMode: AppThemeMode = AppThemeMode.NEON,
-    accentPreset: AccentColorPreset = AccentColorPreset.AFTERGLOW_PURPLE,
+    themeMode: AppThemeMode = AppThemeMode.NEON_GLOSSY,
+    accentColor: ZenixAccentColor = ZenixAccentColor.PURPLE,
     content: @Composable () -> Unit
 ) {
-    val tokens = rememberAnimatedTokens(buildStaticTokens(themeMode, accentPreset))
+    val tokens = rememberAnimatedTokens(buildStaticTokens(themeMode, accentColor))
 
-    val colorScheme = when (themeMode) {
-        AppThemeMode.NEON -> darkColorScheme(
-            primary = tokens.primaryAccent,
-            onPrimary = NeonButtonDarkText,
-            primaryContainer = tokens.primaryAccent.copy(alpha = 0.24f),
-            onPrimaryContainer = OffWhiteText,
-            secondary = tokens.secondaryAccent,
-            onSecondary = NeonButtonDarkText,
-            secondaryContainer = ElevatedPlum,
-            onSecondaryContainer = OffWhiteText,
-            tertiary = NeonCyan,
-            onTertiary = NeonButtonDarkText,
-            background = tokens.background,
-            onBackground = tokens.textPrimary,
-            surface = tokens.cardBackground,
-            onSurface = tokens.textPrimary,
-            surfaceVariant = ElevatedPlum,
-            onSurfaceVariant = tokens.textSecondary,
-            surfaceContainerLowest = VoidBackground,
-            surfaceContainerLow = DarkGlassSurface,
-            surfaceContainer = DarkPurpleCard,
-            surfaceContainerHigh = ElevatedPlum,
-            surfaceContainerHighest = Color(0xFF291D45),
-            outline = tokens.outline,
-            outlineVariant = tokens.outlineSubtle,
-            error = NeonPink,
-            onError = Color(0xFF280618)
-        )
-
-        AppThemeMode.ANDROID_UI -> darkColorScheme(
-            primary = AndroidPrimary,
-            onPrimary = AndroidOnPrimary,
-            primaryContainer = AndroidPrimaryContainer,
-            onPrimaryContainer = AndroidOnPrimaryContainer,
-            secondary = AndroidTertiary,
-            onSecondary = AndroidOnPrimary,
-            secondaryContainer = AndroidSecondaryContainer,
-            onSecondaryContainer = AndroidOnSecondaryContainer,
-            tertiary = tokens.tertiaryAccent,
-            onTertiary = AndroidOnPrimary,
-            background = tokens.background,
-            onBackground = tokens.textPrimary,
-            surface = tokens.surface,
-            onSurface = tokens.textPrimary,
-            surfaceVariant = AndroidCardSurface,
-            onSurfaceVariant = tokens.textSecondary,
-            surfaceContainerLowest = Color(0xFF0F0D13),
-            surfaceContainerLow = Color(0xFF1D1B20),
-            surfaceContainer = AndroidSurface,
-            surfaceContainerHigh = AndroidCardSurface,
-            surfaceContainerHighest = AndroidSurfaceHighest,
-            outline = AndroidOutline,
-            outlineVariant = AndroidOutlineVariant,
-            error = Color(0xFFF2B8B5),
-            onError = Color(0xFF601410)
-        )
-
-        AppThemeMode.MINIMAL_PASTEL -> lightColorScheme(
-            primary = PastelTextPrimary,
-            onPrimary = Color.White,
-            primaryContainer = PastelLavender,
-            onPrimaryContainer = PastelTextPrimary,
-            secondary = PastelAccentTeal,
-            onSecondary = Color.White,
-            secondaryContainer = PastelSky,
-            onSecondaryContainer = PastelTextPrimary,
-            tertiary = PastelAccentCoral,
-            onTertiary = Color.White,
-            background = tokens.background,
-            onBackground = tokens.textPrimary,
-            surface = Color.White,
-            onSurface = tokens.textPrimary,
-            surfaceVariant = PastelLavender,
-            onSurfaceVariant = tokens.textSecondary,
-            surfaceContainerLowest = Color.White,
-            surfaceContainerLow = PastelBackground,
-            surfaceContainer = Color.White,
-            surfaceContainerHigh = PastelLavender,
-            surfaceContainerHighest = PastelSky,
-            outline = PastelOutlineStrong,
-            outlineVariant = PastelOutline,
-            error = PastelAccentCoral,
-            onError = Color.White
-        )
-    }
-
-    val shapes = if (themeMode == AppThemeMode.ANDROID_UI) AndroidUiShapes else AfterglowShapes
+    val colorScheme = darkColorScheme(
+        primary = tokens.primaryAccent,
+        onPrimary = tokens.primaryButtonText,
+        primaryContainer = tokens.primaryAccent.copy(alpha = 0.24f),
+        onPrimaryContainer = tokens.textPrimary,
+        secondary = tokens.secondaryAccent,
+        onSecondary = tokens.primaryButtonText,
+        secondaryContainer = tokens.tonalContainer,
+        onSecondaryContainer = tokens.textPrimary,
+        tertiary = tokens.tertiaryAccent,
+        onTertiary = Color(0xFF06131A),
+        background = tokens.background,
+        onBackground = tokens.textPrimary,
+        surface = tokens.cardBackground,
+        onSurface = tokens.textPrimary,
+        surfaceVariant = tokens.tonalContainer,
+        onSurfaceVariant = tokens.textSecondary,
+        surfaceContainerLowest = tokens.background,
+        surfaceContainerLow = tokens.surface,
+        surfaceContainer = tokens.cardBackground,
+        surfaceContainerHigh = tokens.tonalContainer,
+        surfaceContainerHighest = tokens.tonalContainer,
+        outline = tokens.outline,
+        outlineVariant = tokens.outlineSubtle,
+        error = NeonPink,
+        onError = Color(0xFF280618)
+    )
 
     CompositionLocalProvider(
         LocalAppThemeMode provides themeMode,
@@ -336,7 +283,7 @@ fun AfterglowTheme(
         MaterialTheme(
             colorScheme = colorScheme,
             typography = typographyForTheme(themeMode),
-            shapes = shapes,
+            shapes = AfterglowShapes,
             content = content
         )
     }

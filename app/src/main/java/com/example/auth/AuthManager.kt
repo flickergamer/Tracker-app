@@ -88,9 +88,9 @@ import com.example.ui.theme.NeonGreen
 import com.example.ui.theme.NeonPink
 import com.example.ui.theme.NeonPurple
 import com.example.ui.theme.OffWhiteText
+import com.example.ui.theme.InterFontFamily
 import com.example.ui.theme.RadialGlowCyan
 import com.example.ui.theme.RadialGlowMagenta
-import com.example.ui.theme.SpaceGroteskFontFamily
 import com.example.ui.theme.VoidBackground
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
@@ -257,7 +257,7 @@ fun AuthScreen(
                 Text(
                     text = "ZENIX",
                     style = TextStyle(
-                        fontFamily = SpaceGroteskFontFamily,
+                        fontFamily = InterFontFamily,
                         fontWeight = FontWeight.Bold,
                         fontSize = 38.sp,
                         letterSpacing = 5.8.sp,
@@ -278,7 +278,7 @@ fun AuthScreen(
                 Text(
                     text = "Personal Cinema & Series Sanctuary",
                     style = TextStyle(
-                        fontFamily = SpaceGroteskFontFamily,
+                        fontFamily = InterFontFamily,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
                         brush = Brush.horizontalGradient(
@@ -488,7 +488,7 @@ private fun LoginPosterShowcase() {
                         append("9.1")
                     }
                 },
-                fontFamily = SpaceGroteskFontFamily,
+                fontFamily = InterFontFamily,
                 fontSize = 13.sp
             )
         }
@@ -511,7 +511,7 @@ private fun LoginPosterShowcase() {
                 )
                 Text(
                     text = "Ep 8 · 64%",
-                    fontFamily = SpaceGroteskFontFamily,
+                    fontFamily = InterFontFamily,
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp,
                     color = OffWhiteText
@@ -718,7 +718,7 @@ private fun LoginFeatureChip(
         )
         Text(
             text = label,
-            fontFamily = SpaceGroteskFontFamily,
+            fontFamily = InterFontFamily,
             fontWeight = FontWeight.Medium,
             fontSize = 12.sp,
             color = OffWhiteText
@@ -811,7 +811,7 @@ private fun ContinueWithGooglePillButton(
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = "Continue with Google",
-                    fontFamily = SpaceGroteskFontFamily,
+                    fontFamily = InterFontFamily,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
                     color = NeonButtonDarkText

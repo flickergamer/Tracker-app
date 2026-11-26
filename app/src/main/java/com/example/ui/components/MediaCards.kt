@@ -57,25 +57,18 @@ import com.example.data.model.MediaItem
 import com.example.data.model.WatchStatus
 import com.example.data.model.WatchlistPriority
 import com.example.data.model.formatWatchTime
-import com.example.ui.theme.AndroidOutlineVariant
-import com.example.ui.theme.AndroidPrimary
-import com.example.ui.theme.AndroidSurface
+import com.example.ui.theme.AmoledCard
+import com.example.ui.theme.AmoledOutline
 import com.example.ui.theme.AppThemeMode
 import com.example.ui.theme.LocalAppThemeMode
 import com.example.ui.theme.LocalZenixTokens
+import com.example.ui.theme.MinimalDarkCard
+import com.example.ui.theme.MinimalDarkOutline
+import com.example.ui.theme.NeonAmber
 import com.example.ui.theme.NeonCyan
 import com.example.ui.theme.NeonGreen
 import com.example.ui.theme.NeonPink
 import com.example.ui.theme.NeonPurple
-import com.example.ui.theme.PastelAccentCoral
-import com.example.ui.theme.PastelAccentGold
-import com.example.ui.theme.PastelAccentMint
-import com.example.ui.theme.PastelAccentPlum
-import com.example.ui.theme.PastelAccentTeal
-import com.example.ui.theme.PastelLavender
-import com.example.ui.theme.PastelOutline
-import com.example.ui.theme.PastelOutlineStrong
-import com.example.ui.theme.PastelSky
 import com.example.ui.theme.StatusCompleted
 import com.example.ui.theme.StatusDropped
 import com.example.ui.theme.StatusOnHold
@@ -84,47 +77,19 @@ import com.example.ui.theme.StatusWatching
 import java.util.Locale
 
 @Composable
-fun statusColor(status: WatchStatus): Color = when (LocalAppThemeMode.current) {
-    AppThemeMode.NEON -> when (status) {
-        WatchStatus.COMPLETED -> StatusCompleted
-        WatchStatus.WATCHING -> StatusWatching
-        WatchStatus.PLAN_TO_WATCH -> StatusPlanToWatch
-        WatchStatus.ON_HOLD -> StatusOnHold
-        WatchStatus.DROPPED -> StatusDropped
-    }
-    AppThemeMode.ANDROID_UI -> when (status) {
-        WatchStatus.COMPLETED -> Color(0xFF81C784)
-        WatchStatus.WATCHING -> AndroidPrimary
-        WatchStatus.PLAN_TO_WATCH -> Color(0xFF80D8FF)
-        WatchStatus.ON_HOLD -> Color(0xFFFFD54F)
-        WatchStatus.DROPPED -> Color(0xFFF2B8B5)
-    }
-    AppThemeMode.MINIMAL_PASTEL -> when (status) {
-        WatchStatus.COMPLETED -> PastelAccentMint
-        WatchStatus.WATCHING -> PastelAccentPlum
-        WatchStatus.PLAN_TO_WATCH -> PastelAccentTeal
-        WatchStatus.ON_HOLD -> PastelAccentGold
-        WatchStatus.DROPPED -> PastelAccentCoral
-    }
+fun statusColor(status: WatchStatus): Color = when (status) {
+    WatchStatus.COMPLETED -> StatusCompleted
+    WatchStatus.WATCHING -> NeonPurple
+    WatchStatus.PLAN_TO_WATCH -> StatusPlanToWatch
+    WatchStatus.ON_HOLD -> StatusOnHold
+    WatchStatus.DROPPED -> StatusDropped
 }
 
 @Composable
-fun priorityColor(priority: WatchlistPriority): Color = when (LocalAppThemeMode.current) {
-    AppThemeMode.NEON -> when (priority) {
-        WatchlistPriority.HIGH -> NeonPink
-        WatchlistPriority.MEDIUM -> StatusOnHold
-        WatchlistPriority.LOW -> NeonCyan
-    }
-    AppThemeMode.ANDROID_UI -> when (priority) {
-        WatchlistPriority.HIGH -> Color(0xFFF2B8B5)
-        WatchlistPriority.MEDIUM -> Color(0xFFFFD54F)
-        WatchlistPriority.LOW -> Color(0xFF80D8FF)
-    }
-    AppThemeMode.MINIMAL_PASTEL -> when (priority) {
-        WatchlistPriority.HIGH -> PastelAccentCoral
-        WatchlistPriority.MEDIUM -> PastelAccentGold
-        WatchlistPriority.LOW -> PastelAccentTeal
-    }
+fun priorityColor(priority: WatchlistPriority): Color = when (priority) {
+    WatchlistPriority.HIGH -> NeonPink
+    WatchlistPriority.MEDIUM -> NeonAmber
+    WatchlistPriority.LOW -> NeonCyan
 }
 
 @Composable
@@ -137,24 +102,24 @@ fun PosterArtwork(
     val tokens = LocalZenixTokens.current
     val accent = themedCategoryColor(category)
     val fallbackBrush = when (tokens.mode) {
-        AppThemeMode.NEON -> Brush.linearGradient(
+        AppThemeMode.NEON_GLOSSY -> Brush.linearGradient(
             colors = listOf(
                 Color(0xFF1A1032),
-                accent.copy(alpha = 0.25f),
+                accent.copy(alpha = 0.28f),
                 Color(0xFF0E091B)
             )
         )
-        AppThemeMode.ANDROID_UI -> Brush.linearGradient(
-            colors = listOf(AndroidSurface, Color(0xFF332D41))
+        AppThemeMode.MINIMAL_DARK -> Brush.linearGradient(
+            colors = listOf(MinimalDarkCard, Color(0xFF282538))
         )
-        AppThemeMode.MINIMAL_PASTEL -> Brush.linearGradient(
-            colors = listOf(PastelLavender, PastelSky)
+        AppThemeMode.AMOLED_BLACK -> Brush.linearGradient(
+            colors = listOf(AmoledCard, Color(0xFF14141F))
         )
     }
     val borderColor = when (tokens.mode) {
-        AppThemeMode.NEON -> Color.White.copy(alpha = 0.22f)
-        AppThemeMode.ANDROID_UI -> AndroidOutlineVariant
-        AppThemeMode.MINIMAL_PASTEL -> PastelOutline
+        AppThemeMode.NEON_GLOSSY -> Color.White.copy(alpha = 0.22f)
+        AppThemeMode.MINIMAL_DARK -> MinimalDarkOutline
+        AppThemeMode.AMOLED_BLACK -> AmoledOutline
     }
 
     Box(
@@ -240,9 +205,9 @@ fun RatingPill(rating: Double, prefix: String = "", modifier: Modifier = Modifie
     val gold = tokens.ratingGold
     val shape = RoundedCornerShape(50)
     val baseBg = when (tokens.mode) {
-        AppThemeMode.NEON -> Color(0xFF140D22).copy(alpha = 0.80f)
-        AppThemeMode.ANDROID_UI -> AndroidSurface
-        AppThemeMode.MINIMAL_PASTEL -> Color(0xFFFFF8E8)
+        AppThemeMode.NEON_GLOSSY -> Color(0xFF140D22).copy(alpha = 0.80f)
+        AppThemeMode.MINIMAL_DARK -> MinimalDarkCard
+        AppThemeMode.AMOLED_BLACK -> AmoledCard
     }
 
     Box(
@@ -253,7 +218,7 @@ fun RatingPill(rating: Double, prefix: String = "", modifier: Modifier = Modifie
             )
             .clip(shape)
             .background(baseBg)
-            .background(gold.copy(alpha = if (tokens.isLight) 0.12f else 0.15f))
+            .background(gold.copy(alpha = 0.15f))
             .border(1.dp, gold.copy(alpha = 0.65f), shape)
             .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
@@ -292,7 +257,7 @@ fun StatKpiCard(
     NeonGlassCard(
         modifier = modifier,
         accentColor = accentColor,
-        cornerRadius = 22.dp,
+        cornerRadius = 24.dp,
         glowAlpha = 0.24f,
         pastelFill = pastelFill,
         contentPadding = PaddingValues(14.dp)
@@ -363,15 +328,15 @@ fun MediaGridCard(
 ) {
     val tokens = LocalZenixTokens.current
     val accent = themedCategoryColor(item.categoryEnum)
-    val overlayBg = if (tokens.isLight) Color.White.copy(alpha = 0.90f) else Color(0xFF0A0714).copy(alpha = 0.72f)
-    val overlayBorder = if (tokens.isLight) PastelOutlineStrong else Color.White.copy(alpha = 0.26f)
+    val overlayBg = Color(0xFF0A0714).copy(alpha = 0.72f)
+    val overlayBorder = Color.White.copy(alpha = 0.26f)
 
     NeonGlassCard(
         modifier = modifier
             .fillMaxWidth()
             .testTag("media_card_${item.id}"),
         accentColor = accent,
-        cornerRadius = 22.dp,
+        cornerRadius = 24.dp,
         glowAlpha = 0.24f,
         onClick = onClick,
         contentPadding = PaddingValues(if (compact) 10.dp else 12.dp)
@@ -497,16 +462,16 @@ fun SeriesProgressCard(
 ) {
     val tokens = LocalZenixTokens.current
     val accent = themedCategoryColor(item.categoryEnum)
-    val barEnd = if (tokens.mode == AppThemeMode.NEON) {
+    val barEnd = if (tokens.mode == AppThemeMode.NEON_GLOSSY) {
         if (accent == NeonCyan) NeonGreen else NeonCyan
-    } else tokens.tertiaryAccent
+    } else tokens.primaryAccent
 
     NeonGlassCard(
         modifier = modifier
             .fillMaxWidth()
             .testTag("series_card_${item.id}"),
         accentColor = accent,
-        cornerRadius = 22.dp,
+        cornerRadius = 24.dp,
         glowAlpha = 0.25f,
         onClick = onClick,
         contentPadding = PaddingValues(if (compact) 12.dp else 14.dp)
@@ -662,15 +627,15 @@ fun MovieTableView(
 ) {
     val tokens = LocalZenixTokens.current
     val headerBg = when (tokens.mode) {
-        AppThemeMode.NEON -> Color.White.copy(alpha = 0.08f)
-        AppThemeMode.ANDROID_UI -> AndroidSurface
-        AppThemeMode.MINIMAL_PASTEL -> PastelLavender.copy(alpha = 0.55f)
+        AppThemeMode.NEON_GLOSSY -> Color.White.copy(alpha = 0.08f)
+        AppThemeMode.MINIMAL_DARK -> MinimalDarkCard
+        AppThemeMode.AMOLED_BLACK -> AmoledCard
     }
 
     NeonGlassCard(
         modifier = modifier.fillMaxWidth(),
         accentColor = accentColor,
-        cornerRadius = 22.dp,
+        cornerRadius = 24.dp,
         contentPadding = PaddingValues(0.dp)
     ) {
         Column(modifier = Modifier.horizontalScroll(rememberScrollState())) {

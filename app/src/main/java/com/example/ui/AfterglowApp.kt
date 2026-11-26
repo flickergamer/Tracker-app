@@ -14,15 +14,19 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -36,12 +40,12 @@ import androidx.compose.material.icons.rounded.EmojiEvents
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Movie
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -69,11 +73,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
@@ -98,11 +104,17 @@ import com.example.ui.components.LiquidNavTab
 import com.example.ui.components.MediaDetailDialog
 import com.example.ui.components.MediaEditorDialog
 import com.example.ui.components.NeonGlassCard
+import com.example.ui.components.NeonGlassDialog
+import com.example.ui.components.NeonGlassTextField
 import com.example.ui.components.NeonPrimaryButton
+import com.example.ui.components.PosterArtwork
+import com.example.ui.components.RatingPill
 import com.example.ui.components.ZenixBottomBar
+import com.example.ui.components.ZenixBrandLogo
 import com.example.ui.components.neonGlow
 import com.example.ui.components.rememberSafeHazeState
 import com.example.ui.components.safeHazeSource
+import com.example.ui.screens.AppearanceScreen
 import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.LibraryMode
 import com.example.ui.screens.MediaLibraryScreen
@@ -110,21 +122,16 @@ import com.example.ui.screens.RankingsScreen
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.screens.SmartHubScreen
 import com.example.ui.screens.StatisticsScreen
+import com.example.ui.screens.UpdatesScreen
 import com.example.ui.screens.WatchlistScreen
 import com.example.ui.theme.AfterglowTheme
-import com.example.ui.theme.AndroidOnPrimary
-import com.example.ui.theme.AndroidOnSecondaryContainer
-import com.example.ui.theme.AndroidPrimary
-import com.example.ui.theme.AndroidSecondaryContainer
 import com.example.ui.theme.AppThemeMode
 import com.example.ui.theme.LocalZenixTokens
-import com.example.ui.theme.NeonFuchsia
+import com.example.ui.theme.NeonCyan
 import com.example.ui.theme.NeonPink
 import com.example.ui.theme.NeonPurple
-import com.example.ui.theme.PastelLavender
-import com.example.ui.theme.PastelOutlineStrong
-import com.example.ui.theme.PastelTextPrimary
 import com.example.ui.theme.ThemePreferences
+import com.example.ui.theme.ZenixAccentColor
 import com.example.ui.viewmodel.AfterglowViewModel
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
@@ -142,6 +149,7 @@ enum class AfterglowSection(val label: String, val icon: ImageVector) {
     RANKINGS("Favourites & Rankings", Icons.Rounded.EmojiEvents),
     STATISTICS("Statistics", Icons.Rounded.BarChart),
     SMART_HUB("Smart Discovery", Icons.Rounded.Casino),
+    UPDATES("Updates", Icons.Rounded.SystemUpdate),
     SETTINGS("Settings & Data", Icons.Rounded.Settings)
 }
 
@@ -160,7 +168,6 @@ fun AfterglowApp() {
 
     val user = currentUser
     if (user == null) {
-        // Ensure status/nav bars stay dark-mode light-icon on Neon Login Screen
         SideEffect {
             val window = (view.context as? Activity)?.window
             if (window != null) {
@@ -169,7 +176,7 @@ fun AfterglowApp() {
                 controller.isAppearanceLightNavigationBars = false
             }
         }
-        AfterglowTheme(themeMode = AppThemeMode.NEON) {
+        AfterglowTheme(themeMode = AppThemeMode.NEON_GLOSSY) {
             AuthScreen(onAuthSuccess = { currentUser = Firebase.auth.currentUser })
         }
     } else {
@@ -197,15 +204,18 @@ private fun AuthenticatedAfterglowShell(
     val credentialManager = remember(context) { CredentialManager.create(context) }
 
     val themeMode by ThemePreferences.observeTheme(context)
-        .collectAsStateWithLifecycle(initialValue = AppThemeMode.NEON)
+        .collectAsStateWithLifecycle(initialValue = AppThemeMode.NEON_GLOSSY)
+    val accentColor by ThemePreferences.observeAccentColor(context)
+        .collectAsStateWithLifecycle(initialValue = ZenixAccentColor.PURPLE)
+    val notifyUpdates by ThemePreferences.observeNotifyUpdates(context)
+        .collectAsStateWithLifecycle(initialValue = true)
 
     SideEffect {
         val window = (view.context as? Activity)?.window
         if (window != null) {
-            val isLight = themeMode == AppThemeMode.MINIMAL_PASTEL
             val controller = WindowCompat.getInsetsController(window, view)
-            controller.isAppearanceLightStatusBars = isLight
-            controller.isAppearanceLightNavigationBars = isLight
+            controller.isAppearanceLightStatusBars = false
+            controller.isAppearanceLightNavigationBars = false
         }
     }
 
@@ -241,7 +251,9 @@ private fun AuthenticatedAfterglowShell(
     val quotes = (quotesState as? UiState.Success)?.data ?: emptyList()
 
     var currentSection by remember { mutableStateOf(AfterglowSection.DASHBOARD) }
+    var showAppearanceScreen by remember { mutableStateOf(false) }
     var smartHubTab by remember { mutableIntStateOf(0) }
+    var showGlobalSearch by remember { mutableStateOf(false) }
 
     var editorItem by remember { mutableStateOf<MediaItem?>(null) }
     var editorDefaultCategory by remember { mutableStateOf(MediaCategory.MOVIE) }
@@ -256,30 +268,35 @@ private fun AuthenticatedAfterglowShell(
     val snackbarHostState = remember { SnackbarHostState() }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
 
+    val navigateToSection: (AfterglowSection) -> Unit = { target ->
+        showAppearanceScreen = false
+        currentSection = target
+    }
+
     LaunchedEffect(Unit) {
         viewModel.events.collect { msg ->
             snackbarHostState.showSnackbar(msg)
         }
     }
 
-    BackHandler(enabled = currentSection != AfterglowSection.DASHBOARD) {
-        currentSection = AfterglowSection.DASHBOARD
+    BackHandler(enabled = showAppearanceScreen || currentSection != AfterglowSection.DASHBOARD) {
+        if (showAppearanceScreen) {
+            showAppearanceScreen = false
+        } else {
+            currentSection = AfterglowSection.DASHBOARD
+        }
     }
 
     AfterglowTheme(
         themeMode = themeMode,
-        accentPreset = profile.accentPreset
+        accentColor = accentColor
     ) {
         val tokens = LocalZenixTokens.current
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val isExpandedScreen = maxWidth >= 840.dp
-            val screenBottomPadding = when {
-                isExpandedScreen -> 24.dp
-                themeMode == AppThemeMode.ANDROID_UI -> 148.dp
-                else -> FloatingBottomBarClearance
-            }
+            val screenBottomPadding = if (isExpandedScreen) 24.dp else FloatingBottomBarClearance
             val hazeState = rememberSafeHazeState(
-                enabled = !isExpandedScreen && themeMode == AppThemeMode.NEON
+                enabled = !isExpandedScreen && themeMode == AppThemeMode.NEON_GLOSSY
             )
 
             val openAddEditor: (MediaCategory, Boolean) -> Unit = { cat, isWatchlist ->
@@ -328,6 +345,7 @@ private fun AuthenticatedAfterglowShell(
                             if (!isExpandedScreen) {
                                 AfterglowTopBar(
                                     onOpenMenu = { scope.launch { drawerState.open() } },
+                                    onSearchClick = { showGlobalSearch = true },
                                     onAddClick = {
                                         openAddEditor(
                                             defaultCategoryForSection(),
@@ -355,7 +373,7 @@ private fun AuthenticatedAfterglowShell(
                                         Box(modifier = Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
                                             NeonGlassCard(
                                                 accentColor = tokens.dangerAccent,
-                                                cornerRadius = 22.dp,
+                                                cornerRadius = 24.dp,
                                                 contentPadding = PaddingValues(18.dp)
                                             ) {
                                                 Text(
@@ -366,29 +384,46 @@ private fun AuthenticatedAfterglowShell(
                                         }
                                     }
                                     else -> {
+                                        val renderKey = Pair(currentSection, showAppearanceScreen)
                                         Crossfade(
-                                            targetState = currentSection,
+                                            targetState = renderKey,
                                             animationSpec = tween(200),
                                             label = "section_crossfade"
-                                        ) { section ->
-                                            when (section) {
-                                                AfterglowSection.DASHBOARD -> DashboardScreen(
+                                        ) { (section, isAppearance) ->
+                                            when {
+                                                section == AfterglowSection.SETTINGS && isAppearance -> AppearanceScreen(
+                                                    currentTheme = themeMode,
+                                                    currentAccent = accentColor,
+                                                    onApplyAppearance = { newMode, newAccent ->
+                                                        scope.launch {
+                                                            ThemePreferences.saveAppearance(context, newMode, newAccent)
+                                                            snackbarHostState.showSnackbar(
+                                                                "Applied ${newMode.displayName} · ${newAccent.label}"
+                                                            )
+                                                        }
+                                                    },
+                                                    onBack = { showAppearanceScreen = false },
+                                                    bottomPadding = screenBottomPadding
+                                                )
+
+                                                section == AfterglowSection.DASHBOARD -> DashboardScreen(
                                                     profile = profile,
                                                     stats = stats,
                                                     onAddTitle = openAddEditor,
                                                     onSelectItem = { detailItemId = it.id },
                                                     onStepEpisode = viewModel::stepEpisode,
                                                     onToggleFavourite = viewModel::toggleFavourite,
-                                                    onOpenWatchlist = { currentSection = AfterglowSection.WATCHLIST },
+                                                    onOpenWatchlist = { navigateToSection(AfterglowSection.WATCHLIST) },
                                                     onOpenSmartHub = { tab ->
                                                         smartHubTab = tab
-                                                        currentSection = AfterglowSection.SMART_HUB
+                                                        navigateToSection(AfterglowSection.SMART_HUB)
                                                     },
-                                                    onOpenStatistics = { currentSection = AfterglowSection.STATISTICS },
+                                                    onOpenStatistics = { navigateToSection(AfterglowSection.STATISTICS) },
+                                                    onOpenRankings = { navigateToSection(AfterglowSection.RANKINGS) },
                                                     bottomPadding = screenBottomPadding
                                                 )
 
-                                                AfterglowSection.MOVIES -> MediaLibraryScreen(
+                                                section == AfterglowSection.MOVIES -> MediaLibraryScreen(
                                                     mode = LibraryMode.MOVIES,
                                                     allItems = allItems,
                                                     compact = profile.compactMode,
@@ -404,7 +439,7 @@ private fun AuthenticatedAfterglowShell(
                                                     bottomPadding = screenBottomPadding
                                                 )
 
-                                                AfterglowSection.WEB_SERIES -> MediaLibraryScreen(
+                                                section == AfterglowSection.WEB_SERIES -> MediaLibraryScreen(
                                                     mode = LibraryMode.WEB_SERIES,
                                                     allItems = allItems,
                                                     compact = profile.compactMode,
@@ -420,7 +455,7 @@ private fun AuthenticatedAfterglowShell(
                                                     bottomPadding = screenBottomPadding
                                                 )
 
-                                                AfterglowSection.ANIME -> MediaLibraryScreen(
+                                                section == AfterglowSection.ANIME -> MediaLibraryScreen(
                                                     mode = LibraryMode.ANIME,
                                                     allItems = allItems,
                                                     compact = profile.compactMode,
@@ -436,7 +471,7 @@ private fun AuthenticatedAfterglowShell(
                                                     bottomPadding = screenBottomPadding
                                                 )
 
-                                                AfterglowSection.K_DRAMA -> MediaLibraryScreen(
+                                                section == AfterglowSection.K_DRAMA -> MediaLibraryScreen(
                                                     mode = LibraryMode.K_DRAMA,
                                                     allItems = allItems,
                                                     compact = profile.compactMode,
@@ -452,16 +487,21 @@ private fun AuthenticatedAfterglowShell(
                                                     bottomPadding = screenBottomPadding
                                                 )
 
-                                                AfterglowSection.WATCHLIST -> WatchlistScreen(
+                                                section == AfterglowSection.WATCHLIST -> WatchlistScreen(
                                                     allItems = allItems,
                                                     onAddWatchlistItem = { openAddEditor(MediaCategory.MOVIE, true) },
                                                     onSelectItem = { detailItemId = it.id },
                                                     onMoveToLibrary = viewModel::moveWatchlistToLibrary,
                                                     onDeleteItem = viewModel::deleteMediaItem,
+                                                    onBack = { navigateToSection(AfterglowSection.DASHBOARD) },
+                                                    onTryRandomPicker = {
+                                                        smartHubTab = 0
+                                                        navigateToSection(AfterglowSection.SMART_HUB)
+                                                    },
                                                     bottomPadding = screenBottomPadding
                                                 )
 
-                                                AfterglowSection.RANKINGS -> RankingsScreen(
+                                                section == AfterglowSection.RANKINGS -> RankingsScreen(
                                                     allItems = allItems,
                                                     onSelectItem = { detailItemId = it.id },
                                                     onUpdateManualRank = viewModel::updateManualRank,
@@ -470,7 +510,7 @@ private fun AuthenticatedAfterglowShell(
                                                     bottomPadding = screenBottomPadding
                                                 )
 
-                                                AfterglowSection.STATISTICS -> StatisticsScreen(
+                                                section == AfterglowSection.STATISTICS -> StatisticsScreen(
                                                     stats = stats,
                                                     profile = profile,
                                                     allItems = allItems,
@@ -478,7 +518,7 @@ private fun AuthenticatedAfterglowShell(
                                                     bottomPadding = screenBottomPadding
                                                 )
 
-                                                AfterglowSection.SMART_HUB -> SmartHubScreen(
+                                                section == AfterglowSection.SMART_HUB -> SmartHubScreen(
                                                     initialTab = smartHubTab,
                                                     allItems = allItems,
                                                     quotes = quotes,
@@ -493,15 +533,25 @@ private fun AuthenticatedAfterglowShell(
                                                     bottomPadding = screenBottomPadding
                                                 )
 
-                                                AfterglowSection.SETTINGS -> SettingsScreen(
+                                                section == AfterglowSection.UPDATES -> UpdatesScreen(
+                                                    notifyUpdates = notifyUpdates,
+                                                    onToggleNotify = { enabled ->
+                                                        scope.launch {
+                                                            ThemePreferences.saveNotifyUpdates(context, enabled)
+                                                        }
+                                                    },
+                                                    onBack = { navigateToSection(AfterglowSection.DASHBOARD) },
+                                                    onNotify = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } },
+                                                    bottomPadding = screenBottomPadding
+                                                )
+
+                                                section == AfterglowSection.SETTINGS -> SettingsScreen(
                                                     userEmail = userEmail,
                                                     profile = profile,
                                                     currentTheme = themeMode,
-                                                    onApplyTheme = { newMode ->
-                                                        scope.launch {
-                                                            ThemePreferences.saveTheme(context, newMode)
-                                                        }
-                                                    },
+                                                    currentAccent = accentColor,
+                                                    onOpenAppearance = { showAppearanceScreen = true },
+                                                    onOpenUpdates = { navigateToSection(AfterglowSection.UPDATES) },
                                                     mediaItems = allItems,
                                                     quotes = quotes,
                                                     onUpdateProfile = viewModel::updateProfile,
@@ -547,32 +597,10 @@ private fun AuthenticatedAfterglowShell(
 
                     if (!isExpandedScreen) {
                         val selectedIndex = bottomSections.indexOf(currentSection)
-
-                        if (themeMode == AppThemeMode.ANDROID_UI) {
-                            FloatingActionButton(
-                                onClick = {
-                                    openAddEditor(
-                                        defaultCategoryForSection(),
-                                        currentSection == AfterglowSection.WATCHLIST
-                                    )
-                                },
-                                containerColor = AndroidPrimary,
-                                contentColor = AndroidOnPrimary,
-                                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp),
-                                modifier = Modifier
-                                    .align(Alignment.BottomEnd)
-                                    .navigationBarsPadding()
-                                    .padding(end = 16.dp, bottom = 96.dp)
-                                    .testTag("android_fab_add")
-                            ) {
-                                Icon(Icons.Rounded.Add, contentDescription = "Add title")
-                            }
-                        }
-
                         ZenixBottomBar(
                             tabs = bottomTabs,
                             selectedIndex = selectedIndex,
-                            onSelectTab = { idx -> currentSection = bottomSections[idx] },
+                            onSelectTab = { idx -> navigateToSection(bottomSections[idx]) },
                             hazeState = hazeState,
                             modifier = Modifier.align(Alignment.BottomCenter)
                         )
@@ -604,13 +632,13 @@ private fun AuthenticatedAfterglowShell(
                         PermanentDrawerSheet(
                             drawerContainerColor = tokens.drawerBackground,
                             modifier = Modifier
-                                .width(268.dp)
+                                .width(276.dp)
                                 .border(1.dp, tokens.outlineSubtle)
                         ) {
                             DrawerMenuContent(
                                 profile = profile,
                                 currentSection = currentSection,
-                                onSelectSection = { currentSection = it }
+                                onSelectSection = navigateToSection
                             )
                         }
                     },
@@ -623,7 +651,7 @@ private fun AuthenticatedAfterglowShell(
                         ModalDrawerSheet(
                             drawerContainerColor = tokens.drawerBackground,
                             modifier = Modifier
-                                .width(284.dp)
+                                .width(292.dp)
                                 .border(
                                     1.dp,
                                     tokens.outlineSubtle,
@@ -633,8 +661,8 @@ private fun AuthenticatedAfterglowShell(
                             DrawerMenuContent(
                                 profile = profile,
                                 currentSection = currentSection,
-                                onSelectSection = {
-                                    currentSection = it
+                                onSelectSection = { sec ->
+                                    navigateToSection(sec)
                                     scope.launch { drawerState.close() }
                                 }
                             )
@@ -643,6 +671,17 @@ private fun AuthenticatedAfterglowShell(
                     content = mainShellContent
                 )
             }
+        }
+
+        if (showGlobalSearch) {
+            GlobalSearchDialog(
+                allItems = allItems,
+                onDismiss = { showGlobalSearch = false },
+                onSelectItem = { item ->
+                    showGlobalSearch = false
+                    detailItemId = item.id
+                }
+            )
         }
 
         if (showEditor) {
@@ -696,158 +735,259 @@ private fun DrawerMenuContent(
             .fillMaxHeight()
             .statusBarsPadding()
             .navigationBarsPadding()
-            .verticalScroll(rememberScrollState())
             .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+        verticalArrangement = Arrangement.SpaceBetween
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        Column(
+            modifier = Modifier
+                .weight(1f, fill = false)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(5.dp)
         ) {
-            when (tokens.mode) {
-                AppThemeMode.NEON -> {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .neonGlow(NeonPink, cornerRadius = 12.dp, alpha = 0.42f, spread = 6.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Brush.linearGradient(listOf(NeonPurple, NeonPink)))
-                            .border(1.dp, Color.White.copy(alpha = 0.45f), RoundedCornerShape(12.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.AutoAwesome,
-                            contentDescription = "Zenix logo",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-                AppThemeMode.ANDROID_UI -> {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(AndroidPrimary),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.AutoAwesome,
-                            contentDescription = "Zenix logo",
-                            tint = AndroidOnPrimary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-                AppThemeMode.MINIMAL_PASTEL -> {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(PastelLavender)
-                            .border(1.dp, PastelOutlineStrong, RoundedCornerShape(12.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.AutoAwesome,
-                            contentDescription = "Zenix logo",
-                            tint = PastelTextPrimary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-            }
-            Column {
-                Text(
-                    text = "ZENIX",
-                    fontFamily = tokens.fontFamily,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    letterSpacing = 2.2.sp,
-                    color = tokens.textPrimary
-                )
-                Text(
-                    text = profile.displayName,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = tokens.primaryAccent
-                )
-            }
-        }
-        HorizontalDivider(color = tokens.outlineSubtle, modifier = Modifier.padding(vertical = 4.dp))
-
-        AfterglowSection.entries.forEach { section ->
-            val selected = currentSection == section
-            val shape = RoundedCornerShape(if (tokens.mode == AppThemeMode.ANDROID_UI) 28.dp else 16.dp)
-            val rowMod = when (tokens.mode) {
-                AppThemeMode.NEON -> {
-                    if (selected) {
-                        Modifier
-                            .neonGlow(NeonPurple, cornerRadius = 16.dp, alpha = 0.30f, spread = 5.dp)
-                            .clip(shape)
-                            .background(Brush.horizontalGradient(listOf(NeonFuchsia.copy(alpha = 0.85f), NeonPurple.copy(alpha = 0.85f))))
-                            .border(1.dp, Color.White.copy(alpha = 0.38f), shape)
-                    } else {
-                        Modifier
-                            .clip(shape)
-                            .background(Color.White.copy(alpha = 0.04f))
-                    }
-                }
-                AppThemeMode.ANDROID_UI -> {
-                    if (selected) {
-                        Modifier
-                            .clip(shape)
-                            .background(AndroidSecondaryContainer)
-                    } else {
-                        Modifier.clip(shape)
-                    }
-                }
-                AppThemeMode.MINIMAL_PASTEL -> {
-                    if (selected) {
-                        Modifier
-                            .clip(shape)
-                            .background(PastelLavender)
-                    } else {
-                        Modifier
-                            .clip(shape)
-                            .background(Color.White.copy(alpha = 0.72f))
-                    }
-                }
-            }
-
-            val labelColor = when (tokens.mode) {
-                AppThemeMode.NEON -> if (selected) Color.White else tokens.textPrimary
-                AppThemeMode.ANDROID_UI -> if (selected) AndroidOnSecondaryContainer else tokens.textPrimary
-                AppThemeMode.MINIMAL_PASTEL -> PastelTextPrimary
-            }
-            val iconColor = when (tokens.mode) {
-                AppThemeMode.NEON -> if (selected) Color.White else tokens.textSecondary
-                AppThemeMode.ANDROID_UI -> if (selected) AndroidOnSecondaryContainer else tokens.textSecondary
-                AppThemeMode.MINIMAL_PASTEL -> if (selected) PastelTextPrimary else tokens.textSecondary
-            }
-
+            // Drawer Header: Z logo, ZENIX, username in cyan
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .then(rowMod)
-                    .clickable { onSelectSection(section) }
-                    .padding(horizontal = 14.dp, vertical = 12.dp)
-                    .testTag("nav_${section.name.lowercase()}"),
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Icon(
-                    imageVector = section.icon,
-                    contentDescription = null,
-                    tint = iconColor,
-                    modifier = Modifier.size(20.dp)
+                ZenixBrandLogo(size = 40.dp)
+                Column {
+                    Text(
+                        text = "ZENIX",
+                        fontFamily = tokens.fontFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        letterSpacing = 2.2.sp,
+                        color = tokens.textPrimary
+                    )
+                    Text(
+                        text = profile.displayName,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Medium,
+                        color = NeonCyan,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            HorizontalDivider(color = tokens.outlineSubtle, modifier = Modifier.padding(vertical = 4.dp))
+
+            val activeEnd = lerp(NeonPurple, Color(0xFF4C1D95), 0.38f)
+
+            AfterglowSection.entries.forEach { section ->
+                val selected = currentSection == section
+                val isUpdates = section == AfterglowSection.UPDATES
+                val shape = RoundedCornerShape(16.dp)
+
+                val rowMod = when {
+                    selected -> Modifier
+                        .then(
+                            if (tokens.useGlow) {
+                                Modifier.neonGlow(NeonPurple, cornerRadius = 16.dp, alpha = 0.34f, spread = 5.dp)
+                            } else Modifier
+                        )
+                        .clip(shape)
+                        .background(Brush.horizontalGradient(listOf(NeonPurple, activeEnd)))
+                        .border(1.dp, Color.White.copy(alpha = 0.30f), shape)
+
+                    isUpdates -> Modifier
+                        .clip(shape)
+                        .background(NeonCyan.copy(alpha = 0.08f))
+                        .border(1.dp, NeonCyan.copy(alpha = 0.65f), shape)
+
+                    else -> Modifier
+                        .clip(shape)
+                        .background(Color.White.copy(alpha = 0.03f))
+                }
+
+                val labelColor = when {
+                    selected -> Color.White
+                    isUpdates -> NeonCyan
+                    else -> tokens.textPrimary
+                }
+                val iconColor = when {
+                    selected -> Color.White
+                    isUpdates -> NeonCyan
+                    else -> tokens.textSecondary
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = 48.dp)
+                        .then(rowMod)
+                        .clickable { onSelectSection(section) }
+                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                        .testTag("nav_${section.name.lowercase()}"),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = section.icon,
+                        contentDescription = null,
+                        tint = iconColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = section.label,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = if (selected || isUpdates) FontWeight.Bold else FontWeight.Medium,
+                        color = labelColor,
+                        modifier = Modifier.weight(1f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (isUpdates) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(NeonPink.copy(alpha = 0.22f))
+                                .border(1.dp, NeonPink.copy(alpha = 0.85f), RoundedCornerShape(50))
+                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "NEW",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = NeonPink
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Bottom Drawer Update Card
+        NeonGlassCard(
+            modifier = Modifier.fillMaxWidth(),
+            accentColor = NeonCyan,
+            cornerRadius = 20.dp,
+            contentPadding = PaddingValues(14.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = "A new update is available",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = tokens.textPrimary
                 )
                 Text(
-                    text = section.label,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                    color = labelColor
+                    text = "See what's new in ZENIX",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = tokens.textSecondary
                 )
+                Spacer(modifier = Modifier.height(2.dp))
+                NeonPrimaryButton(
+                    onClick = { onSelectSection(AfterglowSection.UPDATES) },
+                    accentColor = NeonPurple,
+                    cornerRadius = 12.dp,
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("drawer_view_updates_button")
+                ) {
+                    Text("View updates", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GlobalSearchDialog(
+    allItems: List<MediaItem>,
+    onDismiss: () -> Unit,
+    onSelectItem: (MediaItem) -> Unit
+) {
+    val tokens = LocalZenixTokens.current
+    var query by remember { mutableStateOf("") }
+    val results = remember(allItems, query) {
+        val q = query.trim().lowercase()
+        if (q.isBlank()) {
+            allItems.sortedByDescending { it.personalRating }.take(8)
+        } else {
+            allItems.filter { item ->
+                item.title.lowercase().contains(q) ||
+                    item.genre.lowercase().contains(q) ||
+                    item.streamingPlatform.lowercase().contains(q) ||
+                    item.director.lowercase().contains(q) ||
+                    item.mainCast.lowercase().contains(q)
+            }.take(20)
+        }
+    }
+
+    NeonGlassDialog(
+        onDismissRequest = onDismiss,
+        title = "Search Library",
+        accentColor = NeonCyan,
+        dismissText = "Close"
+    ) {
+        NeonGlassTextField(
+            value = query,
+            onValueChange = { query = it },
+            placeholder = "Search titles, genres, cast, platforms...",
+            leadingIcon = {
+                Icon(Icons.Rounded.Search, contentDescription = null, modifier = Modifier.size(18.dp))
+            },
+            focusNeonColor = NeonCyan,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("global_search_input")
+        )
+
+        if (results.isEmpty()) {
+            Text(
+                text = if (allItems.isEmpty()) "Your library is empty. Add a movie or series first." else "No titles match \"$query\".",
+                style = MaterialTheme.typography.bodyMedium,
+                color = tokens.textSecondary
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 320.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(results, key = { "gs_${it.id}" }) { item ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Color.White.copy(alpha = 0.05f))
+                            .border(1.dp, tokens.outlineSubtle, RoundedCornerShape(14.dp))
+                            .clickable { onSelectItem(item) }
+                            .padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        PosterArtwork(
+                            posterUrl = item.posterUrl,
+                            title = item.title,
+                            category = item.categoryEnum,
+                            modifier = Modifier.size(width = 38.dp, height = 54.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = item.title,
+                                style = MaterialTheme.typography.titleSmall,
+                                color = tokens.textPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = "${item.categoryEnum.label} · ${item.releaseYear}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = tokens.textSecondary
+                            )
+                        }
+                        if (item.personalRating > 0.0) {
+                            RatingPill(rating = item.personalRating)
+                        }
+                    }
+                }
             }
         }
     }

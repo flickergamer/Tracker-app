@@ -4,18 +4,14 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -24,18 +20,18 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.Backup
 import androidx.compose.material.icons.rounded.DeleteForever
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material.icons.rounded.TableView
 import androidx.compose.material.icons.rounded.Upload
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -49,7 +45,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -59,10 +54,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.BuildConfig
 import com.example.data.export.ImportedBackup
 import com.example.data.export.LibrarySerializer
-import com.example.data.model.AccentColorPreset
 import com.example.data.model.MediaItem
 import com.example.data.model.QuoteItem
 import com.example.data.model.UserProfile
@@ -70,43 +65,27 @@ import com.example.data.tmdb.TmdbPreferences
 import com.example.ui.components.FloatingBottomBarClearance
 import com.example.ui.components.GlassSecondaryButton
 import com.example.ui.components.NeonGlassCard
-import com.example.ui.components.NeonGlassChip
 import com.example.ui.components.NeonGlassDialog
 import com.example.ui.components.NeonGlassTextField
 import com.example.ui.components.NeonPrimaryButton
-import com.example.ui.components.neonGlow
-import com.example.ui.components.themedPaletteColor
-import com.example.ui.theme.AndroidBackground
-import com.example.ui.theme.AndroidCardSurface
-import com.example.ui.theme.AndroidPrimary
-import com.example.ui.theme.AndroidSecondaryContainer
-import com.example.ui.theme.AndroidSurface
 import com.example.ui.theme.AppThemeMode
 import com.example.ui.theme.LocalZenixTokens
 import com.example.ui.theme.NeonCyan
-import com.example.ui.theme.NeonFuchsia
 import com.example.ui.theme.NeonPink
-import com.example.ui.theme.NeonPurple
-import com.example.ui.theme.PastelBackground
-import com.example.ui.theme.PastelLavender
-import com.example.ui.theme.PastelMint
-import com.example.ui.theme.PastelOutline
-import com.example.ui.theme.PastelPeach
-import com.example.ui.theme.PastelSky
-import com.example.ui.theme.PastelTextPrimary
-import com.example.ui.theme.VoidBackground
+import com.example.ui.theme.ZenixAccentColor
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(
     userEmail: String?,
     profile: UserProfile,
     currentTheme: AppThemeMode,
-    onApplyTheme: (AppThemeMode) -> Unit,
+    currentAccent: ZenixAccentColor,
+    onOpenAppearance: () -> Unit,
+    onOpenUpdates: () -> Unit,
     mediaItems: List<MediaItem>,
     quotes: List<QuoteItem>,
     onUpdateProfile: (UserProfile) -> Unit,
@@ -121,10 +100,8 @@ fun SettingsScreen(
     val scope = rememberCoroutineScope()
     val tokens = LocalZenixTokens.current
 
-    var pendingTheme by remember(currentTheme) { mutableStateOf(currentTheme) }
     var displayName by remember(profile.displayName) { mutableStateOf(profile.displayName) }
     var bio by remember(profile.bio) { mutableStateOf(profile.bio) }
-    var selectedAccent by remember(profile.accentColorKey) { mutableStateOf(profile.accentPreset) }
     var compactMode by remember(profile.compactMode) { mutableStateOf(profile.compactMode) }
     var movieGoal by remember(profile.yearlyMovieGoal) { mutableStateOf(profile.yearlyMovieGoal.toString()) }
     var seriesGoal by remember(profile.yearlySeriesGoal) { mutableStateOf(profile.yearlySeriesGoal.toString()) }
@@ -196,55 +173,45 @@ fun SettingsScreen(
             )
         }
 
-        // Appearance: 3 Theme Cards (mini preview, name, radio button) + "Apply Theme" button
+        // Appearance Entry Card -> opens AppearanceScreen
         item {
-            SettingsCard(title = "Appearance", icon = Icons.Rounded.Palette, accentColor = tokens.secondaryAccent) {
-                Text(
-                    text = "Choose how Zenix looks across every screen. Changes apply live.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = tokens.textSecondary
-                )
-
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    AppThemeMode.entries.forEach { mode ->
-                        ThemeOptionRow(
-                            mode = mode,
-                            selected = pendingTheme == mode,
-                            onSelect = { pendingTheme = mode }
+            SettingsCard(title = "Appearance", icon = Icons.Rounded.Palette, accentColor = currentAccent.color) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = "${currentTheme.displayName} · ${currentAccent.label}",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = tokens.textPrimary
+                        )
+                        Text(
+                            text = currentTheme.tagline,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = tokens.textSecondary
                         )
                     }
-                }
-
-                NeonPrimaryButton(
-                    onClick = {
-                        onApplyTheme(pendingTheme)
-                        onNotify("Theme applied: ${pendingTheme.displayName}")
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("apply_theme_button")
-                ) {
-                    Text(
-                        text = if (pendingTheme == currentTheme) "Apply Theme (Active)" else "Apply Theme",
-                        fontWeight = FontWeight.Bold
+                    Box(
+                        modifier = Modifier
+                            .size(22.dp)
+                            .clip(CircleShape)
+                            .background(currentAccent.color)
+                            .border(1.5.dp, Color.White.copy(alpha = 0.75f), CircleShape)
                     )
                 }
 
-                if (currentTheme == AppThemeMode.NEON || pendingTheme == AppThemeMode.NEON) {
-                    Text("Neon Accent Palette", style = MaterialTheme.typography.titleSmall, color = tokens.secondaryAccent)
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        AccentColorPreset.entries.forEachIndexed { idx, preset ->
-                            NeonGlassChip(
-                                label = preset.label,
-                                selected = selectedAccent == preset,
-                                onClick = {
-                                    selectedAccent = preset
-                                    onUpdateProfile(profile.copy(accentColorKey = preset.name, compactMode = compactMode))
-                                },
-                                accentColor = themedPaletteColor(idx)
-                            )
-                        }
-                    }
+                NeonPrimaryButton(
+                    onClick = onOpenAppearance,
+                    accentColor = currentAccent.color,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("settings_open_appearance_button")
+                ) {
+                    Text("Customize Theme & Accent", fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Icon(Icons.AutoMirrored.Rounded.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
                 }
 
                 Row(
@@ -260,15 +227,63 @@ fun SettingsScreen(
                         checked = compactMode,
                         onCheckedChange = {
                             compactMode = it
-                            onUpdateProfile(profile.copy(accentColorKey = selectedAccent.name, compactMode = it))
+                            onUpdateProfile(profile.copy(compactMode = it))
                         },
                         colors = SwitchDefaults.colors(
-                            checkedThumbColor = if (tokens.mode == AppThemeMode.ANDROID_UI) tokens.primaryButtonText else Color.White,
-                            checkedTrackColor = tokens.secondaryAccent,
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = tokens.primaryAccent,
                             uncheckedThumbColor = tokens.textSecondary,
                             uncheckedTrackColor = tokens.outlineSubtle
                         )
                     )
+                }
+            }
+        }
+
+        // Updates Entry Card -> opens UpdatesScreen
+        item {
+            SettingsCard(title = "App Updates", icon = Icons.Rounded.SystemUpdate, accentColor = NeonCyan) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = "Update ${ZenixUpdateConfig.availableVersion} available",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = tokens.textPrimary
+                        )
+                        Text(
+                            text = "Current version ${ZenixUpdateConfig.currentVersion}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = tokens.textSecondary
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(NeonPink.copy(alpha = 0.20f))
+                            .border(1.dp, NeonPink.copy(alpha = 0.85f), RoundedCornerShape(50))
+                            .padding(horizontal = 9.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = "NEW",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.8.sp,
+                            color = NeonPink
+                        )
+                    }
+                }
+                GlassSecondaryButton(
+                    onClick = onOpenUpdates,
+                    accentBorderColor = NeonCyan,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("settings_open_updates_button")
+                ) {
+                    Text("View Updates", fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -329,7 +344,6 @@ fun SettingsScreen(
                             profile.copy(
                                 displayName = displayName.trim().ifBlank { "Cinephile" }.take(60),
                                 bio = bio.trim().take(250),
-                                accentColorKey = selectedAccent.name,
                                 compactMode = compactMode,
                                 yearlyMovieGoal = (movieGoal.toLongOrNull() ?: 30L).coerceIn(1L, 2000L),
                                 yearlySeriesGoal = (seriesGoal.toLongOrNull() ?: 10L).coerceIn(1L, 500L),
@@ -383,7 +397,7 @@ fun SettingsScreen(
         item {
             SettingsCard(title = "Backup, Import & Export", icon = Icons.Rounded.TableView, accentColor = tokens.positiveAccent) {
                 Text(
-                    text = "Export your entire Zenix library (${mediaItems.size} titles, ${quotes.size} quotes) or restore from a JSON backup.",
+                    text = "Export your entire ZENIX library (${mediaItems.size} titles, ${quotes.size} quotes) or restore from a JSON backup.",
                     style = MaterialTheme.typography.bodySmall,
                     color = tokens.textSecondary
                 )
@@ -474,218 +488,10 @@ fun SettingsScreen(
             }
         ) {
             Text(
-                text = "Permanently erase all Zenix library items and quotes? This cannot be undone.",
+                text = "Permanently erase all ZENIX library items and quotes? This cannot be undone.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = tokens.textSecondary
             )
-        }
-    }
-}
-
-@Composable
-private fun ThemeOptionRow(
-    mode: AppThemeMode,
-    selected: Boolean,
-    onSelect: () -> Unit
-) {
-    val tokens = LocalZenixTokens.current
-    val shape = RoundedCornerShape(18.dp)
-    val borderColor = if (selected) tokens.primaryAccent else tokens.outlineSubtle
-    val rowBg = when (tokens.mode) {
-        AppThemeMode.NEON -> if (selected) tokens.primaryAccent.copy(alpha = 0.16f) else Color.White.copy(alpha = 0.05f)
-        AppThemeMode.ANDROID_UI -> if (selected) AndroidSecondaryContainer.copy(alpha = 0.72f) else AndroidSurface
-        AppThemeMode.MINIMAL_PASTEL -> if (selected) PastelLavender.copy(alpha = 0.65f) else PastelBackground
-    }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(
-                if (selected && tokens.useGlow) {
-                    Modifier.neonGlow(tokens.primaryAccent, cornerRadius = 18.dp, alpha = 0.25f, spread = 5.dp)
-                } else Modifier
-            )
-            .clip(shape)
-            .background(rowBg)
-            .border(if (selected) 1.5.dp else 1.dp, borderColor, shape)
-            .clickable(onClick = onSelect)
-            .padding(12.dp)
-            .testTag("theme_option_${mode.key}"),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        ThemeMiniPreview(mode = mode)
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                text = mode.displayName,
-                style = MaterialTheme.typography.titleMedium,
-                color = tokens.textPrimary
-            )
-            Text(
-                text = mode.tagline,
-                style = MaterialTheme.typography.bodySmall,
-                color = tokens.textSecondary
-            )
-        }
-        RadioButton(
-            selected = selected,
-            onClick = onSelect,
-            colors = RadioButtonDefaults.colors(
-                selectedColor = tokens.primaryAccent,
-                unselectedColor = tokens.textSecondary
-            )
-        )
-    }
-}
-
-@Composable
-private fun ThemeMiniPreview(mode: AppThemeMode) {
-    val shape = RoundedCornerShape(12.dp)
-    when (mode) {
-        AppThemeMode.NEON -> {
-            Box(
-                modifier = Modifier
-                    .size(width = 62.dp, height = 46.dp)
-                    .clip(shape)
-                    .background(VoidBackground)
-                    .border(1.dp, NeonPurple.copy(alpha = 0.7f), shape)
-                    .padding(6.dp)
-            ) {
-                Column(verticalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxSize()) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Box(
-                            modifier = Modifier
-                                .size(width = 24.dp, height = 14.dp)
-                                .clip(RoundedCornerShape(5.dp))
-                                .background(Brush.linearGradient(listOf(NeonPurple.copy(alpha = 0.7f), NeonCyan.copy(alpha = 0.6f))))
-                        )
-                        Box(
-                            modifier = Modifier
-                                .size(width = 18.dp, height = 14.dp)
-                                .clip(RoundedCornerShape(5.dp))
-                                .background(Color.White.copy(alpha = 0.16f))
-                                .border(0.6.dp, NeonPink.copy(alpha = 0.7f), RoundedCornerShape(5.dp))
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(10.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.16f)),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .padding(2.dp)
-                                .size(width = 18.dp, height = 6.dp)
-                                .clip(CircleShape)
-                                .background(Brush.horizontalGradient(listOf(NeonPink, NeonPurple)))
-                        )
-                    }
-                }
-            }
-        }
-
-        AppThemeMode.ANDROID_UI -> {
-            Box(
-                modifier = Modifier
-                    .size(width = 62.dp, height = 46.dp)
-                    .clip(shape)
-                    .background(AndroidBackground)
-                    .border(1.dp, AndroidPrimary.copy(alpha = 0.55f), shape)
-                    .padding(6.dp)
-            ) {
-                Column(verticalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxSize()) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Box(
-                            modifier = Modifier
-                                .size(width = 24.dp, height = 14.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(AndroidCardSurface)
-                        )
-                        Box(
-                            modifier = Modifier
-                                .size(width = 18.dp, height = 14.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(AndroidPrimary)
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(11.dp)
-                            .clip(RoundedCornerShape(3.dp))
-                            .background(AndroidSurface),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .padding(horizontal = 4.dp, vertical = 2.dp)
-                                .size(width = 18.dp, height = 6.dp)
-                                .clip(CircleShape)
-                                .background(AndroidSecondaryContainer)
-                        )
-                    }
-                }
-            }
-        }
-
-        AppThemeMode.MINIMAL_PASTEL -> {
-            Box(
-                modifier = Modifier
-                    .size(width = 62.dp, height = 46.dp)
-                    .clip(shape)
-                    .background(PastelBackground)
-                    .border(1.dp, PastelOutline, shape)
-                    .padding(6.dp)
-            ) {
-                Column(verticalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxSize()) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Box(
-                            modifier = Modifier
-                                .size(11.dp, 13.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(PastelLavender)
-                        )
-                        Box(
-                            modifier = Modifier
-                                .size(11.dp, 13.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(PastelSky)
-                        )
-                        Box(
-                            modifier = Modifier
-                                .size(11.dp, 13.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(PastelPeach)
-                        )
-                        Box(
-                            modifier = Modifier
-                                .size(11.dp, 13.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(PastelMint)
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(10.dp)
-                            .clip(CircleShape)
-                            .background(Color.White)
-                            .border(0.6.dp, PastelOutline, CircleShape),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .padding(2.dp)
-                                .size(width = 18.dp, height = 6.dp)
-                                .clip(CircleShape)
-                                .background(PastelLavender)
-                        )
-                    }
-                }
-            }
         }
     }
 }
@@ -701,7 +507,7 @@ private fun SettingsCard(
     NeonGlassCard(
         modifier = Modifier.fillMaxWidth(),
         accentColor = accentColor,
-        cornerRadius = 22.dp,
+        cornerRadius = 24.dp,
         contentPadding = PaddingValues(18.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
