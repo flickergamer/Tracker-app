@@ -37,15 +37,20 @@ import androidx.compose.material.icons.automirrored.rounded.AddToHomeScreen
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.Backup
+import androidx.compose.material.icons.rounded.CloudDone
+import androidx.compose.material.icons.rounded.CloudOff
+import androidx.compose.material.icons.rounded.CloudSync
 import androidx.compose.material.icons.rounded.DeleteForever
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Restore
 import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material.icons.rounded.TableView
 import androidx.compose.material.icons.rounded.Upload
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -101,9 +106,11 @@ import com.example.ui.theme.LocalZenixRadii
 import com.example.ui.theme.LocalZenixSpacing
 import com.example.ui.theme.LocalZenixTokens
 import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.NeonGreen
 import com.example.ui.theme.NeonPink
 import com.example.ui.theme.NeonPurple
 import com.example.ui.theme.ZenixAccentColor
+import com.example.ui.viewmodel.CloudSyncUiState
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -124,6 +131,12 @@ fun SettingsScreen(
     onClearAllData: () -> Unit,
     onNotify: (String) -> Unit,
     onSignOut: () -> Unit,
+    cloudSyncState: CloudSyncUiState = CloudSyncUiState(),
+    isOnline: Boolean = true,
+    onSyncNow: () -> Unit = {},
+    onConfirmFirstSync: () -> Unit = {},
+    onCancelFirstSync: () -> Unit = {},
+    onRestoreFromCloud: () -> Unit = {},
     bottomPadding: Dp = FloatingBottomBarClearance,
     modifier: Modifier = Modifier
 ) {
@@ -145,6 +158,7 @@ fun SettingsScreen(
 
     var showClearConfirm1 by remember { mutableStateOf(false) }
     var showClearConfirm2 by remember { mutableStateOf(false) }
+    var showRestoreConfirm by remember { mutableStateOf(false) }
 
     var appearanceExpanded by rememberSaveable { mutableStateOf(true) }
     var updatesExpanded by rememberSaveable { mutableStateOf(false) }
@@ -153,6 +167,7 @@ fun SettingsScreen(
     var aboutExpanded by rememberSaveable { mutableStateOf(false) }
 
     val dateStamp = remember { SimpleDateFormat("yyyyMMdd", Locale.US).format(Date()) }
+    val syncTimeFmt = remember { SimpleDateFormat("MMM d, yyyy · HH:mm", Locale.getDefault()) }
     val canPinShortcut = remember(context) {
         runCatching { ShortcutManagerCompat.isRequestPinShortcutSupported(context) }.getOrDefault(false)
     }
@@ -483,6 +498,104 @@ fun SettingsScreen(
                     Text("Save TMDB Key")
                 }
 
+                // Cloud Backup Sub-card
+                NeonGlassCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    accentColor = if (isOnline) NeonCyan else tokens.dangerAccent,
+                    cornerRadius = radii.md,
+                    glowAlpha = 0.16f,
+                    contentPadding = PaddingValues(spacing.space3)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(spacing.space2)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(spacing.space2)
+                            ) {
+                                Icon(
+                                    imageVector = if (isOnline) Icons.Rounded.CloudDone else Icons.Rounded.CloudOff,
+                                    contentDescription = null,
+                                    tint = if (isOnline) NeonGreen else tokens.dangerAccent,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Text(
+                                    text = "Cloud Backup",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = tokens.textPrimary
+                                )
+                            }
+                            Text(
+                                text = if (isOnline) "Online" else "Offline",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isOnline) NeonGreen else tokens.dangerAccent
+                            )
+                        }
+                        val lastSyncLabel = if (cloudSyncState.lastSyncedAtMillis > 0L) {
+                            "Last synced: ${syncTimeFmt.format(Date(cloudSyncState.lastSyncedAtMillis))}"
+                        } else {
+                            "Auto-synced per account · Tap Sync now to snapshot & reconcile"
+                        }
+                        Text(
+                            text = lastSyncLabel,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = tokens.textSecondary
+                        )
+                        cloudSyncState.errorMessage?.let { err ->
+                            Text(
+                                text = err,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = tokens.dangerAccent
+                            )
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(spacing.space2)) {
+                            NeonPrimaryButton(
+                                onClick = onSyncNow,
+                                enabled = !cloudSyncState.isSyncing,
+                                accentColor = NeonCyan,
+                                cornerRadius = radii.sm,
+                                contentPadding = PaddingValues(horizontal = spacing.space3, vertical = spacing.space2),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("settings_cloud_sync_now")
+                            ) {
+                                if (cloudSyncState.isSyncing) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp,
+                                        color = Color(0xFF0A0812)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Syncing...", fontWeight = FontWeight.Bold)
+                                } else {
+                                    Icon(Icons.Rounded.CloudSync, contentDescription = null, modifier = Modifier.size(17.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Sync now", fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            GlassSecondaryButton(
+                                onClick = { showRestoreConfirm = true },
+                                enabled = !cloudSyncState.isSyncing,
+                                accentBorderColor = NeonPurple,
+                                cornerRadius = radii.sm,
+                                contentPadding = PaddingValues(horizontal = spacing.space3, vertical = spacing.space2),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("settings_cloud_restore")
+                            ) {
+                                Icon(Icons.Rounded.Restore, contentDescription = null, modifier = Modifier.size(17.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Restore", maxLines = 1)
+                            }
+                        }
+                    }
+                }
+
                 Text(
                     text = "Export your entire ZENIX library (${mediaItems.size} titles, ${quotes.size} quotes) or restore from a JSON backup.",
                     style = MaterialTheme.typography.bodySmall,
@@ -608,6 +721,41 @@ fun SettingsScreen(
         ) {
             Text(
                 text = "Permanently erase all ZENIX library items and quotes? This cannot be undone.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = tokens.textSecondary
+            )
+        }
+    }
+
+    if (showRestoreConfirm) {
+        NeonGlassDialog(
+            onDismissRequest = { showRestoreConfirm = false },
+            title = "Restore from Cloud?",
+            accentColor = NeonCyan,
+            confirmText = "Restore",
+            onConfirm = {
+                showRestoreConfirm = false
+                onRestoreFromCloud()
+            }
+        ) {
+            Text(
+                text = "This will refresh your device cache and library view with the latest data stored in your Firebase cloud account.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = tokens.textSecondary
+            )
+        }
+    }
+
+    cloudSyncState.pendingFirstSyncConfirmation?.let { preview ->
+        NeonGlassDialog(
+            onDismissRequest = onCancelFirstSync,
+            title = "Merge Local & Cloud Libraries?",
+            accentColor = NeonCyan,
+            confirmText = "Merge & Sync",
+            onConfirm = onConfirmFirstSync
+        ) {
+            Text(
+                text = "We found ${preview.localCount} cached local titles and ${preview.cloudCount} cloud titles. Merge them together keeping the newest edit for any matching title?",
                 style = MaterialTheme.typography.bodyMedium,
                 color = tokens.textSecondary
             )

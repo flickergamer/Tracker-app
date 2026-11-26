@@ -288,6 +288,177 @@ fun HorizontalBarChartCard(
 }
 
 @Composable
+fun VerticalBarChartCard(
+    title: String,
+    points: List<Pair<String, Int>>,
+    barColor: Color,
+    emptyMessage: String = "No records yet.",
+    insufficientDataMessage: String? = null,
+    minPointsRequired: Int = 1,
+    modifier: Modifier = Modifier
+) {
+    val tokens = LocalZenixTokens.current
+    val gridColor = if (tokens.isLight) Color(0xFFDDD6C9) else Color.White.copy(alpha = 0.12f)
+
+    NeonGlassCard(
+        modifier = modifier.fillMaxWidth(),
+        accentColor = barColor,
+        contentPadding = PaddingValues(18.dp)
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleLarge,
+            color = tokens.textPrimary
+        )
+        Spacer(modifier = Modifier.height(14.dp))
+        when {
+            points.isEmpty() -> {
+                Text(
+                    text = insufficientDataMessage ?: emptyMessage,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = tokens.textSecondary
+                )
+            }
+            points.size < minPointsRequired -> {
+                Text(
+                    text = insufficientDataMessage ?: emptyMessage,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = tokens.textSecondary
+                )
+            }
+            else -> {
+                val maxVal = (points.maxOfOrNull { it.second } ?: 1).coerceAtLeast(1)
+                val midVal = (maxVal / 2).coerceAtLeast(1)
+                val barEnd = themedPaletteColor(1)
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    // Y-axis scale labels
+                    Column(
+                        modifier = Modifier
+                            .height(140.dp)
+                            .padding(end = 8.dp),
+                        verticalArrangement = Arrangement.SpaceBetween,
+                        horizontalAlignment = Alignment.End
+                    ) {
+                        Text(
+                            text = maxVal.toString(),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = tokens.textSecondary
+                        )
+                        if (maxVal >= 2) {
+                            Text(
+                                text = midVal.toString(),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = tokens.textSecondary
+                            )
+                        }
+                        Text(
+                            text = "0",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = tokens.textSecondary
+                        )
+                    }
+
+                    // Bars + baseline grid + value labels + X-axis labels
+                    Box(modifier = Modifier.weight(1f)) {
+                        Canvas(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(140.dp)
+                        ) {
+                            for (i in 0..2) {
+                                val y = size.height * (i / 2f)
+                                drawLine(
+                                    color = gridColor,
+                                    start = Offset(0f, y),
+                                    end = Offset(size.width, y),
+                                    strokeWidth = 1.dp.toPx()
+                                )
+                            }
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.Bottom
+                        ) {
+                            points.forEachIndexed { idx, (label, value) ->
+                                val targetFrac = (value.toFloat() / maxVal.toFloat()).coerceIn(0f, 1f)
+                                val animFrac by animateFloatAsState(
+                                    targetValue = targetFrac,
+                                    animationSpec = tween(durationMillis = 600),
+                                    label = "vbar_${idx}_$label"
+                                )
+                                val barHeightDp = (114f * animFrac).coerceAtLeast(if (value > 0) 6f else 0f).dp
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(horizontal = 2.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Bottom
+                                ) {
+                                    Box(
+                                        modifier = Modifier.height(140.dp),
+                                        contentAlignment = Alignment.BottomCenter
+                                    ) {
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Bottom
+                                        ) {
+                                            Text(
+                                                text = value.toString(),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = barColor,
+                                                maxLines = 1
+                                            )
+                                            Spacer(modifier = Modifier.height(3.dp))
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth(0.62f)
+                                                    .height(barHeightDp)
+                                                    .then(
+                                                        if (tokens.useGlow) {
+                                                            Modifier.neonGlow(
+                                                                color = barColor,
+                                                                cornerRadius = 6.dp,
+                                                                alpha = 0.30f,
+                                                                spread = 4.dp
+                                                            )
+                                                        } else Modifier
+                                                    )
+                                                    .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
+                                                    .background(
+                                                        if (tokens.mode == AppThemeMode.MINIMAL_DARK) {
+                                                            Brush.verticalGradient(listOf(barColor, barColor.copy(alpha = 0.72f)))
+                                                        } else {
+                                                            Brush.verticalGradient(listOf(barEnd, barColor))
+                                                        }
+                                                    )
+                                            )
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        text = label,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = tokens.textSecondary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun LineActivityChartCard(
     title: String,
     points: List<Pair<String, Int>>,
@@ -297,7 +468,7 @@ fun LineActivityChartCard(
 ) {
     val tokens = LocalZenixTokens.current
     val gridColor = if (tokens.isLight) Color(0xFFDDD6C9) else Color.White.copy(alpha = 0.12f)
-    val pointCenterColor = if (tokens.isLight) Color.White else Color.White
+    val pointCenterColor = Color.White
 
     NeonGlassCard(
         modifier = modifier.fillMaxWidth(),

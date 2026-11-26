@@ -62,7 +62,7 @@ service cloud.firestore {
         data.posterUrl is string && data.posterUrl.size() <= 1000 &&
         data.genre is string && data.genre.size() <= 160 &&
         data.language is string && data.language.size() <= 60 &&
-        data.releaseYear is int && data.releaseYear >= 1880 && data.releaseYear <= 2040 &&
+        data.releaseYear is int && (data.releaseYear == 0 || (data.releaseYear >= 1880 && data.releaseYear <= 2040)) &&
         data.streamingPlatform is string && data.streamingPlatform.size() <= 80 &&
         data.imdbRating is number && data.imdbRating >= 0 && data.imdbRating <= 10 &&
         data.personalRating is number && data.personalRating >= 0 && data.personalRating <= 10 &&
@@ -79,11 +79,21 @@ service cloud.firestore {
         data.imdbLink is string && data.imdbLink.size() <= 500 &&
         data.personalReview is string && data.personalReview.size() <= 3000 &&
         data.notes is string && data.notes.size() <= 2000 &&
+        (!('synopsis' in data) || (data.synopsis is string && data.synopsis.size() <= 1500)) &&
         data.totalSeasons is int && data.totalSeasons >= 0 && data.totalSeasons <= 200 &&
         data.currentSeason is int && data.currentSeason >= 0 && data.currentSeason <= 200 &&
         data.totalEpisodes is int && data.totalEpisodes >= 0 && data.totalEpisodes <= 10000 &&
         data.episodesWatched is int && data.episodesWatched >= 0 && data.episodesWatched <= 10000 &&
         data.currentEpisode is int && data.currentEpisode >= 0 && data.currentEpisode <= 10000 &&
+        (!('seasons' in data) || (
+          data.seasons is list && data.seasons.size() <= 100 &&
+          (data.seasons.size() == 0 || (
+            data.seasons[0] is map &&
+            data.seasons[0].seasonNumber is int &&
+            data.seasons[0].totalEpisodes is int &&
+            data.seasons[0].episodesWatched is int
+          ))
+        )) &&
         data.watchlistItem is bool &&
         data.priority is string && isValidPriority(data.priority) &&
         data.dateAdded is string && data.dateAdded.size() <= 20 &&
@@ -158,9 +168,9 @@ service cloud.firestore {
             'releaseYear', 'streamingPlatform', 'imdbRating', 'personalRating',
             'runtimeMinutes', 'director', 'mainCast', 'country', 'watchStatus',
             'startDate', 'completionDate', 'rewatchCount', 'rewatchFlag',
-            'trailerLink', 'imdbLink', 'personalReview', 'notes',
+            'trailerLink', 'imdbLink', 'personalReview', 'notes', 'synopsis',
             'totalSeasons', 'currentSeason', 'totalEpisodes', 'episodesWatched',
-            'currentEpisode', 'watchlistItem', 'priority', 'dateAdded',
+            'currentEpisode', 'seasons', 'watchlistItem', 'priority', 'dateAdded',
             'favourite', 'allTimeFavourite', 'manualRank', 'hiddenGem',
             'moodTags', 'createdAt', 'updatedAt'
           ]) &&
@@ -176,9 +186,9 @@ service cloud.firestore {
             'releaseYear', 'streamingPlatform', 'imdbRating', 'personalRating',
             'runtimeMinutes', 'director', 'mainCast', 'country', 'watchStatus',
             'startDate', 'completionDate', 'rewatchCount', 'rewatchFlag',
-            'trailerLink', 'imdbLink', 'personalReview', 'notes',
+            'trailerLink', 'imdbLink', 'personalReview', 'notes', 'synopsis',
             'totalSeasons', 'currentSeason', 'totalEpisodes', 'episodesWatched',
-            'currentEpisode', 'watchlistItem', 'priority', 'dateAdded',
+            'currentEpisode', 'seasons', 'watchlistItem', 'priority', 'dateAdded',
             'favourite', 'allTimeFavourite', 'manualRank', 'hiddenGem',
             'moodTags', 'updatedAt'
           ]);

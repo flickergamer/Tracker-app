@@ -35,6 +35,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.BarChart
@@ -100,6 +101,7 @@ import com.example.R
 import com.example.auth.AuthScreen
 import com.example.auth.signOut
 import com.example.data.firebase.AfterglowRepository
+import com.example.data.firebase.CloudBackupStore
 import com.example.data.model.MediaCategory
 import com.example.data.model.MediaItem
 import com.example.data.model.UiState
@@ -107,8 +109,8 @@ import com.example.data.model.UserProfile
 import com.example.ui.components.AddCategoryBottomSheet
 import com.example.ui.components.AfterglowBackdrop
 import com.example.ui.components.AfterglowTopBar
+import com.example.ui.components.GlassSecondaryButton
 import com.example.ui.components.LiquidNavTab
-import com.example.ui.components.MediaDetailDialog
 import com.example.ui.components.MediaEditorDialog
 import com.example.ui.components.NeonGlassCard
 import com.example.ui.components.NeonPrimaryButton
@@ -127,6 +129,7 @@ import com.example.ui.screens.AppearanceScreen
 import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.GlobalSearchScreen
 import com.example.ui.screens.LibraryMode
+import com.example.ui.screens.MediaDetailScreen
 import com.example.ui.screens.MediaLibraryScreen
 import com.example.ui.screens.RankingsScreen
 import com.example.ui.screens.SettingsScreen
@@ -134,6 +137,8 @@ import com.example.ui.screens.SmartHubScreen
 import com.example.ui.screens.StatisticsScreen
 import com.example.ui.screens.UpdatesScreen
 import com.example.ui.screens.WatchlistScreen
+import com.example.ui.screens.YearInReviewScreen
+import com.example.ui.screens.ZenixUpdateConfig
 import com.example.ui.theme.AfterglowTheme
 import com.example.ui.theme.AppThemeMode
 import com.example.ui.theme.LocalReducedMotion
@@ -244,7 +249,8 @@ private fun AuthenticatedAfterglowShell(
                 AfterglowViewModel(
                     repository = AfterglowRepository(db),
                     currentUserId = currentUserId,
-                    defaultDisplayName = defaultDisplayName
+                    defaultDisplayName = defaultDisplayName,
+                    cloudBackupStore = CloudBackupStore(app)
                 )
             }
         }
@@ -255,6 +261,7 @@ private fun AuthenticatedAfterglowShell(
     val quotesState by viewModel.quotesState.collectAsStateWithLifecycle()
     val stats by viewModel.dashboardStats.collectAsStateWithLifecycle()
     val achievements by viewModel.achievements.collectAsStateWithLifecycle()
+    val cloudSyncState by viewModel.cloudSyncUiState.collectAsStateWithLifecycle()
 
     val profile = (profileState as? UiState.Success)?.data ?: UserProfile(
         userId = currentUserId,
@@ -267,6 +274,7 @@ private fun AuthenticatedAfterglowShell(
     var showAppearanceScreen by remember { mutableStateOf(false) }
     var smartHubTab by remember { mutableIntStateOf(0) }
     var showGlobalSearch by remember { mutableStateOf(false) }
+    var showYearInReview by remember { mutableStateOf(false) }
 
     var showAddSheet by remember { mutableStateOf(false) }
     var addSheetPreselected by remember { mutableStateOf<MediaCategory?>(null) }
@@ -288,6 +296,7 @@ private fun AuthenticatedAfterglowShell(
     val navigateToSection: (AfterglowSection) -> Unit = { target ->
         showAppearanceScreen = false
         showGlobalSearch = false
+        showYearInReview = false
         currentSection = target
     }
 
@@ -317,8 +326,16 @@ private fun AuthenticatedAfterglowShell(
         }
     }
 
-    BackHandler(enabled = showGlobalSearch || showAppearanceScreen || currentSection != AfterglowSection.DASHBOARD) {
+    BackHandler(
+        enabled = detailItem != null ||
+            showYearInReview ||
+            showGlobalSearch ||
+            showAppearanceScreen ||
+            currentSection != AfterglowSection.DASHBOARD
+    ) {
         when {
+            detailItem != null -> detailItemId = null
+            showYearInReview -> showYearInReview = false
             showGlobalSearch -> showGlobalSearch = false
             showAppearanceScreen -> showAppearanceScreen = false
             else -> currentSection = AfterglowSection.DASHBOARD
@@ -482,6 +499,9 @@ private fun AuthenticatedAfterglowShell(
                                                     onDelete = viewModel::deleteMediaItem,
                                                     onStepEpisode = viewModel::stepEpisode,
                                                     onToggleFavourite = viewModel::toggleFavourite,
+                                                    onBulkUpdateStatus = viewModel::bulkUpdateStatus,
+                                                    onBulkAddToWatchlist = viewModel::bulkAddToWatchlist,
+                                                    onBulkDelete = viewModel::bulkDeleteMediaItems,
                                                     bottomPadding = screenBottomPadding
                                                 )
 
@@ -498,6 +518,9 @@ private fun AuthenticatedAfterglowShell(
                                                     onDelete = viewModel::deleteMediaItem,
                                                     onStepEpisode = viewModel::stepEpisode,
                                                     onToggleFavourite = viewModel::toggleFavourite,
+                                                    onBulkUpdateStatus = viewModel::bulkUpdateStatus,
+                                                    onBulkAddToWatchlist = viewModel::bulkAddToWatchlist,
+                                                    onBulkDelete = viewModel::bulkDeleteMediaItems,
                                                     bottomPadding = screenBottomPadding
                                                 )
 
@@ -514,6 +537,9 @@ private fun AuthenticatedAfterglowShell(
                                                     onDelete = viewModel::deleteMediaItem,
                                                     onStepEpisode = viewModel::stepEpisode,
                                                     onToggleFavourite = viewModel::toggleFavourite,
+                                                    onBulkUpdateStatus = viewModel::bulkUpdateStatus,
+                                                    onBulkAddToWatchlist = viewModel::bulkAddToWatchlist,
+                                                    onBulkDelete = viewModel::bulkDeleteMediaItems,
                                                     bottomPadding = screenBottomPadding
                                                 )
 
@@ -530,6 +556,9 @@ private fun AuthenticatedAfterglowShell(
                                                     onDelete = viewModel::deleteMediaItem,
                                                     onStepEpisode = viewModel::stepEpisode,
                                                     onToggleFavourite = viewModel::toggleFavourite,
+                                                    onBulkUpdateStatus = viewModel::bulkUpdateStatus,
+                                                    onBulkAddToWatchlist = viewModel::bulkAddToWatchlist,
+                                                    onBulkDelete = viewModel::bulkDeleteMediaItems,
                                                     bottomPadding = screenBottomPadding
                                                 )
 
@@ -563,6 +592,7 @@ private fun AuthenticatedAfterglowShell(
                                                     allItems = allItems,
                                                     onSelectItem = { detailItemId = it.id },
                                                     onAddTitle = { openAddPicker(null, false) },
+                                                    onOpenYearInReview = { showYearInReview = true },
                                                     bottomPadding = screenBottomPadding
                                                 )
 
@@ -609,6 +639,12 @@ private fun AuthenticatedAfterglowShell(
                                                     onSignOut = {
                                                         signOut(credentialManager, scope, onSignOutComplete = onSignedOut)
                                                     },
+                                                    cloudSyncState = cloudSyncState,
+                                                    isOnline = isOnline,
+                                                    onSyncNow = { viewModel.requestCloudSync(isOnline) },
+                                                    onConfirmFirstSync = viewModel::confirmFirstSyncMerge,
+                                                    onCancelFirstSync = viewModel::cancelFirstSyncMerge,
+                                                    onRestoreFromCloud = { viewModel.restoreFromCloud(isOnline) },
                                                     bottomPadding = screenBottomPadding
                                                 )
                                             }
@@ -708,9 +744,11 @@ private fun AuthenticatedAfterglowShell(
                         ) {
                             DrawerMenuContent(
                                 profile = profile,
+                                userEmail = userEmail,
                                 currentSection = currentSection,
                                 showHomeItem = true,
-                                onSelectSection = navigateToSection
+                                onSelectSection = navigateToSection,
+                                onSignOut = { signOut(credentialManager, scope, onSignOutComplete = onSignedOut) }
                             )
                         }
                     },
@@ -732,11 +770,16 @@ private fun AuthenticatedAfterglowShell(
                         ) {
                             DrawerMenuContent(
                                 profile = profile,
+                                userEmail = userEmail,
                                 currentSection = currentSection,
                                 showHomeItem = false,
                                 onSelectSection = { sec ->
                                     navigateToSection(sec)
                                     scope.launch { drawerState.close() }
+                                },
+                                onSignOut = {
+                                    scope.launch { drawerState.close() }
+                                    signOut(credentialManager, scope, onSignOutComplete = onSignedOut)
                                 }
                             )
                         }
@@ -744,6 +787,43 @@ private fun AuthenticatedAfterglowShell(
                     content = mainShellContent
                 )
             }
+        }
+
+        if (showYearInReview) {
+            YearInReviewScreen(
+                allItems = allItems,
+                profile = profile,
+                onBack = { showYearInReview = false },
+                onNotify = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } }
+            )
+        }
+
+        if (detailItem != null) {
+            MediaDetailScreen(
+                item = detailItem,
+                onBack = { detailItemId = null },
+                onEdit = {
+                    editorItem = detailItem
+                    detailItemId = null
+                    showEditor = true
+                },
+                onDelete = {
+                    viewModel.deleteMediaItem(detailItem)
+                    detailItemId = null
+                },
+                onStepSeasonEpisode = { seasonNum, delta ->
+                    viewModel.stepSeasonEpisode(detailItem, seasonNum, delta)
+                },
+                onAddSeason = { epCount ->
+                    viewModel.addSeasonToSeries(detailItem, epCount)
+                },
+                onToggleFavourite = { viewModel.toggleFavourite(detailItem) },
+                onToggleAllTimeFavourite = { viewModel.toggleAllTimeFavourite(detailItem) },
+                onToggleHiddenGem = { viewModel.toggleHiddenGem(detailItem) },
+                onIncrementRewatch = { viewModel.incrementRewatch(detailItem) },
+                onDecrementRewatch = { viewModel.decrementRewatch(detailItem) },
+                onNotify = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } }
+            )
         }
 
         if (showAddSheet) {
@@ -771,36 +851,17 @@ private fun AuthenticatedAfterglowShell(
                 }
             )
         }
-
-        if (detailItem != null) {
-            MediaDetailDialog(
-                item = detailItem,
-                onDismiss = { detailItemId = null },
-                onEdit = {
-                    editorItem = detailItem
-                    detailItemId = null
-                    showEditor = true
-                },
-                onDelete = {
-                    viewModel.deleteMediaItem(detailItem)
-                    detailItemId = null
-                },
-                onStepEpisode = { delta -> viewModel.stepEpisode(detailItem, delta) },
-                onToggleFavourite = { viewModel.toggleFavourite(detailItem) },
-                onToggleAllTimeFavourite = { viewModel.toggleAllTimeFavourite(detailItem) },
-                onToggleHiddenGem = { viewModel.toggleHiddenGem(detailItem) },
-                onIncrementRewatch = { viewModel.incrementRewatch(detailItem) }
-            )
-        }
     }
 }
 
 @Composable
 private fun DrawerMenuContent(
     profile: UserProfile,
+    userEmail: String?,
     currentSection: AfterglowSection,
     showHomeItem: Boolean,
-    onSelectSection: (AfterglowSection) -> Unit
+    onSelectSection: (AfterglowSection) -> Unit,
+    onSignOut: () -> Unit
 ) {
     val tokens = LocalZenixTokens.current
     val spacing = LocalZenixSpacing.current
@@ -824,8 +885,6 @@ private fun DrawerMenuContent(
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(spacing.space4)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(spacing.space1)
     ) {
         // Drawer Header: Z logo, ZENIX, username in cyan
         Row(
@@ -858,86 +917,143 @@ private fun DrawerMenuContent(
 
         val activeEnd = lerp(NeonPurple, Color(0xFF4C1D95), 0.38f)
 
-        drawerSections.forEach { section ->
-            val selected = currentSection == section
-            val isUpdates = section == AfterglowSection.UPDATES
-            val shape = RoundedCornerShape(radii.md)
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(spacing.space1)
+        ) {
+            drawerSections.forEach { section ->
+                val selected = currentSection == section
+                val isUpdates = section == AfterglowSection.UPDATES
+                val shape = RoundedCornerShape(radii.md)
 
-            val rowMod = when {
-                selected -> Modifier
-                    .then(
-                        if (tokens.useGlow) {
-                            Modifier.neonGlow(NeonPurple, cornerRadius = radii.md, alpha = 0.34f, spread = 5.dp)
-                        } else Modifier
+                val rowMod = when {
+                    selected -> Modifier
+                        .then(
+                            if (tokens.useGlow) {
+                                Modifier.neonGlow(NeonPurple, cornerRadius = radii.md, alpha = 0.34f, spread = 5.dp)
+                            } else Modifier
+                        )
+                        .clip(shape)
+                        .background(Brush.horizontalGradient(listOf(NeonPurple, activeEnd)))
+                        .border(1.dp, Color.White.copy(alpha = 0.30f), shape)
+
+                    isUpdates -> Modifier
+                        .clip(shape)
+                        .background(NeonCyan.copy(alpha = 0.08f))
+                        .border(1.dp, NeonCyan.copy(alpha = 0.65f), shape)
+
+                    else -> Modifier
+                        .clip(shape)
+                        .background(Color.White.copy(alpha = 0.03f))
+                }
+
+                val labelColor = when {
+                    selected -> Color.White
+                    isUpdates -> NeonCyan
+                    else -> tokens.textPrimary
+                }
+                val iconColor = when {
+                    selected -> Color.White
+                    isUpdates -> NeonCyan
+                    else -> tokens.textSecondary
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = 48.dp)
+                        .then(rowMod)
+                        .zenixFocusRing(NeonPurple, radii.md)
+                        .clickable(role = Role.Button) { onSelectSection(section) }
+                        .padding(horizontal = spacing.space3, vertical = spacing.space3)
+                        .testTag("nav_${section.name.lowercase()}"),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(spacing.space3)
+                ) {
+                    Icon(
+                        imageVector = section.icon,
+                        contentDescription = null,
+                        tint = iconColor,
+                        modifier = Modifier.size(20.dp)
                     )
-                    .clip(shape)
-                    .background(Brush.horizontalGradient(listOf(NeonPurple, activeEnd)))
-                    .border(1.dp, Color.White.copy(alpha = 0.30f), shape)
-
-                isUpdates -> Modifier
-                    .clip(shape)
-                    .background(NeonCyan.copy(alpha = 0.08f))
-                    .border(1.dp, NeonCyan.copy(alpha = 0.65f), shape)
-
-                else -> Modifier
-                    .clip(shape)
-                    .background(Color.White.copy(alpha = 0.03f))
+                    Text(
+                        text = section.label,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = if (selected || isUpdates) FontWeight.Bold else FontWeight.Medium,
+                        color = labelColor,
+                        modifier = Modifier.weight(1f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (isUpdates) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(NeonPink.copy(alpha = 0.22f))
+                                .border(1.dp, NeonPink.copy(alpha = 0.85f), RoundedCornerShape(50))
+                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "NEW",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = NeonPink
+                            )
+                        }
+                    }
+                }
             }
+        }
 
-            val labelColor = when {
-                selected -> Color.White
-                isUpdates -> NeonCyan
-                else -> tokens.textPrimary
-            }
-            val iconColor = when {
-                selected -> Color.White
-                isUpdates -> NeonCyan
-                else -> tokens.textSecondary
-            }
-
+        // Pinned Drawer Footer: App Version + Email + Sign Out
+        HorizontalDivider(color = tokens.outlineSubtle, modifier = Modifier.padding(vertical = spacing.space2))
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(spacing.space2)
+        ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .defaultMinSize(minHeight = 48.dp)
-                    .then(rowMod)
-                    .zenixFocusRing(NeonPurple, radii.md)
-                    .clickable(role = Role.Button) { onSelectSection(section) }
-                    .padding(horizontal = spacing.space3, vertical = spacing.space3)
-                    .testTag("nav_${section.name.lowercase()}"),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(spacing.space3)
+                    .padding(horizontal = spacing.space1),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "ZENIX v${ZenixUpdateConfig.currentVersion}",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = tokens.textSecondary
+                )
+                if (!userEmail.isNullOrBlank()) {
+                    Text(
+                        text = userEmail,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = NeonCyan,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(start = spacing.space2)
+                    )
+                }
+            }
+            GlassSecondaryButton(
+                onClick = onSignOut,
+                accentBorderColor = tokens.dangerAccent,
+                cornerRadius = radii.md,
+                contentPadding = PaddingValues(horizontal = spacing.space3, vertical = spacing.space2),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("drawer_sign_out_button")
             ) {
                 Icon(
-                    imageVector = section.icon,
+                    imageVector = Icons.AutoMirrored.Rounded.Logout,
                     contentDescription = null,
-                    tint = iconColor,
-                    modifier = Modifier.size(20.dp)
+                    tint = tokens.dangerAccent,
+                    modifier = Modifier.size(18.dp)
                 )
-                Text(
-                    text = section.label,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = if (selected || isUpdates) FontWeight.Bold else FontWeight.Medium,
-                    color = labelColor,
-                    modifier = Modifier.weight(1f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                if (isUpdates) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(NeonPink.copy(alpha = 0.22f))
-                            .border(1.dp, NeonPink.copy(alpha = 0.85f), RoundedCornerShape(50))
-                            .padding(horizontal = 8.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = "NEW",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = NeonPink
-                        )
-                    }
-                }
+                Spacer(modifier = Modifier.width(spacing.space2))
+                Text("Sign Out", color = tokens.dangerAccent, fontWeight = FontWeight.Bold)
             }
         }
     }

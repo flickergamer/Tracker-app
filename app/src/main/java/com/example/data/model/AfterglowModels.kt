@@ -75,9 +75,11 @@ val POPULAR_PLATFORMS = listOf(
     "Disney+",
     "Apple TV+",
     "Max",
+    "Paramount+",
     "Crunchyroll",
     "Viki",
     "Hulu",
+    "Fubo",
     "Theater",
     "Other"
 )
@@ -98,6 +100,93 @@ val POPULAR_GENRES = listOf(
     "Slice of Life",
     "Documentary"
 )
+
+fun normalizeGenreToken(raw: String): String {
+    val trimmed = raw.trim()
+    if (trimmed.isBlank()) return ""
+    return when (trimmed.lowercase()) {
+        "action & adventure", "action and adventure" -> "Action"
+        "sci-fi & fantasy", "sci-fi and fantasy", "science fiction", "sci fi", "scifi" -> "Sci-Fi"
+        "war & politics", "war and politics" -> "War"
+        "mystery & thriller", "crime & mystery" -> "Mystery"
+        "kids", "family & kids" -> "Family"
+        "tv movie" -> "Drama"
+        "soap" -> "Drama"
+        "reality" -> "Reality"
+        "talk" -> "Talk"
+        "news" -> "Documentary"
+        "slice of life", "slice-of-life" -> "Slice of Life"
+        "romantic" -> "Romance"
+        else -> {
+            val match = POPULAR_GENRES.firstOrNull { it.equals(trimmed, ignoreCase = true) }
+            match ?: trimmed.split(" ")
+                .filter { it.isNotBlank() }
+                .joinToString(" ") { word ->
+                    word.replaceFirstChar { ch -> if (ch.isLowerCase()) ch.titlecase() else ch.toString() }
+                }
+        }
+    }
+}
+
+fun normalizeGenres(raw: String): String {
+    if (raw.isBlank()) return ""
+    val seen = LinkedHashSet<String>()
+    val result = mutableListOf<String>()
+    raw.split(",").forEach { part ->
+        val token = normalizeGenreToken(part)
+        if (token.isNotBlank()) {
+            val key = token.lowercase()
+            if (seen.add(key)) {
+                result.add(token)
+            }
+        }
+    }
+    return result.joinToString(", ")
+}
+
+fun normalizePlatform(raw: String): String {
+    val trimmed = raw.trim()
+    if (trimmed.isBlank()) return ""
+    val lower = trimmed.lowercase()
+    return when {
+        lower.contains("paramount") -> "Paramount+"
+        lower.contains("disney") || lower == "jiohotstar" || lower == "hotstar" -> "Disney+"
+        lower.contains("prime video") || lower == "amazon prime" || lower == "amazon" -> "Prime Video"
+        lower == "fubotv" || lower == "fubo tv" || lower == "fubo" -> "Fubo"
+        lower.contains("apple tv") -> "Apple TV+"
+        lower == "hbo max" || lower == "max" || lower == "hbo" -> "Max"
+        lower.startsWith("netflix") -> "Netflix"
+        lower.contains("crunchyroll") -> "Crunchyroll"
+        lower == "hulu" -> "Hulu"
+        lower.contains("viki") -> "Viki"
+        lower == "theater" || lower == "theatre" || lower == "cinema" -> "Theater"
+        else -> trimmed
+    }
+}
+
+@Keep
+@IgnoreExtraProperties
+data class SeasonProgress(
+    val seasonNumber: Long = 1L,
+    val totalEpisodes: Long = 0L,
+    val episodesWatched: Long = 0L
+) {
+    val progressPercent: Int
+        get() = if (totalEpisodes <= 0L) 0 else ((episodesWatched.toDouble() / totalEpisodes.toDouble()) * 100.0)
+            .roundToInt()
+            .coerceIn(0, 100)
+
+    fun toMap(): Map<String, Any> {
+        val safeSeason = seasonNumber.coerceIn(1L, 200L)
+        val safeTotal = totalEpisodes.coerceIn(0L, 10000L)
+        val safeWatched = episodesWatched.coerceIn(0L, if (safeTotal > 0L) safeTotal else 10000L)
+        return mapOf(
+            "seasonNumber" to safeSeason,
+            "totalEpisodes" to safeTotal,
+            "episodesWatched" to safeWatched
+        )
+    }
+}
 
 @Keep
 @IgnoreExtraProperties
@@ -151,12 +240,12 @@ data class MediaItem(
     val mediaCategory: String = MediaCategory.MOVIE.name,
     val posterUrl: String = "",
     val genre: String = "",
-    val language: String = "English",
-    val releaseYear: Long = 2024L,
-    val streamingPlatform: String = "Netflix",
+    val language: String = "",
+    val releaseYear: Long = 0L,
+    val streamingPlatform: String = "",
     val imdbRating: Double = 0.0,
     val personalRating: Double = 0.0,
-    val runtimeMinutes: Long = 120L,
+    val runtimeMinutes: Long = 0L,
     val director: String = "",
     val mainCast: String = "",
     val country: String = "",
@@ -169,11 +258,13 @@ data class MediaItem(
     val imdbLink: String = "",
     val personalReview: String = "",
     val notes: String = "",
+    val synopsis: String = "",
     val totalSeasons: Long = 1L,
     val currentSeason: Long = 1L,
-    val totalEpisodes: Long = 10L,
+    val totalEpisodes: Long = 0L,
     val episodesWatched: Long = 0L,
     val currentEpisode: Long = 0L,
+    val seasons: List<SeasonProgress> = emptyList(),
     val watchlistItem: Boolean = false,
     val priority: String = WatchlistPriority.MEDIUM.name,
     val dateAdded: String = "",
@@ -188,6 +279,59 @@ data class MediaItem(
     val categoryEnum: MediaCategory get() = MediaCategory.fromRaw(mediaCategory)
     val statusEnum: WatchStatus get() = WatchStatus.fromRaw(watchStatus)
     val priorityEnum: WatchlistPriority get() = WatchlistPriority.fromRaw(priority)
+
+    val normalizedPlatform: String
+        get() = normalizePlatform(streamingPlatform)
+
+    val normalizedGenre: String
+        get() = normalizeGenres(genre)
+
+    val genreList: List<String>
+        get() = normalizedGenre.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+
+    val effectiveSeasons: List<SeasonProgress>
+        get() {
+            if (!categoryEnum.isEpisodic) return emptyList()
+            if (seasons.isNotEmpty()) {
+                return seasons.sortedBy { it.seasonNumber }
+            }
+            val safeSeasonsCount = totalSeasons.coerceAtLeast(1L).coerceAtMost(50L).toInt()
+            if (safeSeasonsCount == 1) {
+                return listOf(
+                    SeasonProgress(
+                        seasonNumber = 1L,
+                        totalEpisodes = totalEpisodes.coerceAtLeast(0L),
+                        episodesWatched = episodesWatched.coerceIn(0L, if (totalEpisodes > 0L) totalEpisodes else 10000L)
+                    )
+                )
+            }
+            val avgPerSeason = if (totalEpisodes > 0L) (totalEpisodes / safeSeasonsCount).coerceAtLeast(1L) else 0L
+            var remainingTotal = totalEpisodes.coerceAtLeast(0L)
+            var remainingWatched = episodesWatched.coerceAtLeast(0L)
+            return (1..safeSeasonsCount).map { sNum ->
+                val seasonTotal = if (sNum == safeSeasonsCount) {
+                    remainingTotal
+                } else {
+                    val v = avgPerSeason.coerceAtMost(remainingTotal)
+                    remainingTotal -= v
+                    v
+                }
+                val seasonWatched = if (seasonTotal > 0L) {
+                    val w = remainingWatched.coerceAtMost(seasonTotal)
+                    remainingWatched -= w
+                    w
+                } else if (sNum == currentSeason.toInt()) {
+                    val w = remainingWatched
+                    remainingWatched = 0L
+                    w
+                } else 0L
+                SeasonProgress(
+                    seasonNumber = sNum.toLong(),
+                    totalEpisodes = seasonTotal,
+                    episodesWatched = seasonWatched
+                )
+            }
+        }
 
     val episodeProgressPercent: Int
         get() {
@@ -233,14 +377,36 @@ data class MediaItem(
             return totalEpisodes.coerceAtLeast(0L) * epMinutes
         }
 
-    val genreList: List<String>
-        get() = genre.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+    fun formattedYearOrBlank(): String =
+        if (releaseYear > 0L) releaseYear.toString() else ""
 
     fun formattedSeriesProgress(): String =
         "$title • Season ${currentSeason.coerceAtLeast(1)} • Episode $episodesWatched/$totalEpisodes • $episodeProgressPercent% Progress"
 
     fun formattedCompactSeriesProgress(): String =
         "S${currentSeason.coerceAtLeast(1)} · E$episodesWatched/$totalEpisodes · $episodeProgressPercent%"
+
+    fun progressHint(): String = when {
+        !categoryEnum.isEpisodic -> statusEnum.label
+        totalEpisodes > 0L -> "Ep $episodesWatched/$totalEpisodes · S${currentSeason.coerceAtLeast(1)}"
+        else -> "S${currentSeason.coerceAtLeast(1)} · Ep $episodesWatched"
+    }
+
+    fun withSyncedSeasons(updatedSeasons: List<SeasonProgress>): MediaItem {
+        val sorted = updatedSeasons.sortedBy { it.seasonNumber }
+        val sumTotal = sorted.sumOf { it.totalEpisodes.coerceAtLeast(0L) }
+        val sumWatched = sorted.sumOf { it.episodesWatched.coerceAtLeast(0L) }
+        val activeSeason = sorted.firstOrNull { it.totalEpisodes == 0L || it.episodesWatched < it.totalEpisodes }
+            ?: sorted.lastOrNull()
+        return copy(
+            seasons = sorted,
+            totalSeasons = sorted.size.toLong().coerceAtLeast(1L),
+            currentSeason = activeSeason?.seasonNumber ?: 1L,
+            totalEpisodes = sumTotal,
+            episodesWatched = sumWatched,
+            currentEpisode = activeSeason?.episodesWatched ?: sumWatched
+        )
+    }
 
     fun toCreateMap(uid: String): Map<String, Any> = buildBaseMap(uid) + mapOf(
         "userId" to uid,
@@ -260,15 +426,16 @@ data class MediaItem(
         val safeTotalEps = totalEpisodes.coerceIn(0L, 10000L)
         val safeWatchedEps = episodesWatched.coerceIn(0L, 10000L)
         val safeCurrEp = currentEpisode.coerceIn(0L, 10000L)
+        val safeYear = if (releaseYear <= 0L) 0L else releaseYear.coerceIn(1880L, 2040L)
         return mapOf(
             "userId" to uid,
             "title" to title.trim().ifBlank { "Untitled" }.take(160),
             "mediaCategory" to safeCat.name,
             "posterUrl" to posterUrl.trim().take(1000),
-            "genre" to genre.trim().take(160),
+            "genre" to normalizeGenres(genre).take(160),
             "language" to language.trim().take(60),
-            "releaseYear" to releaseYear.coerceIn(1880L, 2040L),
-            "streamingPlatform" to streamingPlatform.trim().take(80),
+            "releaseYear" to safeYear,
+            "streamingPlatform" to normalizePlatform(streamingPlatform).take(80),
             "imdbRating" to imdbRating.coerceIn(0.0, 10.0),
             "personalRating" to personalRating.coerceIn(0.0, 10.0),
             "runtimeMinutes" to runtimeMinutes.coerceIn(0L, 2000L),
@@ -284,11 +451,13 @@ data class MediaItem(
             "imdbLink" to imdbLink.trim().take(500),
             "personalReview" to personalReview.trim().take(3000),
             "notes" to notes.trim().take(2000),
+            "synopsis" to synopsis.trim().take(1500),
             "totalSeasons" to safeTotalSeasons,
             "currentSeason" to safeCurrSeason,
             "totalEpisodes" to safeTotalEps,
             "episodesWatched" to safeWatchedEps,
             "currentEpisode" to safeCurrEp,
+            "seasons" to seasons.take(100).map { it.toMap() },
             "watchlistItem" to watchlistItem,
             "priority" to safePriority.name,
             "dateAdded" to dateAdded.trim().take(20),
@@ -352,7 +521,12 @@ data class DashboardStats(
     val totalTitles: Int = 0,
     val totalMovies: Int = 0,
     val totalWebSeries: Int = 0,
-    val totalAnimeAndKDrama: Int = 0,
+    val totalAnime: Int = 0,
+    val totalKDrama: Int = 0,
+    val completedMovies: Int = 0,
+    val completedWebSeries: Int = 0,
+    val completedAnime: Int = 0,
+    val completedKDrama: Int = 0,
     val completedCount: Int = 0,
     val watchingCount: Int = 0,
     val planToWatchCount: Int = 0,
@@ -364,6 +538,7 @@ data class DashboardStats(
     val moviesWatchTimeMinutes: Long = 0L,
     val seriesWatchTimeMinutes: Long = 0L,
     val animeWatchTimeMinutes: Long = 0L,
+    val kDramaWatchTimeMinutes: Long = 0L,
     val topGenre: String = "—",
     val highestRatedTitle: MediaItem? = null,
     val nextUpTitle: MediaItem? = null,
@@ -379,7 +554,10 @@ data class DashboardStats(
     val completedMoviesThisYear: Int = 0,
     val completedSeriesThisYear: Int = 0,
     val episodesWatchedTotal: Int = 0
-)
+) {
+    val totalAnimeAndKDrama: Int get() = totalAnime + totalKDrama
+    val animeAndKDramaWatchTimeMinutes: Long get() = animeWatchTimeMinutes + kDramaWatchTimeMinutes
+}
 
 sealed interface UiState<out T> {
     data object Loading : UiState<Nothing>

@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.export.ImportedBackup
 import com.example.data.firebase.AfterglowRepository
+import com.example.data.firebase.CloudBackupStore
 import com.example.data.model.AchievementBadge
 import com.example.data.model.DashboardStats
 import com.example.data.model.MediaCategory
@@ -25,14 +26,17 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
 import java.util.Locale
 
 data class AfterglowUiEvent(
@@ -41,22 +45,46 @@ data class AfterglowUiEvent(
     val onUndo: (() -> Unit)? = null
 )
 
+data class FirstSyncPreview(
+    val localCount: Int,
+    val cloudCount: Int
+)
+
+data class CloudSyncUiState(
+    val isSyncing: Boolean = false,
+    val lastSyncedAtMillis: Long = 0L,
+    val errorMessage: String? = null,
+    val pendingFirstSyncConfirmation: FirstSyncPreview? = null
+)
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class AfterglowViewModel(
     private val repository: AfterglowRepository,
     private val currentUserId: String,
-    private val defaultDisplayName: String?
+    private val defaultDisplayName: String?,
+    private val cloudBackupStore: CloudBackupStore? = null
 ) : ViewModel() {
 
     private val tmdbRepository = TmdbRepository()
     private val syncTrigger = MutableStateFlow(0)
+    private var migratedOnce = false
 
     private val _events = MutableSharedFlow<AfterglowUiEvent>(extraBufferCapacity = 12)
     val events = _events.asSharedFlow()
 
+    private val _cloudSyncUiState = MutableStateFlow(CloudSyncUiState())
+    val cloudSyncUiState: StateFlow<CloudSyncUiState> = _cloudSyncUiState.asStateFlow()
+
     init {
         viewModelScope.launch {
             repository.ensureUserProfile(currentUserId, defaultDisplayName)
+        }
+        cloudBackupStore?.let { store ->
+            viewModelScope.launch {
+                store.observeLastSyncedAt(currentUserId).collect { ts ->
+                    _cloudSyncUiState.update { it.copy(lastSyncedAtMillis = ts) }
+                }
+            }
         }
     }
 
@@ -98,7 +126,21 @@ class AfterglowViewModel(
         .flatMapLatest {
             repository.observeMediaItems(currentUserId)
                 .map<List<MediaItem>, UiState<List<MediaItem>>> { items ->
-                    UiState.Success(items.sortedByDescending { it.updatedAt ?: it.createdAt ?: Timestamp(0, 0) })
+                    if (!migratedOnce && items.isNotEmpty()) {
+                        migratedOnce = true
+                        viewModelScope.launch {
+                            repository.migrateLegacyNormalization(currentUserId, items)
+                        }
+                    }
+                    val sorted = items.sortedByDescending { it.updatedAt ?: it.createdAt ?: Timestamp(0, 0) }
+                    cloudBackupStore?.let { store ->
+                        viewModelScope.launch {
+                            val currentProfile = (profileState.value as? UiState.Success)?.data
+                            val currentQuotes = (quotesState.value as? UiState.Success)?.data ?: emptyList()
+                            store.saveLocalSnapshot(currentUserId, currentProfile, sorted, currentQuotes)
+                        }
+                    }
+                    UiState.Success(sorted)
                 }
                 .catch { error ->
                     val firestoreError = generateSequence(error) { it.cause }
@@ -163,6 +205,103 @@ class AfterglowViewModel(
         _events.tryEmit(AfterglowUiEvent(message = message))
     }
 
+    fun requestCloudSync(isOnline: Boolean) {
+        if (!isOnline) {
+            val offlineMsg = "You're offline. Changes are saved locally and will sync when you reconnect."
+            _cloudSyncUiState.update { it.copy(errorMessage = offlineMsg) }
+            emitMessage(offlineMsg)
+            return
+        }
+        viewModelScope.launch {
+            _cloudSyncUiState.update { it.copy(isSyncing = true, errorMessage = null) }
+            val store = cloudBackupStore
+            val localSnap = store?.loadLocalSnapshot(currentUserId)
+            val alreadyConfirmed = store?.hasConfirmedFirstSync(currentUserId) ?: true
+            val serverResult = repository.fetchServerSnapshot(currentUserId)
+            serverResult.onSuccess { serverSnap ->
+                if (!alreadyConfirmed && localSnap != null &&
+                    localSnap.mediaItems.isNotEmpty() && serverSnap.mediaItems.isNotEmpty()
+                ) {
+                    _cloudSyncUiState.update {
+                        it.copy(
+                            isSyncing = false,
+                            pendingFirstSyncConfirmation = FirstSyncPreview(
+                                localCount = localSnap.mediaItems.size,
+                                cloudCount = serverSnap.mediaItems.size
+                            )
+                        )
+                    }
+                } else {
+                    performLwwCloudSync(localSnap)
+                }
+            }.onFailure { err ->
+                val msg = err.localizedMessage ?: "Cloud sync check failed."
+                _cloudSyncUiState.update { it.copy(isSyncing = false, errorMessage = msg) }
+                emitMessage(msg)
+            }
+        }
+    }
+
+    fun confirmFirstSyncMerge() {
+        _cloudSyncUiState.update { it.copy(pendingFirstSyncConfirmation = null) }
+        viewModelScope.launch {
+            _cloudSyncUiState.update { it.copy(isSyncing = true, errorMessage = null) }
+            val localSnap = cloudBackupStore?.loadLocalSnapshot(currentUserId)
+            performLwwCloudSync(localSnap)
+        }
+    }
+
+    fun cancelFirstSyncMerge() {
+        _cloudSyncUiState.update { it.copy(pendingFirstSyncConfirmation = null, isSyncing = false) }
+    }
+
+    private suspend fun performLwwCloudSync(localSnap: ImportedBackup?) {
+        repository.syncLocalSnapshotLww(currentUserId, localSnap)
+            .onSuccess { outcome ->
+                cloudBackupStore?.markSynced(currentUserId)
+                _cloudSyncUiState.update { it.copy(isSyncing = false, errorMessage = null) }
+                syncTrigger.value += 1
+                emitMessage(
+                    "Cloud synced · ${outcome.totalCount} titles (${outcome.uploadedCount} uploaded, ${outcome.downloadedCount} pulled)"
+                )
+            }
+            .onFailure { err ->
+                val msg = err.localizedMessage ?: "Cloud sync failed."
+                _cloudSyncUiState.update { it.copy(isSyncing = false, errorMessage = msg) }
+                emitMessage(msg)
+            }
+    }
+
+    fun restoreFromCloud(isOnline: Boolean) {
+        if (!isOnline) {
+            val offlineMsg = "Cannot restore from cloud while offline."
+            _cloudSyncUiState.update { it.copy(errorMessage = offlineMsg) }
+            emitMessage(offlineMsg)
+            return
+        }
+        viewModelScope.launch {
+            _cloudSyncUiState.update { it.copy(isSyncing = true, errorMessage = null) }
+            repository.fetchServerSnapshot(currentUserId)
+                .onSuccess { serverSnap ->
+                    cloudBackupStore?.saveLocalSnapshot(
+                        currentUserId,
+                        serverSnap.profile,
+                        serverSnap.mediaItems,
+                        serverSnap.quotes
+                    )
+                    cloudBackupStore?.markSynced(currentUserId)
+                    _cloudSyncUiState.update { it.copy(isSyncing = false, errorMessage = null) }
+                    syncTrigger.value += 1
+                    emitMessage("Restored ${serverSnap.mediaItems.size} titles & ${serverSnap.quotes.size} quotes from cloud")
+                }
+                .onFailure { err ->
+                    val msg = err.localizedMessage ?: "Cloud restore failed."
+                    _cloudSyncUiState.update { it.copy(isSyncing = false, errorMessage = msg) }
+                    emitMessage(msg)
+                }
+        }
+    }
+
     fun saveMediaItem(item: MediaItem, isEdit: Boolean) {
         viewModelScope.launch {
             val res = if (isEdit && item.id.isNotBlank()) {
@@ -203,6 +342,46 @@ class AfterglowViewModel(
         }
     }
 
+    fun bulkUpdateStatus(items: List<MediaItem>, targetStatus: WatchStatus) {
+        viewModelScope.launch {
+            repository.bulkUpdateStatus(currentUserId, items, targetStatus)
+                .onSuccess { count -> emitMessage("Updated $count titles to ${targetStatus.label}") }
+                .onFailure { emitMessage(it.localizedMessage ?: "Bulk status update failed") }
+        }
+    }
+
+    fun bulkAddToWatchlist(items: List<MediaItem>) {
+        viewModelScope.launch {
+            repository.bulkAddToWatchlist(currentUserId, items)
+                .onSuccess { count -> emitMessage("Added $count titles to Watchlist") }
+                .onFailure { emitMessage(it.localizedMessage ?: "Failed to update watchlist") }
+        }
+    }
+
+    fun bulkDeleteMediaItems(items: List<MediaItem>) {
+        viewModelScope.launch {
+            val snapshots = items.map { it.copy() }
+            repository.bulkDeleteMediaItems(currentUserId, snapshots.map { it.id })
+                .onSuccess { count ->
+                    _events.tryEmit(
+                        AfterglowUiEvent(
+                            message = "Deleted $count titles",
+                            undoLabel = "Undo",
+                            onUndo = {
+                                viewModelScope.launch {
+                                    snapshots.forEach { snap ->
+                                        repository.createMediaItem(currentUserId, snap.copy(id = ""))
+                                    }
+                                    emitMessage("Restored $count titles")
+                                }
+                            }
+                        )
+                    )
+                }
+                .onFailure { emitMessage(it.localizedMessage ?: "Bulk delete failed") }
+        }
+    }
+
     fun stepEpisode(item: MediaItem, delta: Int) {
         viewModelScope.launch {
             repository.incrementEpisode(currentUserId, item, delta)
@@ -212,6 +391,21 @@ class AfterglowViewModel(
                     }
                 }
                 .onFailure { emitMessage(it.localizedMessage ?: "Could not update episode progress") }
+        }
+    }
+
+    fun stepSeasonEpisode(item: MediaItem, seasonNumber: Long, delta: Int) {
+        viewModelScope.launch {
+            repository.stepSeasonEpisode(currentUserId, item, seasonNumber, delta)
+                .onFailure { emitMessage(it.localizedMessage ?: "Could not update season progress") }
+        }
+    }
+
+    fun addSeasonToSeries(item: MediaItem, episodeCount: Long) {
+        viewModelScope.launch {
+            repository.addSeasonToSeries(currentUserId, item, episodeCount)
+                .onSuccess { emitMessage("Added new season to \"${item.title}\"") }
+                .onFailure { emitMessage(it.localizedMessage ?: "Failed to add season") }
         }
     }
 
@@ -267,6 +461,21 @@ class AfterglowViewModel(
                 emitMessage("Logged rewatch #${item.rewatchCount + 1} for \"${item.title}\"")
             }.onFailure {
                 emitMessage(it.localizedMessage ?: "Failed to log rewatch")
+            }
+        }
+    }
+
+    fun decrementRewatch(item: MediaItem) {
+        if (item.rewatchCount <= 0L) return
+        val next = (item.rewatchCount - 1L).coerceAtLeast(0L)
+        viewModelScope.launch {
+            repository.updateQuickFlags(
+                currentUserId,
+                item.id,
+                rewatchCount = next,
+                rewatchFlag = next > 0L
+            ).onFailure {
+                emitMessage(it.localizedMessage ?: "Failed to update rewatch count")
             }
         }
     }
@@ -360,11 +569,16 @@ class AfterglowViewModel(
         if (items.isEmpty()) return DashboardStats()
 
         val currentYearStr = Calendar.getInstance().get(Calendar.YEAR).toString()
+
         val totalMovies = items.count { it.categoryEnum == MediaCategory.MOVIE }
         val totalWebSeries = items.count { it.categoryEnum == MediaCategory.WEB_SERIES }
-        val totalAnimeKDrama = items.count {
-            it.categoryEnum == MediaCategory.ANIME || it.categoryEnum == MediaCategory.K_DRAMA
-        }
+        val totalAnime = items.count { it.categoryEnum == MediaCategory.ANIME }
+        val totalKDrama = items.count { it.categoryEnum == MediaCategory.K_DRAMA }
+
+        val completedMovies = items.count { it.categoryEnum == MediaCategory.MOVIE && it.statusEnum == WatchStatus.COMPLETED }
+        val completedWebSeries = items.count { it.categoryEnum == MediaCategory.WEB_SERIES && it.statusEnum == WatchStatus.COMPLETED }
+        val completedAnime = items.count { it.categoryEnum == MediaCategory.ANIME && it.statusEnum == WatchStatus.COMPLETED }
+        val completedKDrama = items.count { it.categoryEnum == MediaCategory.K_DRAMA && it.statusEnum == WatchStatus.COMPLETED }
 
         val completed = items.count { it.statusEnum == WatchStatus.COMPLETED }
         val watching = items.count { it.statusEnum == WatchStatus.WATCHING }
@@ -377,10 +591,9 @@ class AfterglowViewModel(
 
         val moviesMins = items.filter { it.categoryEnum == MediaCategory.MOVIE }.sumOf { it.watchedTimeMinutes }
         val seriesMins = items.filter { it.categoryEnum == MediaCategory.WEB_SERIES }.sumOf { it.watchedTimeMinutes }
-        val animeMins = items.filter {
-            it.categoryEnum == MediaCategory.ANIME || it.categoryEnum == MediaCategory.K_DRAMA
-        }.sumOf { it.watchedTimeMinutes }
-        val totalMins = moviesMins + seriesMins + animeMins
+        val animeMins = items.filter { it.categoryEnum == MediaCategory.ANIME }.sumOf { it.watchedTimeMinutes }
+        val kDramaMins = items.filter { it.categoryEnum == MediaCategory.K_DRAMA }.sumOf { it.watchedTimeMinutes }
+        val totalMins = moviesMins + seriesMins + animeMins + kDramaMins
         val totalEps = items.filter { it.categoryEnum.isEpisodic }.sumOf { it.episodesWatched }
 
         val genreCounts = mutableMapOf<String, Int>()
@@ -392,7 +605,7 @@ class AfterglowViewModel(
         val sortedGenres = genreCounts.entries.sortedByDescending { it.value }.map { it.key to it.value }
 
         val platformCounts = items
-            .map { it.streamingPlatform.trim().ifBlank { "Unspecified" } }
+            .map { it.normalizedPlatform.ifBlank { "Unspecified" } }
             .groupingBy { it }
             .eachCount()
             .entries
@@ -403,22 +616,39 @@ class AfterglowViewModel(
             st to items.count { it.statusEnum == st }
         }.filter { it.second > 0 }
 
-        val monthFormatter = SimpleDateFormat("MMM yy", Locale.US)
-        val monthCounts = LinkedHashMap<String, Int>()
-        val yearCounts = mutableMapOf<String, Int>()
+        val monthCountsByKey = sortedMapOf<String, Int>()
+        val yearCounts = sortedMapOf<String, Int>()
+        val monthKeyFmt = SimpleDateFormat("yyyy-MM", Locale.US)
+        val monthDisplayFmt = SimpleDateFormat("MMM yy", Locale.US)
 
         items.forEach { item ->
-            val dateStr = item.completionDate.ifBlank { item.startDate }.ifBlank { item.dateAdded }
-            val monthLabel = parseMonthLabel(dateStr, item.createdAt, monthFormatter)
-            if (monthLabel != null) {
-                monthCounts[monthLabel] = (monthCounts[monthLabel] ?: 0) + 1
+            val preferredDate = item.completionDate.ifBlank { item.dateAdded }
+            val parsedDate = parseDate(preferredDate, item.createdAt)
+            if (parsedDate != null) {
+                val mKey = monthKeyFmt.format(parsedDate)
+                monthCountsByKey[mKey] = (monthCountsByKey[mKey] ?: 0) + 1
             }
-            val yr = dateStr.take(4).takeIf { it.length == 4 && it.all(Char::isDigit) }
-                ?: item.releaseYear.toString()
             if (item.statusEnum == WatchStatus.COMPLETED) {
-                yearCounts[yr] = (yearCounts[yr] ?: 0) + 1
+                val yr = preferredDate.take(4).takeIf { it.length == 4 && it.all(Char::isDigit) }
+                    ?: parsedDate?.let { SimpleDateFormat("yyyy", Locale.US).format(it) }
+                if (!yr.isNullOrBlank()) {
+                    yearCounts[yr] = (yearCounts[yr] ?: 0) + 1
+                }
             }
         }
+
+        val monthlyPoints = monthCountsByKey.entries
+            .toList()
+            .takeLast(12)
+            .mapNotNull { (ym, count) ->
+                val date = runCatching { monthKeyFmt.parse(ym) }.getOrNull()
+                if (date != null) monthDisplayFmt.format(date) to count else ym to count
+            }
+
+        val yearlyPoints = yearCounts.entries
+            .toList()
+            .takeLast(8)
+            .map { it.key to it.value }
 
         val top5 = items
             .filter { it.personalRating > 0.0 }
@@ -443,34 +673,58 @@ class AfterglowViewModel(
             .filter { it.statusEnum == WatchStatus.COMPLETED }
             .sortedWith(compareByDescending<MediaItem> { it.completionDate }.thenByDescending { it.updatedAt ?: Timestamp(0, 0) })
             .take(6)
+
         val nextUp = items
-            .filter { it.watchlistItem || it.statusEnum == WatchStatus.PLAN_TO_WATCH || it.statusEnum == WatchStatus.ON_HOLD }
+            .filter {
+                it.statusEnum == WatchStatus.WATCHING ||
+                    it.statusEnum == WatchStatus.ON_HOLD ||
+                    it.statusEnum == WatchStatus.PLAN_TO_WATCH ||
+                    it.watchlistItem
+            }
             .sortedWith(
-                compareBy<MediaItem> { if (it.statusEnum == WatchStatus.PLAN_TO_WATCH || it.watchlistItem) 0 else 1 }
+                compareBy<MediaItem> {
+                    when (it.statusEnum) {
+                        WatchStatus.WATCHING -> 0
+                        WatchStatus.ON_HOLD -> 1
+                        WatchStatus.PLAN_TO_WATCH -> 2
+                        else -> if (it.watchlistItem) 2 else 3
+                    }
+                }
+                    .thenByDescending {
+                        if (it.statusEnum == WatchStatus.WATCHING || it.statusEnum == WatchStatus.ON_HOLD) {
+                            (it.updatedAt ?: it.createdAt)?.seconds ?: 0L
+                        } else 0L
+                    }
                     .thenBy { it.priorityEnum.sortWeight }
                     .thenByDescending { it.dateAdded }
                     .thenByDescending { (it.createdAt ?: it.updatedAt)?.seconds ?: 0L }
             )
             .firstOrNull()
-            ?: items.filter { it != top5.firstOrNull() }
-                .maxByOrNull { (it.createdAt ?: it.updatedAt)?.seconds ?: 0L }
+            ?: items.firstOrNull()
 
         val completedMoviesYr = items.count {
             it.categoryEnum == MediaCategory.MOVIE &&
                 it.statusEnum == WatchStatus.COMPLETED &&
-                (it.completionDate.startsWith(currentYearStr) || it.completionDate.isBlank())
+                (it.completionDate.ifBlank { it.dateAdded }.startsWith(currentYearStr) ||
+                    (it.completionDate.isBlank() && it.dateAdded.isBlank()))
         }
-        val completedSeriesYr = items.count {
-            it.categoryEnum.isEpisodic &&
+        val completedWebSeriesYr = items.count {
+            it.categoryEnum == MediaCategory.WEB_SERIES &&
                 it.statusEnum == WatchStatus.COMPLETED &&
-                (it.completionDate.startsWith(currentYearStr) || it.completionDate.isBlank())
+                (it.completionDate.ifBlank { it.dateAdded }.startsWith(currentYearStr) ||
+                    (it.completionDate.isBlank() && it.dateAdded.isBlank()))
         }
 
         return DashboardStats(
             totalTitles = items.size,
             totalMovies = totalMovies,
             totalWebSeries = totalWebSeries,
-            totalAnimeAndKDrama = totalAnimeKDrama,
+            totalAnime = totalAnime,
+            totalKDrama = totalKDrama,
+            completedMovies = completedMovies,
+            completedWebSeries = completedWebSeries,
+            completedAnime = completedAnime,
+            completedKDrama = completedKDrama,
             completedCount = completed,
             watchingCount = watching,
             planToWatchCount = planToWatch,
@@ -482,47 +736,52 @@ class AfterglowViewModel(
             moviesWatchTimeMinutes = moviesMins,
             seriesWatchTimeMinutes = seriesMins,
             animeWatchTimeMinutes = animeMins,
+            kDramaWatchTimeMinutes = kDramaMins,
             topGenre = sortedGenres.firstOrNull()?.first ?: "—",
             highestRatedTitle = top5.firstOrNull(),
             nextUpTitle = nextUp,
             genreDistribution = sortedGenres.take(8),
             platformDistribution = platformCounts.take(7),
             statusDistribution = statusDist,
-            monthlyActivity = monthCounts.entries.toList().takeLast(6).map { it.key to it.value },
-            yearlyHistory = yearCounts.entries.sortedBy { it.key }.takeLast(6).map { it.key to it.value },
+            monthlyActivity = monthlyPoints,
+            yearlyHistory = yearlyPoints,
             top5Rated = top5,
             currentlyWatching = watchingNow,
             recentlyAdded = recentAdded,
             recentlyCompleted = recentCompleted,
             completedMoviesThisYear = completedMoviesYr,
-            completedSeriesThisYear = completedSeriesYr,
+            completedSeriesThisYear = completedWebSeriesYr,
             episodesWatchedTotal = totalEps.toInt()
         )
     }
 
-    private fun parseMonthLabel(dateStr: String, fallbackTs: Timestamp?, fmt: SimpleDateFormat): String? {
-        if (dateStr.length >= 7) {
-            try {
-                val parsed = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(dateStr.take(10))
-                if (parsed != null) return fmt.format(parsed)
-            } catch (_: Exception) {
-            }
+    private fun parseDate(dateStr: String, fallbackTs: Timestamp?): Date? {
+        if (dateStr.length >= 10) {
+            runCatching {
+                SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(dateStr.take(10))
+            }.getOrNull()?.let { return it }
         }
-        return fallbackTs?.toDate()?.let { fmt.format(it) }
+        if (dateStr.length >= 7) {
+            runCatching {
+                SimpleDateFormat("yyyy-MM", Locale.US).parse(dateStr.take(7))
+            }.getOrNull()?.let { return it }
+        }
+        return fallbackTs?.toDate()
     }
 
     private fun computeAchievements(items: List<MediaItem>, quotes: List<QuoteItem>): List<AchievementBadge> {
         val completedMovies = items.count { it.categoryEnum == MediaCategory.MOVIE && it.statusEnum == WatchStatus.COMPLETED }
-        val completedSeries = items.count { it.categoryEnum.isEpisodic && it.statusEnum == WatchStatus.COMPLETED }
+        val completedWebSeries = items.count { it.categoryEnum == MediaCategory.WEB_SERIES && it.statusEnum == WatchStatus.COMPLETED }
         val completedAnime = items.count { it.categoryEnum == MediaCategory.ANIME && it.statusEnum == WatchStatus.COMPLETED }
+        val completedEpisodic = items.count { it.categoryEnum.isEpisodic && it.statusEnum == WatchStatus.COMPLETED }
         val ratedCount = items.count { it.personalRating > 0.0 }
         val reviewCount = items.count { it.personalReview.isNotBlank() }
 
         return listOf(
             AchievementBadge("first_frame", "First Frame", "Add your first title to Zenix", items.size, 1),
-            AchievementBadge("binge_watcher", "Binge Watcher", "Complete 3 series or dramas", completedSeries, 3),
+            AchievementBadge("binge_watcher", "Binge Watcher", "Complete 3 series, anime, or dramas", completedEpisodic, 3),
             AchievementBadge("anime_explorer", "Anime Explorer", "Complete 5 anime series", completedAnime, 5),
-            AchievementBadge("series_master", "Series Master", "Complete 10 series", completedSeries, 10),
+            AchievementBadge("series_master", "Series Master", "Complete 10 web series", completedWebSeries, 10),
             AchievementBadge("movie_lover", "Movie Lover", "Complete 50 movies", completedMovies, 50),
             AchievementBadge("cinema_expert", "Cinema Expert", "Rate 100 titles", ratedCount, 100),
             AchievementBadge("critics_voice", "Critic's Voice", "Write 5 personal reviews", reviewCount, 5),

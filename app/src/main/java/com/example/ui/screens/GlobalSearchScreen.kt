@@ -255,10 +255,11 @@ fun GlobalSearchScreen(
                                         overflow = TextOverflow.Ellipsis
                                     )
                                     Text(
-                                        text = buildString {
-                                            append("${item.categoryEnum.label} · ${item.releaseYear}")
-                                            if (item.streamingPlatform.isNotBlank()) append(" · ${item.streamingPlatform}")
-                                        },
+                                        text = listOfNotNull(
+                                            item.categoryEnum.label,
+                                            item.formattedYearOrBlank().takeIf { it.isNotBlank() },
+                                            item.normalizedPlatform.takeIf { it.isNotBlank() }
+                                        ).joinToString(" · "),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = tokens.textSecondary,
                                         maxLines = 1,

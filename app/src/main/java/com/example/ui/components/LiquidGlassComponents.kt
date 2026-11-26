@@ -20,9 +20,11 @@ import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -90,6 +92,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -97,6 +100,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -166,6 +170,19 @@ fun HorizontalScrollFadeBox(
     val tokens = LocalZenixTokens.current
     Box(modifier = modifier) {
         content()
+        if (scrollState.canScrollBackward) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .width(28.dp)
+                    .height(48.dp)
+                    .background(
+                        Brush.horizontalGradient(
+                            colors = listOf(tokens.background, Color.Transparent)
+                        )
+                    )
+            )
+        }
         if (scrollState.canScrollForward) {
             Box(
                 modifier = Modifier
@@ -872,6 +889,7 @@ fun GlassSecondaryButton(
 /**
  * Rounded 24dp Glass Card with Soft Neon Glow Borders and 0.96 press scale when clickable
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun NeonGlassCard(
     modifier: Modifier = Modifier,
@@ -880,16 +898,18 @@ fun NeonGlassCard(
     glowAlpha: Float = 0.24f,
     @Suppress("UNUSED_PARAMETER") pastelFill: Color? = null,
     onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
     contentPadding: PaddingValues = PaddingValues(16.dp),
     content: @Composable ColumnScope.() -> Unit
 ) {
     val tokens = LocalZenixTokens.current
     val shape = RoundedCornerShape(cornerRadius)
     val interactionSource = remember { MutableInteractionSource() }
+    val isInteractive = onClick != null || onLongClick != null
 
     val cardMod = when (tokens.mode) {
         AppThemeMode.NEON_GLOSSY -> modifier
-            .then(if (onClick != null) Modifier.pressScale(interactionSource, 0.96f) else Modifier)
+            .then(if (isInteractive) Modifier.pressScale(interactionSource, 0.96f) else Modifier)
             .neonGlow(color = accentColor, cornerRadius = cornerRadius, alpha = glowAlpha, spread = 8.dp)
             .clip(shape)
             .background(Color(0xFF0E0A1B).copy(alpha = 0.74f))
@@ -922,13 +942,13 @@ fun NeonGlassCard(
             )
 
         AppThemeMode.MINIMAL_DARK -> modifier
-            .then(if (onClick != null) Modifier.pressScale(interactionSource, 0.96f) else Modifier)
+            .then(if (isInteractive) Modifier.pressScale(interactionSource, 0.96f) else Modifier)
             .clip(shape)
             .background(MinimalDarkCard)
             .border(1.dp, MinimalDarkOutline, shape)
 
         AppThemeMode.AMOLED_BLACK -> modifier
-            .then(if (onClick != null) Modifier.pressScale(interactionSource, 0.96f) else Modifier)
+            .then(if (isInteractive) Modifier.pressScale(interactionSource, 0.96f) else Modifier)
             .clip(shape)
             .background(AmoledCard)
             .border(1.dp, AmoledOutline, shape)
@@ -936,14 +956,15 @@ fun NeonGlassCard(
 
     Box(
         modifier = cardMod.then(
-            if (onClick != null) {
+            if (isInteractive) {
                 Modifier
                     .zenixFocusRing(accentColor, cornerRadius)
-                    .clickable(
+                    .combinedClickable(
                         interactionSource = interactionSource,
                         indication = ripple(color = accentColor),
                         role = Role.Button,
-                        onClick = onClick
+                        onLongClick = onLongClick,
+                        onClick = { onClick?.invoke() }
                     )
             } else Modifier
         )
@@ -1493,8 +1514,16 @@ fun LiquidGlassBottomBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
+            .background(
+                Brush.verticalGradient(
+                    0.0f to Color.Transparent,
+                    0.32f to tokens.background.copy(alpha = 0.72f),
+                    0.75f to tokens.background.copy(alpha = 0.94f),
+                    1.0f to tokens.background
+                )
+            )
             .navigationBarsPadding()
-            .padding(start = spacing.space4, end = spacing.space4, bottom = spacing.space2)
+            .padding(start = spacing.space4, end = spacing.space4, top = spacing.space3, bottom = spacing.space2)
     ) {
         val blurLayerModifier = if (canBlur && hazeState != null) {
             runCatching {
@@ -1703,26 +1732,50 @@ fun NeonRatingStars(
     starSize: Dp = 15.dp
 ) {
     val tokens = LocalZenixTokens.current
-    val stars = ((ratingOutOfTen / 2.0) * 2.0).toInt() / 2.0
+    val stars = (ratingOutOfTen.coerceIn(0.0, 10.0) / 2.0).toFloat()
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         for (i in 1..5) {
-            val filled = stars >= i - 0.25
-            Icon(
-                imageVector = if (filled) Icons.Filled.Star else Icons.Outlined.StarBorder,
-                contentDescription = null,
-                tint = if (filled) tokens.ratingGold else tokens.textSecondary.copy(alpha = 0.6f),
+            val fillFraction = (stars - (i - 1)).coerceIn(0f, 1f)
+            Box(
                 modifier = Modifier
                     .size(starSize)
                     .then(
-                        if (filled && tokens.useGlow) {
-                            Modifier.neonGlow(tokens.ratingGold, cornerRadius = starSize / 2, alpha = 0.26f, spread = 3.dp)
+                        if (fillFraction > 0.05f && tokens.useGlow) {
+                            Modifier.neonGlow(
+                                tokens.ratingGold,
+                                cornerRadius = starSize / 2,
+                                alpha = 0.24f * fillFraction,
+                                spread = 3.dp
+                            )
                         } else Modifier
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.StarBorder,
+                    contentDescription = null,
+                    tint = tokens.textSecondary.copy(alpha = 0.55f),
+                    modifier = Modifier.fillMaxSize()
+                )
+                if (fillFraction > 0f) {
+                    Icon(
+                        imageVector = Icons.Filled.Star,
+                        contentDescription = null,
+                        tint = tokens.ratingGold,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .drawWithContent {
+                                clipRect(right = size.width * fillFraction) {
+                                    this@drawWithContent.drawContent()
+                                }
+                            }
                     )
-            )
+                }
+            }
         }
     }
 }

@@ -26,25 +26,34 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Tv
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
@@ -329,6 +338,126 @@ fun StatKpiCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SwipeableMediaCard(
+    enabled: Boolean = true,
+    isFavourite: Boolean,
+    onToggleFavourite: () -> Unit,
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    val tokens = LocalZenixTokens.current
+    val radii = LocalZenixRadii.current
+    val haptics = LocalHapticFeedback.current
+    val currentFav by rememberUpdatedState(onToggleFavourite)
+    val currentDel by rememberUpdatedState(onDelete)
+
+    if (!enabled) {
+        Box(modifier = modifier) { content() }
+        return
+    }
+
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            when (value) {
+                SwipeToDismissBoxValue.StartToEnd -> {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    currentFav()
+                    false
+                }
+                SwipeToDismissBoxValue.EndToStart -> {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    currentDel()
+                    false
+                }
+                SwipeToDismissBoxValue.Settled -> false
+            }
+        },
+        positionalThreshold = { totalDistance -> totalDistance * 0.42f }
+    )
+
+    SwipeToDismissBox(
+        state = dismissState,
+        modifier = modifier,
+        enableDismissFromStartToEnd = true,
+        enableDismissFromEndToStart = true,
+        backgroundContent = {
+            val direction = dismissState.dismissDirection
+            val bgColor = when (direction) {
+                SwipeToDismissBoxValue.StartToEnd -> NeonPink.copy(alpha = 0.22f)
+                SwipeToDismissBoxValue.EndToStart -> tokens.dangerAccent.copy(alpha = 0.24f)
+                SwipeToDismissBoxValue.Settled -> Color.Transparent
+            }
+            val borderColor = when (direction) {
+                SwipeToDismissBoxValue.StartToEnd -> NeonPink.copy(alpha = 0.65f)
+                SwipeToDismissBoxValue.EndToStart -> tokens.dangerAccent.copy(alpha = 0.70f)
+                SwipeToDismissBoxValue.Settled -> Color.Transparent
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(radii.lg))
+                    .background(bgColor)
+                    .then(
+                        if (direction != SwipeToDismissBoxValue.Settled) {
+                            Modifier.border(1.dp, borderColor, RoundedCornerShape(radii.lg))
+                        } else Modifier
+                    )
+                    .padding(horizontal = 20.dp),
+                contentAlignment = when (direction) {
+                    SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
+                    SwipeToDismissBoxValue.EndToStart -> Alignment.CenterEnd
+                    SwipeToDismissBoxValue.Settled -> Alignment.Center
+                }
+            ) {
+                when (direction) {
+                    SwipeToDismissBoxValue.StartToEnd -> {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isFavourite) Icons.Outlined.FavoriteBorder else Icons.Filled.Favorite,
+                                contentDescription = null,
+                                tint = NeonPink
+                            )
+                            Text(
+                                text = if (isFavourite) "Unfavourite" else "Favourite",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = NeonPink
+                            )
+                        }
+                    }
+                    SwipeToDismissBoxValue.EndToStart -> {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "Delete",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = tokens.dangerAccent
+                            )
+                            Icon(
+                                imageVector = Icons.Rounded.Delete,
+                                contentDescription = null,
+                                tint = tokens.dangerAccent
+                            )
+                        }
+                    }
+                    SwipeToDismissBoxValue.Settled -> Unit
+                }
+            }
+        }
+    ) {
+        content()
+    }
+}
+
 @Composable
 fun MediaGridCard(
     item: MediaItem,
@@ -336,21 +465,42 @@ fun MediaGridCard(
     onClick: () -> Unit,
     onToggleFavourite: () -> Unit,
     onEdit: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
+    isSelectionMode: Boolean = false,
+    isSelected: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val tokens = LocalZenixTokens.current
-    val accent = themedCategoryColor(item.categoryEnum)
+    val accent = if (isSelected) NeonCyan else themedCategoryColor(item.categoryEnum)
     val overlayBg = Color(0xFF0A0714).copy(alpha = 0.72f)
     val overlayBorder = Color.White.copy(alpha = 0.26f)
+    val haptics = LocalHapticFeedback.current
+    val yearText = item.formattedYearOrBlank()
+    val platformText = item.normalizedPlatform
+    val subLine = listOfNotNull(
+        yearText.takeIf { it.isNotBlank() },
+        platformText.takeIf { it.isNotBlank() }
+    ).joinToString(" • ").ifBlank { item.categoryEnum.label }
 
     NeonGlassCard(
         modifier = modifier
             .fillMaxWidth()
+            .then(
+                if (isSelected) {
+                    Modifier.border(2.dp, NeonCyan, RoundedCornerShape(24.dp))
+                } else Modifier
+            )
             .testTag("media_card_${item.id}"),
         accentColor = accent,
         cornerRadius = 24.dp,
-        glowAlpha = 0.24f,
+        glowAlpha = if (isSelected) 0.42f else 0.24f,
         onClick = onClick,
+        onLongClick = if (onLongClick != null) {
+            {
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                onLongClick()
+            }
+        } else null,
         contentPadding = PaddingValues(if (compact) 10.dp else 12.dp)
     ) {
         Box(
@@ -364,49 +514,71 @@ fun MediaGridCard(
                 category = item.categoryEnum,
                 modifier = Modifier.fillMaxSize()
             )
-            Row(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                if (onEdit != null) {
+            if (isSelectionMode) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(if (isSelected) NeonCyan else overlayBg)
+                        .border(1.5.dp, if (isSelected) Color.White else overlayBorder, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isSelected) {
+                        Icon(
+                            imageVector = Icons.Rounded.Check,
+                            contentDescription = "Selected",
+                            tint = Color(0xFF0A0812),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            } else {
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (onEdit != null) {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(overlayBg)
+                                .border(1.dp, overlayBorder, CircleShape)
+                                .clickable(role = Role.Button, onClick = onEdit),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Edit,
+                                contentDescription = "Edit ${item.title}",
+                                tint = tokens.textPrimary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
                     Box(
                         modifier = Modifier
                             .size(32.dp)
                             .clip(CircleShape)
                             .background(overlayBg)
-                            .border(1.dp, overlayBorder, CircleShape)
-                            .clickable(role = Role.Button, onClick = onEdit),
+                            .border(
+                                1.dp,
+                                if (item.favourite) tokens.dangerAccent.copy(alpha = 0.7f) else overlayBorder,
+                                CircleShape
+                            )
+                            .clickable(role = Role.Button, onClick = onToggleFavourite),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.Edit,
-                            contentDescription = "Edit ${item.title}",
-                            tint = tokens.textPrimary,
+                            imageVector = if (item.favourite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                            contentDescription = if (item.favourite) "Unfavourite ${item.title}" else "Favourite ${item.title}",
+                            tint = if (item.favourite) tokens.dangerAccent else tokens.textPrimary,
                             modifier = Modifier.size(16.dp)
                         )
                     }
-                }
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(overlayBg)
-                        .border(
-                            1.dp,
-                            if (item.favourite) tokens.dangerAccent.copy(alpha = 0.7f) else overlayBorder,
-                            CircleShape
-                        )
-                        .clickable(role = Role.Button, onClick = onToggleFavourite),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = if (item.favourite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                        contentDescription = if (item.favourite) "Unfavourite ${item.title}" else "Favourite ${item.title}",
-                        tint = if (item.favourite) tokens.dangerAccent else tokens.textPrimary,
-                        modifier = Modifier.size(16.dp)
-                    )
                 }
             }
         }
@@ -425,10 +597,7 @@ fun MediaGridCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = buildString {
-                    append(item.releaseYear)
-                    if (item.streamingPlatform.isNotBlank()) append(" • ${item.streamingPlatform}")
-                },
+                text = subLine,
                 style = MaterialTheme.typography.bodySmall,
                 color = tokens.textSecondary,
                 maxLines = 1,
@@ -440,9 +609,9 @@ fun MediaGridCard(
                 RatingPill(rating = item.personalRating)
             }
         }
-        if (item.genre.isNotBlank()) {
+        if (item.normalizedGenre.isNotBlank()) {
             Text(
-                text = item.genre,
+                text = item.normalizedGenre,
                 style = MaterialTheme.typography.labelSmall,
                 color = accent,
                 maxLines = 1,
@@ -476,22 +645,42 @@ fun SeriesProgressCard(
     onStepEpisode: (Int) -> Unit,
     onToggleFavourite: () -> Unit,
     onEdit: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
+    isSelectionMode: Boolean = false,
+    isSelected: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val tokens = LocalZenixTokens.current
-    val accent = themedCategoryColor(item.categoryEnum)
+    val accent = if (isSelected) NeonCyan else themedCategoryColor(item.categoryEnum)
     val barEnd = if (tokens.mode == AppThemeMode.NEON_GLOSSY) {
         if (accent == NeonCyan) NeonGreen else NeonCyan
     } else tokens.primaryAccent
+    val haptics = LocalHapticFeedback.current
+    val metaLine = listOfNotNull(
+        item.categoryEnum.label,
+        item.formattedYearOrBlank().takeIf { it.isNotBlank() },
+        item.normalizedPlatform.ifBlank { "Library" }
+    ).joinToString(" • ")
 
     NeonGlassCard(
         modifier = modifier
             .fillMaxWidth()
+            .then(
+                if (isSelected) {
+                    Modifier.border(2.dp, NeonCyan, RoundedCornerShape(24.dp))
+                } else Modifier
+            )
             .testTag("series_card_${item.id}"),
         accentColor = accent,
         cornerRadius = 24.dp,
-        glowAlpha = 0.25f,
+        glowAlpha = if (isSelected) 0.42f else 0.25f,
         onClick = onClick,
+        onLongClick = if (onLongClick != null) {
+            {
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                onLongClick()
+            }
+        } else null,
         contentPadding = PaddingValues(if (compact) 12.dp else 14.dp)
     ) {
         Row(
@@ -522,31 +711,51 @@ fun SeriesProgressCard(
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = "${item.categoryEnum.label} • ${item.releaseYear} • ${item.streamingPlatform.ifBlank { "Library" }}",
+                            text = metaLine,
                             style = MaterialTheme.typography.bodySmall,
                             color = tokens.textSecondary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                     }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (onEdit != null) {
-                            IconButton(onClick = onEdit, modifier = Modifier.size(36.dp)) {
+                    if (isSelectionMode) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(if (isSelected) NeonCyan else Color(0xFF0A0714).copy(alpha = 0.72f))
+                                .border(1.5.dp, if (isSelected) Color.White else tokens.outline, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (isSelected) {
                                 Icon(
-                                    imageVector = Icons.Rounded.Edit,
-                                    contentDescription = "Edit ${item.title}",
-                                    tint = tokens.textSecondary,
-                                    modifier = Modifier.size(18.dp)
+                                    imageVector = Icons.Rounded.Check,
+                                    contentDescription = "Selected",
+                                    tint = Color(0xFF0A0812),
+                                    modifier = Modifier.size(16.dp)
                                 )
                             }
                         }
-                        IconButton(onClick = onToggleFavourite, modifier = Modifier.size(36.dp)) {
-                            Icon(
-                                imageVector = if (item.favourite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                                contentDescription = "Toggle favourite",
-                                tint = if (item.favourite) tokens.dangerAccent else tokens.textSecondary,
-                                modifier = Modifier.size(19.dp)
-                            )
+                    } else {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (onEdit != null) {
+                                IconButton(onClick = onEdit, modifier = Modifier.size(36.dp)) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Edit,
+                                        contentDescription = "Edit ${item.title}",
+                                        tint = tokens.textSecondary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                            IconButton(onClick = onToggleFavourite, modifier = Modifier.size(36.dp)) {
+                                Icon(
+                                    imageVector = if (item.favourite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                                    contentDescription = "Toggle favourite",
+                                    tint = if (item.favourite) tokens.dangerAccent else tokens.textSecondary,
+                                    modifier = Modifier.size(19.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -695,13 +904,13 @@ fun MovieTableView(
                         modifier = Modifier.width(170.dp)
                     )
                     Text(
-                        text = movie.releaseYear.toString(),
+                        text = movie.formattedYearOrBlank().ifBlank { "—" },
                         style = MaterialTheme.typography.labelMedium,
                         color = tokens.textSecondary,
                         modifier = Modifier.width(60.dp)
                     )
                     Text(
-                        text = movie.genre.ifBlank { "—" },
+                        text = movie.normalizedGenre.ifBlank { "—" },
                         style = MaterialTheme.typography.bodySmall,
                         color = tokens.textSecondary,
                         maxLines = 1,
@@ -709,7 +918,7 @@ fun MovieTableView(
                         modifier = Modifier.width(130.dp)
                     )
                     Text(
-                        text = movie.streamingPlatform.ifBlank { "—" },
+                        text = movie.normalizedPlatform.ifBlank { "—" },
                         style = MaterialTheme.typography.bodySmall,
                         color = tokens.textSecondary,
                         maxLines = 1,
@@ -732,7 +941,11 @@ fun MovieTableView(
                         modifier = Modifier.width(65.dp)
                     )
                     Text(
-                        text = if (movie.categoryEnum.isEpisodic) "${movie.episodesWatched}/${movie.totalEpisodes} ep" else formatWatchTime(movie.runtimeMinutes),
+                        text = if (movie.categoryEnum.isEpisodic) {
+                            "${movie.episodesWatched}/${movie.totalEpisodes} ep"
+                        } else if (movie.runtimeMinutes > 0L) {
+                            formatWatchTime(movie.runtimeMinutes)
+                        } else "—",
                         style = MaterialTheme.typography.labelMedium,
                         color = tokens.textSecondary,
                         modifier = Modifier.width(75.dp)

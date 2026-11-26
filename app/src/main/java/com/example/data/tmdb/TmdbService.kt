@@ -7,6 +7,9 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.example.BuildConfig
 import com.example.data.model.MediaCategory
+import com.example.data.model.SeasonProgress
+import com.example.data.model.normalizeGenres
+import com.example.data.model.normalizePlatform
 import com.squareup.moshi.Json
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
@@ -77,6 +80,10 @@ data class TmdbProviderItem(@Json(name = "provider_name") val providerName: Stri
 data class TmdbLocaleProviders(val flatrate: List<TmdbProviderItem>? = null)
 data class TmdbWatchProviders(val results: Map<String, TmdbLocaleProviders> = emptyMap())
 data class TmdbCreator(val name: String = "")
+data class TmdbSeason(
+    @Json(name = "season_number") val seasonNumber: Int = 0,
+    @Json(name = "episode_count") val episodeCount: Int = 0
+)
 
 data class TmdbMovieDetails(
     val id: Int = 0,
@@ -108,6 +115,7 @@ data class TmdbTvDetails(
     @Json(name = "origin_country") val originCountry: List<String> = emptyList(),
     val overview: String? = null,
     val genres: List<TmdbGenre> = emptyList(),
+    val seasons: List<TmdbSeason> = emptyList(),
     @Json(name = "created_by") val createdBy: List<TmdbCreator> = emptyList(),
     val credits: TmdbCredits? = null,
     val videos: TmdbVideos? = null,
@@ -153,6 +161,8 @@ data class TmdbPrefillResult(
     val imdbLink: String,
     val totalSeasons: Long,
     val totalEpisodes: Long,
+    val synopsis: String,
+    val seasons: List<SeasonProgress>,
     val notes: String
 )
 
@@ -184,63 +194,83 @@ class TmdbRepository {
                 isKDrama -> MediaCategory.K_DRAMA
                 else -> MediaCategory.WEB_SERIES
             }
-            val year = d.firstAirDate?.take(4)?.toLongOrNull() ?: 2024L
+            val year = d.firstAirDate?.take(4)?.toLongOrNull() ?: 0L
             val trailerKey = d.videos?.results
                 ?.firstOrNull { it.site.equals("YouTube", true) && it.type.equals("Trailer", true) }
                 ?.key ?: d.videos?.results?.firstOrNull { it.site.equals("YouTube", true) }?.key
-            val provider = d.watchProviders?.results?.get("US")?.flatrate?.firstOrNull()?.providerName
+            val rawProvider = d.watchProviders?.results?.get("US")?.flatrate?.firstOrNull()?.providerName
                 ?: d.watchProviders?.results?.values?.firstOrNull()?.flatrate?.firstOrNull()?.providerName
-                ?: "Netflix"
+                ?: ""
+            val normalizedGenres = normalizeGenres(d.genres.joinToString(", ") { it.name })
+            val normalizedProvider = normalizePlatform(rawProvider)
+            val parsedSeasons = d.seasons
+                .filter { it.seasonNumber > 0 }
+                .sortedBy { it.seasonNumber }
+                .map {
+                    SeasonProgress(
+                        seasonNumber = it.seasonNumber.toLong(),
+                        totalEpisodes = it.episodeCount.toLong().coerceAtLeast(0L),
+                        episodesWatched = 0L
+                    )
+                }
+            val totalSeasonCount = parsedSeasons.size.toLong().takeIf { it > 0L }
+                ?: (d.numberOfSeasons ?: 1).toLong().coerceAtLeast(1L)
+            val totalEpisodeCount = parsedSeasons.sumOf { it.totalEpisodes }.takeIf { it > 0L }
+                ?: (d.numberOfEpisodes ?: 0).toLong().coerceAtLeast(0L)
             Result.success(
                 TmdbPrefillResult(
                     title = d.name,
                     category = category,
                     posterUrl = d.posterPath?.let { "https://image.tmdb.org/t/p/w500$it" } ?: "",
-                    genre = d.genres.joinToString(", ") { it.name },
+                    genre = normalizedGenres,
                     language = mapLanguageCode(d.originalLanguage),
                     releaseYear = year,
-                    runtimeMinutes = (d.episodeRunTime.firstOrNull() ?: 45).toLong(),
+                    runtimeMinutes = (d.episodeRunTime.firstOrNull() ?: 0).toLong(),
                     director = d.createdBy.joinToString(", ") { it.name },
                     mainCast = d.credits?.cast?.sortedBy { it.order }?.take(5)?.joinToString(", ") { it.name } ?: "",
                     country = d.originCountry.firstOrNull() ?: "",
                     imdbRating = ((d.voteAverage ?: 0.0) * 10.0).toInt() / 10.0,
-                    streamingPlatform = provider,
+                    streamingPlatform = normalizedProvider,
                     trailerLink = trailerKey?.let { "https://www.youtube.com/watch?v=$it" } ?: "",
                     imdbLink = "",
-                    totalSeasons = (d.numberOfSeasons ?: 1).toLong(),
-                    totalEpisodes = (d.numberOfEpisodes ?: 10).toLong(),
-                    notes = d.overview?.take(400) ?: ""
+                    totalSeasons = totalSeasonCount,
+                    totalEpisodes = totalEpisodeCount,
+                    synopsis = d.overview?.trim()?.take(1500) ?: "",
+                    seasons = parsedSeasons,
+                    notes = ""
                 )
             )
         } else {
             val d = api.getMovieDetails(item.id, apiKey)
-            val year = d.releaseDate?.take(4)?.toLongOrNull() ?: 2024L
+            val year = d.releaseDate?.take(4)?.toLongOrNull() ?: 0L
             val director = d.credits?.crew?.firstOrNull { it.job.equals("Director", true) }?.name ?: ""
             val trailerKey = d.videos?.results
                 ?.firstOrNull { it.site.equals("YouTube", true) && it.type.equals("Trailer", true) }
                 ?.key ?: d.videos?.results?.firstOrNull { it.site.equals("YouTube", true) }?.key
-            val provider = d.watchProviders?.results?.get("US")?.flatrate?.firstOrNull()?.providerName
+            val rawProvider = d.watchProviders?.results?.get("US")?.flatrate?.firstOrNull()?.providerName
                 ?: d.watchProviders?.results?.values?.firstOrNull()?.flatrate?.firstOrNull()?.providerName
-                ?: "Netflix"
+                ?: ""
             Result.success(
                 TmdbPrefillResult(
                     title = d.title,
                     category = MediaCategory.MOVIE,
                     posterUrl = d.posterPath?.let { "https://image.tmdb.org/t/p/w500$it" } ?: "",
-                    genre = d.genres.joinToString(", ") { it.name },
+                    genre = normalizeGenres(d.genres.joinToString(", ") { it.name }),
                     language = mapLanguageCode(d.originalLanguage),
                     releaseYear = year,
-                    runtimeMinutes = (d.runtime ?: 120).toLong(),
+                    runtimeMinutes = (d.runtime ?: 0).toLong(),
                     director = director,
                     mainCast = d.credits?.cast?.sortedBy { it.order }?.take(5)?.joinToString(", ") { it.name } ?: "",
                     country = d.productionCountries.firstOrNull()?.name ?: "",
                     imdbRating = ((d.voteAverage ?: 0.0) * 10.0).toInt() / 10.0,
-                    streamingPlatform = provider,
+                    streamingPlatform = normalizePlatform(rawProvider),
                     trailerLink = trailerKey?.let { "https://www.youtube.com/watch?v=$it" } ?: "",
                     imdbLink = d.imdbId?.takeIf { it.isNotBlank() }?.let { "https://www.imdb.com/title/$it" } ?: "",
                     totalSeasons = 1L,
-                    totalEpisodes = 1L,
-                    notes = d.overview?.take(400) ?: ""
+                    totalEpisodes = 0L,
+                    synopsis = d.overview?.trim()?.take(1500) ?: "",
+                    seasons = emptyList(),
+                    notes = ""
                 )
             )
         }

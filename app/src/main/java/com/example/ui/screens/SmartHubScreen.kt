@@ -300,7 +300,11 @@ fun SmartHubScreen(
                                     PosterArtwork(item.posterUrl, item.title, item.categoryEnum, Modifier.size(56.dp, 80.dp))
                                     Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                         Text(item.title, style = MaterialTheme.typography.titleMedium, color = tokens.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                        Text("${item.categoryEnum.label} • ${item.releaseYear}", style = MaterialTheme.typography.bodySmall, color = tokens.textSecondary)
+                                        val colMeta = listOfNotNull(
+                                            item.categoryEnum.label,
+                                            item.formattedYearOrBlank().takeIf { it.isNotBlank() }
+                                        ).joinToString(" • ")
+                                        Text(colMeta, style = MaterialTheme.typography.bodySmall, color = tokens.textSecondary)
                                         if (collectionMode == 1) {
                                             Text("Rewatched ${item.rewatchCount}×", style = MaterialTheme.typography.labelMedium, color = tokens.positiveAccent)
                                         }
@@ -561,8 +565,13 @@ private fun SmartMediaCard(item: MediaItem, badge: String, onClick: () -> Unit) 
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(badge, style = MaterialTheme.typography.labelSmall, color = accent)
                 Text(item.title, style = MaterialTheme.typography.titleMedium, color = tokens.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                val smartMeta = listOfNotNull(
+                    item.categoryEnum.label,
+                    item.formattedYearOrBlank().takeIf { it.isNotBlank() },
+                    formatWatchTime(item.runtimeMinutes).takeIf { item.runtimeMinutes > 0L }
+                ).joinToString(" • ")
                 Text(
-                    text = "${item.categoryEnum.label} • ${item.releaseYear} • ${formatWatchTime(item.runtimeMinutes)}",
+                    text = smartMeta,
                     style = MaterialTheme.typography.bodySmall,
                     color = tokens.textSecondary
                 )

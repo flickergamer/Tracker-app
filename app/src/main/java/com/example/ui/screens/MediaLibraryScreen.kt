@@ -1,11 +1,14 @@
 package com.example.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -25,12 +28,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Sort
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Bookmark
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FilterList
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SearchOff
+import androidx.compose.material.icons.rounded.SelectAll
 import androidx.compose.material.icons.rounded.TableRows
 import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.material3.DropdownMenu
@@ -39,6 +47,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,17 +68,21 @@ import com.example.ui.components.GlassSecondaryButton
 import com.example.ui.components.HorizontalScrollFadeBox
 import com.example.ui.components.MediaGridCard
 import com.example.ui.components.MovieTableView
+import com.example.ui.components.NeonGlassCard
 import com.example.ui.components.NeonGlassChip
+import com.example.ui.components.NeonGlassDialog
 import com.example.ui.components.NeonGlassTextField
 import com.example.ui.components.NeonPrimaryButton
 import com.example.ui.components.SeriesProgressCard
 import com.example.ui.components.StaggeredFadeItem
+import com.example.ui.components.SwipeableMediaCard
 import com.example.ui.components.statusColor
 import com.example.ui.components.themedCategoryColor
 import com.example.ui.components.zenixHeading
 import com.example.ui.theme.LocalZenixRadii
 import com.example.ui.theme.LocalZenixSpacing
 import com.example.ui.theme.LocalZenixTokens
+import com.example.ui.theme.NeonCyan
 
 enum class LibraryMode { MOVIES, WEB_SERIES, ANIME, K_DRAMA }
 enum class MediaSortOption(val label: String) {
@@ -81,6 +94,7 @@ enum class MediaSortOption(val label: String) {
     RUNTIME_DESC("Runtime")
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun MediaLibraryScreen(
     mode: LibraryMode,
@@ -92,6 +106,9 @@ fun MediaLibraryScreen(
     onDelete: (MediaItem) -> Unit,
     onStepEpisode: (MediaItem, Int) -> Unit,
     onToggleFavourite: (MediaItem) -> Unit,
+    onBulkUpdateStatus: (List<MediaItem>, WatchStatus) -> Unit = { _, _ -> },
+    onBulkAddToWatchlist: (List<MediaItem>) -> Unit = {},
+    onBulkDelete: (List<MediaItem>) -> Unit = {},
     bottomPadding: Dp = FloatingBottomBarClearance,
     modifier: Modifier = Modifier
 ) {
@@ -106,6 +123,11 @@ fun MediaLibraryScreen(
     var showSortMenu by remember { mutableStateOf(false) }
     var showFilterMenu by remember { mutableStateOf(false) }
 
+    var selectedIds by remember(mode) { mutableStateOf<Set<String>>(emptySet()) }
+    var showBulkStatusDialog by remember { mutableStateOf(false) }
+    var showBulkDeleteConfirm by remember { mutableStateOf(false) }
+    var pendingBulkStatus by remember { mutableStateOf(WatchStatus.COMPLETED) }
+
     val baseItems = remember(allItems, mode) {
         allItems.filter { item ->
             when (mode) {
@@ -117,6 +139,18 @@ fun MediaLibraryScreen(
         }
     }
 
+    LaunchedEffect(baseItems) {
+        val validIds = baseItems.map { it.id }.toSet()
+        if (selectedIds.any { it !in validIds }) {
+            selectedIds = selectedIds.intersect(validIds)
+        }
+    }
+
+    val isSelectionMode = selectedIds.isNotEmpty()
+    BackHandler(enabled = isSelectionMode) {
+        selectedIds = emptySet()
+    }
+
     val availableGenres = remember(baseItems) {
         baseItems.flatMap { it.genreList }.distinct().sorted()
     }
@@ -124,7 +158,7 @@ fun MediaLibraryScreen(
         baseItems.mapNotNull { it.language.trim().takeIf(String::isNotBlank) }.distinct().sorted()
     }
     val availableYears = remember(baseItems) {
-        baseItems.map { it.releaseYear }.distinct().sortedDescending()
+        baseItems.mapNotNull { it.releaseYear.takeIf { yr -> yr > 0L } }.distinct().sortedDescending()
     }
 
     val filteredItems = remember(
@@ -161,6 +195,15 @@ fun MediaLibraryScreen(
         }
     }
 
+    val selectedItems = remember(filteredItems, baseItems, selectedIds) {
+        if (selectedIds.isEmpty()) emptyList()
+        else baseItems.filter { it.id in selectedIds }
+    }
+
+    val toggleSelection: (String) -> Unit = { id ->
+        selectedIds = if (id in selectedIds) selectedIds - id else selectedIds + id
+    }
+
     val defaultAddCategory = when (mode) {
         LibraryMode.MOVIES -> MediaCategory.MOVIE
         LibraryMode.WEB_SERIES -> MediaCategory.WEB_SERIES
@@ -170,7 +213,7 @@ fun MediaLibraryScreen(
 
     val headerTitle = when (mode) {
         LibraryMode.MOVIES -> "Movies"
-        LibraryMode.WEB_SERIES -> "Web Series"
+        LibraryMode.WEB_SERIES -> "Series"
         LibraryMode.ANIME -> "Anime"
         LibraryMode.K_DRAMA -> "K-Drama"
     }
@@ -187,195 +230,309 @@ fun MediaLibraryScreen(
                 .padding(horizontal = spacing.space4, vertical = spacing.space3),
             verticalArrangement = Arrangement.spacedBy(spacing.space3)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = headerTitle,
-                        style = MaterialTheme.typography.displayMedium,
-                        color = tokens.textPrimary,
-                        modifier = Modifier.zenixHeading()
-                    )
-                    Text(
-                        text = "${filteredItems.size} of ${baseItems.size} titles",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = tokens.textSecondary
-                    )
+            if (isSelectionMode) {
+                NeonGlassCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    accentColor = NeonCyan,
+                    cornerRadius = radii.lg,
+                    contentPadding = PaddingValues(spacing.space3)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(spacing.space3)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = "${selectedIds.size} selected",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = tokens.textPrimary
+                                )
+                                Text(
+                                    text = "Tap cards to toggle selection",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = tokens.textSecondary
+                                )
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(spacing.space2)) {
+                                GlassIconButton(
+                                    onClick = {
+                                        val allFilteredIds = filteredItems.map { it.id }.toSet()
+                                        selectedIds = if (selectedIds.containsAll(allFilteredIds)) {
+                                            emptySet()
+                                        } else {
+                                            allFilteredIds
+                                        }
+                                    },
+                                    glowColor = NeonCyan,
+                                    size = 48.dp,
+                                    modifier = Modifier.testTag("bulk_select_all_button")
+                                ) {
+                                    Icon(
+                                        Icons.Rounded.SelectAll,
+                                        contentDescription = "Select all",
+                                        tint = NeonCyan,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                GlassIconButton(
+                                    onClick = { selectedIds = emptySet() },
+                                    glowColor = tokens.dangerAccent,
+                                    size = 48.dp,
+                                    modifier = Modifier.testTag("bulk_cancel_button")
+                                ) {
+                                    Icon(
+                                        Icons.Rounded.Close,
+                                        contentDescription = "Cancel selection",
+                                        tint = tokens.textPrimary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(spacing.space2)
+                        ) {
+                            GlassSecondaryButton(
+                                onClick = { showBulkStatusDialog = true },
+                                accentBorderColor = NeonCyan,
+                                cornerRadius = radii.sm,
+                                contentPadding = PaddingValues(horizontal = spacing.space2, vertical = spacing.space2),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("bulk_status_button")
+                            ) {
+                                Icon(Icons.Rounded.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Status", maxLines = 1)
+                            }
+                            GlassSecondaryButton(
+                                onClick = {
+                                    onBulkAddToWatchlist(selectedItems)
+                                    selectedIds = emptySet()
+                                },
+                                accentBorderColor = tokens.primaryAccent,
+                                cornerRadius = radii.sm,
+                                contentPadding = PaddingValues(horizontal = spacing.space2, vertical = spacing.space2),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("bulk_watchlist_button")
+                            ) {
+                                Icon(Icons.Rounded.Bookmark, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Watchlist", maxLines = 1)
+                            }
+                            GlassSecondaryButton(
+                                onClick = { showBulkDeleteConfirm = true },
+                                accentBorderColor = tokens.dangerAccent,
+                                cornerRadius = radii.sm,
+                                contentPadding = PaddingValues(horizontal = spacing.space2, vertical = spacing.space2),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("bulk_delete_button")
+                            ) {
+                                Icon(Icons.Rounded.Delete, contentDescription = null, tint = tokens.dangerAccent, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Delete", color = tokens.dangerAccent, maxLines = 1)
+                            }
+                        }
+                    }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(spacing.space2), verticalAlignment = Alignment.CenterVertically) {
-                    GlassIconButton(
-                        onClick = { isTableView = !isTableView },
-                        glowColor = modeNeon,
-                        size = 48.dp
-                    ) {
-                        Icon(
-                            imageVector = if (isTableView) Icons.Rounded.GridView else Icons.Rounded.TableRows,
-                            contentDescription = if (isTableView) "Switch to card view" else "Switch to table view",
-                            tint = modeNeon,
-                            modifier = Modifier.size(20.dp)
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = headerTitle,
+                            style = MaterialTheme.typography.displayMedium,
+                            color = tokens.textPrimary,
+                            modifier = Modifier.zenixHeading()
+                        )
+                        Text(
+                            text = "${filteredItems.size} of ${baseItems.size} titles",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = tokens.textSecondary
                         )
                     }
-                    NeonPrimaryButton(
-                        onClick = { onAdd(defaultAddCategory) },
-                        cornerRadius = radii.sm,
-                        contentPadding = PaddingValues(horizontal = spacing.space4, vertical = spacing.space3),
-                        modifier = Modifier.testTag("library_add_button")
-                    ) {
-                        Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Add", fontWeight = FontWeight.Bold)
+                    Row(horizontalArrangement = Arrangement.spacedBy(spacing.space2), verticalAlignment = Alignment.CenterVertically) {
+                        GlassIconButton(
+                            onClick = { isTableView = !isTableView },
+                            glowColor = modeNeon,
+                            size = 48.dp
+                        ) {
+                            Icon(
+                                imageVector = if (isTableView) Icons.Rounded.GridView else Icons.Rounded.TableRows,
+                                contentDescription = if (isTableView) "Switch to card view" else "Switch to table view",
+                                tint = modeNeon,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        NeonPrimaryButton(
+                            onClick = { onAdd(defaultAddCategory) },
+                            cornerRadius = radii.sm,
+                            contentPadding = PaddingValues(horizontal = spacing.space4, vertical = spacing.space3),
+                            modifier = Modifier.testTag("library_add_button")
+                        ) {
+                            Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Add", fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
-            }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(spacing.space2),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                NeonGlassTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = "Search title, cast, genre...",
-                    leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                    focusNeonColor = modeNeon,
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("library_search_input")
-                )
-
-                Box {
-                    GlassSecondaryButton(
-                        onClick = { showSortMenu = true },
-                        accentBorderColor = tokens.tertiaryAccent,
-                        cornerRadius = radii.sm,
-                        contentPadding = PaddingValues(horizontal = spacing.space3, vertical = spacing.space3)
-                    ) {
-                        Icon(Icons.AutoMirrored.Rounded.Sort, contentDescription = "Sort titles", modifier = Modifier.size(18.dp))
-                    }
-                    DropdownMenu(
-                        expanded = showSortMenu,
-                        onDismissRequest = { showSortMenu = false },
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(spacing.space2),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    NeonGlassTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        placeholder = "Search title, cast, genre...",
+                        leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                        focusNeonColor = modeNeon,
                         modifier = Modifier
-                            .background(tokens.dialogBackground)
-                            .border(1.dp, tokens.tertiaryAccent.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
-                    ) {
-                        MediaSortOption.entries.forEach { opt ->
+                            .weight(1f)
+                            .testTag("library_search_input")
+                    )
+
+                    Box {
+                        GlassSecondaryButton(
+                            onClick = { showSortMenu = true },
+                            accentBorderColor = tokens.tertiaryAccent,
+                            cornerRadius = radii.sm,
+                            contentPadding = PaddingValues(horizontal = spacing.space3, vertical = spacing.space3)
+                        ) {
+                            Icon(Icons.AutoMirrored.Rounded.Sort, contentDescription = "Sort titles", modifier = Modifier.size(18.dp))
+                        }
+                        DropdownMenu(
+                            expanded = showSortMenu,
+                            onDismissRequest = { showSortMenu = false },
+                            modifier = Modifier
+                                .background(tokens.dialogBackground)
+                                .border(1.dp, tokens.tertiaryAccent.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                        ) {
+                            MediaSortOption.entries.forEach { opt ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            opt.label,
+                                            color = if (sortOption == opt) tokens.tertiaryAccent else tokens.textPrimary
+                                        )
+                                    },
+                                    onClick = { sortOption = opt; showSortMenu = false }
+                                )
+                            }
+                        }
+                    }
+
+                    Box {
+                        GlassSecondaryButton(
+                            onClick = { showFilterMenu = true },
+                            accentBorderColor = tokens.tertiaryAccent,
+                            cornerRadius = radii.sm,
+                            contentPadding = PaddingValues(horizontal = spacing.space3, vertical = spacing.space3)
+                        ) {
+                            Icon(Icons.Rounded.FilterList, contentDescription = "Filter titles", modifier = Modifier.size(18.dp))
+                        }
+                        DropdownMenu(
+                            expanded = showFilterMenu,
+                            onDismissRequest = { showFilterMenu = false },
+                            modifier = Modifier
+                                .background(tokens.dialogBackground)
+                                .border(1.dp, tokens.tertiaryAccent.copy(alpha = 0.5f), RoundedCornerShape(radii.sm))
+                        ) {
                             DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        opt.label,
-                                        color = if (sortOption == opt) tokens.tertiaryAccent else tokens.textPrimary
+                                text = { Text("Reset All Filters", color = tokens.dangerAccent) },
+                                onClick = {
+                                    selectedStatus = null; selectedGenre = null; selectedLanguage = null; selectedYear = null
+                                    showFilterMenu = false
+                                }
+                            )
+                            if (availableGenres.isNotEmpty()) {
+                                availableGenres.take(8).forEach { g ->
+                                    DropdownMenuItem(
+                                        text = { Text("Genre: $g", color = tokens.textPrimary) },
+                                        onClick = { selectedGenre = g; showFilterMenu = false }
                                     )
-                                },
-                                onClick = { sortOption = opt; showSortMenu = false }
+                                }
+                            }
+                            if (availableLanguages.isNotEmpty()) {
+                                availableLanguages.take(6).forEach { l ->
+                                    DropdownMenuItem(
+                                        text = { Text("Language: $l", color = tokens.textPrimary) },
+                                        onClick = { selectedLanguage = l; showFilterMenu = false }
+                                    )
+                                }
+                            }
+                            if (availableYears.isNotEmpty()) {
+                                availableYears.take(6).forEach { yr ->
+                                    DropdownMenuItem(
+                                        text = { Text("Year: $yr", color = tokens.textPrimary) },
+                                        onClick = { selectedYear = yr; showFilterMenu = false }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Status filter chips with both-edge scroll fade
+                val chipScrollState = rememberScrollState()
+                HorizontalScrollFadeBox(
+                    scrollState = chipScrollState,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.horizontalScroll(chipScrollState),
+                        horizontalArrangement = Arrangement.spacedBy(spacing.space2)
+                    ) {
+                        NeonGlassChip(
+                            label = "All Statuses",
+                            selected = selectedStatus == null,
+                            onClick = { selectedStatus = null },
+                            accentColor = modeNeon
+                        )
+                        WatchStatus.entries.forEach { st ->
+                            NeonGlassChip(
+                                label = st.label,
+                                selected = selectedStatus == st,
+                                onClick = { selectedStatus = if (selectedStatus == st) null else st },
+                                accentColor = statusColor(st)
+                            )
+                        }
+                        if (selectedGenre != null) {
+                            NeonGlassChip(
+                                label = "Genre: $selectedGenre ×",
+                                selected = true,
+                                onClick = { selectedGenre = null },
+                                accentColor = tokens.tertiaryAccent
+                            )
+                        }
+                        if (selectedLanguage != null) {
+                            NeonGlassChip(
+                                label = "Lang: $selectedLanguage ×",
+                                selected = true,
+                                onClick = { selectedLanguage = null },
+                                accentColor = tokens.dangerAccent
+                            )
+                        }
+                        if (selectedYear != null) {
+                            NeonGlassChip(
+                                label = "Year: $selectedYear ×",
+                                selected = true,
+                                onClick = { selectedYear = null },
+                                accentColor = tokens.secondaryAccent
                             )
                         }
                     }
-                }
-
-                Box {
-                    GlassSecondaryButton(
-                        onClick = { showFilterMenu = true },
-                        accentBorderColor = tokens.tertiaryAccent,
-                        cornerRadius = radii.sm,
-                        contentPadding = PaddingValues(horizontal = spacing.space3, vertical = spacing.space3)
-                    ) {
-                        Icon(Icons.Rounded.FilterList, contentDescription = "Filter titles", modifier = Modifier.size(18.dp))
-                    }
-                    DropdownMenu(
-                        expanded = showFilterMenu,
-                        onDismissRequest = { showFilterMenu = false },
-                        modifier = Modifier
-                            .background(tokens.dialogBackground)
-                            .border(1.dp, tokens.tertiaryAccent.copy(alpha = 0.5f), RoundedCornerShape(radii.sm))
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Reset All Filters", color = tokens.dangerAccent) },
-                            onClick = {
-                                selectedStatus = null; selectedGenre = null; selectedLanguage = null; selectedYear = null
-                                showFilterMenu = false
-                            }
-                        )
-                        if (availableGenres.isNotEmpty()) {
-                            availableGenres.take(8).forEach { g ->
-                                DropdownMenuItem(
-                                    text = { Text("Genre: $g", color = tokens.textPrimary) },
-                                    onClick = { selectedGenre = g; showFilterMenu = false }
-                                )
-                            }
-                        }
-                        if (availableLanguages.isNotEmpty()) {
-                            availableLanguages.take(6).forEach { l ->
-                                DropdownMenuItem(
-                                    text = { Text("Language: $l", color = tokens.textPrimary) },
-                                    onClick = { selectedLanguage = l; showFilterMenu = false }
-                                )
-                            }
-                        }
-                        if (availableYears.isNotEmpty()) {
-                            availableYears.take(6).forEach { yr ->
-                                DropdownMenuItem(
-                                    text = { Text("Year: $yr", color = tokens.textPrimary) },
-                                    onClick = { selectedYear = yr; showFilterMenu = false }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Status filter chips with right-edge scroll fade
-            val chipScrollState = rememberScrollState()
-            HorizontalScrollFadeBox(
-                scrollState = chipScrollState,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.horizontalScroll(chipScrollState),
-                    horizontalArrangement = Arrangement.spacedBy(spacing.space2)
-                ) {
-                NeonGlassChip(
-                    label = "All Statuses",
-                    selected = selectedStatus == null,
-                    onClick = { selectedStatus = null },
-                    accentColor = modeNeon
-                )
-                WatchStatus.entries.forEach { st ->
-                    NeonGlassChip(
-                        label = st.label,
-                        selected = selectedStatus == st,
-                        onClick = { selectedStatus = if (selectedStatus == st) null else st },
-                        accentColor = statusColor(st)
-                    )
-                }
-                if (selectedGenre != null) {
-                    NeonGlassChip(
-                        label = "Genre: $selectedGenre ×",
-                        selected = true,
-                        onClick = { selectedGenre = null },
-                        accentColor = tokens.tertiaryAccent
-                    )
-                }
-                if (selectedLanguage != null) {
-                    NeonGlassChip(
-                        label = "Lang: $selectedLanguage ×",
-                        selected = true,
-                        onClick = { selectedLanguage = null },
-                        accentColor = tokens.dangerAccent
-                    )
-                }
-                if (selectedYear != null) {
-                    NeonGlassChip(
-                        label = "Year: $selectedYear ×",
-                        selected = true,
-                        onClick = { selectedYear = null },
-                        accentColor = tokens.secondaryAccent
-                    )
-                }
                 }
             }
         }
@@ -435,18 +592,30 @@ fun MediaLibraryScreen(
             ) {
                 itemsIndexed(filteredItems, key = { _, item -> item.id }) { idx, movie ->
                     StaggeredFadeItem(index = idx) {
-                        MediaGridCard(
-                            item = movie,
-                            compact = compact,
-                            onClick = { onSelect(movie) },
+                        SwipeableMediaCard(
+                            enabled = !isSelectionMode,
+                            isFavourite = movie.favourite,
                             onToggleFavourite = { onToggleFavourite(movie) },
-                            onEdit = { onEdit(movie) }
-                        )
+                            onDelete = { onDelete(movie) }
+                        ) {
+                            MediaGridCard(
+                                item = movie,
+                                compact = compact,
+                                onClick = {
+                                    if (isSelectionMode) toggleSelection(movie.id) else onSelect(movie)
+                                },
+                                onToggleFavourite = { onToggleFavourite(movie) },
+                                onEdit = { onEdit(movie) },
+                                onLongClick = { toggleSelection(movie.id) },
+                                isSelectionMode = isSelectionMode,
+                                isSelected = movie.id in selectedIds
+                            )
+                        }
                     }
                 }
             }
         } else {
-            // Web Series, Anime, or K-Drama with live Episode Progress cards + quick Edit button
+            // Web Series, Anime, or K-Drama with live Episode Progress cards + quick Edit button + swipe + multi-select
             LazyColumn(
                 contentPadding = PaddingValues(start = spacing.space4, end = spacing.space4, top = spacing.space2, bottom = bottomPadding),
                 verticalArrangement = Arrangement.spacedBy(spacing.space4),
@@ -454,17 +623,78 @@ fun MediaLibraryScreen(
             ) {
                 itemsIndexed(filteredItems, key = { _, item -> item.id }) { idx, series ->
                     StaggeredFadeItem(index = idx) {
-                        SeriesProgressCard(
-                            item = series,
-                            compact = compact,
-                            onClick = { onSelect(series) },
-                            onStepEpisode = { delta -> onStepEpisode(series, delta) },
+                        SwipeableMediaCard(
+                            enabled = !isSelectionMode,
+                            isFavourite = series.favourite,
                             onToggleFavourite = { onToggleFavourite(series) },
-                            onEdit = { onEdit(series) }
-                        )
+                            onDelete = { onDelete(series) }
+                        ) {
+                            SeriesProgressCard(
+                                item = series,
+                                compact = compact,
+                                onClick = {
+                                    if (isSelectionMode) toggleSelection(series.id) else onSelect(series)
+                                },
+                                onStepEpisode = { delta -> onStepEpisode(series, delta) },
+                                onToggleFavourite = { onToggleFavourite(series) },
+                                onEdit = { onEdit(series) },
+                                onLongClick = { toggleSelection(series.id) },
+                                isSelectionMode = isSelectionMode,
+                                isSelected = series.id in selectedIds
+                            )
+                        }
                     }
                 }
             }
+        }
+    }
+
+    if (showBulkStatusDialog) {
+        NeonGlassDialog(
+            onDismissRequest = { showBulkStatusDialog = false },
+            title = "Change Status (${selectedItems.size} titles)",
+            accentColor = NeonCyan,
+            confirmText = "Apply",
+            onConfirm = {
+                onBulkUpdateStatus(selectedItems, pendingBulkStatus)
+                showBulkStatusDialog = false
+                selectedIds = emptySet()
+            }
+        ) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                WatchStatus.entries.forEach { st ->
+                    NeonGlassChip(
+                        label = st.label,
+                        selected = pendingBulkStatus == st,
+                        onClick = { pendingBulkStatus = st },
+                        accentColor = statusColor(st)
+                    )
+                }
+            }
+        }
+    }
+
+    if (showBulkDeleteConfirm) {
+        NeonGlassDialog(
+            onDismissRequest = { showBulkDeleteConfirm = false },
+            title = "Delete ${selectedItems.size} titles?",
+            accentColor = tokens.dangerAccent,
+            confirmText = "Delete",
+            confirmDangerous = true,
+            onConfirm = {
+                onBulkDelete(selectedItems)
+                showBulkDeleteConfirm = false
+                selectedIds = emptySet()
+            }
+        ) {
+            Text(
+                text = "These ${selectedItems.size} titles will be deleted from your library. You can immediately undo via the snackbar.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = tokens.textSecondary
+            )
         }
     }
 }

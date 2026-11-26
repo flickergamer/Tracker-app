@@ -211,6 +211,34 @@ test("MediaItem: owner CRUD, partial episode increment update, list query, and s
   await assertFails(bobDb.collection("users").doc(ALICE_UID).collection("media_items").doc("item_dark").get());
   await assertFails(bobDb.collection("users").doc(ALICE_UID).collection("media_items").doc("item_dark").delete());
 
+  // Owner update with synopsis and per-season progress succeeds
+  await assertSucceeds(
+    itemRef.update({
+      synopsis: "A family saga with a supernatural twist.",
+      seasons: [
+        { seasonNumber: 1, totalEpisodes: 10, episodesWatched: 10 },
+        { seasonNumber: 2, totalEpisodes: 8, episodesWatched: 4 }
+      ],
+      totalSeasons: 2,
+      currentSeason: 2,
+      totalEpisodes: 18,
+      episodesWatched: 14,
+      currentEpisode: 4,
+      updatedAt: new Date(Date.now() - 500),
+    })
+  );
+
+  // Create item with omitted releaseYear (0) succeeds
+  await assertSucceeds(
+    aliceDb.collection("users").doc(ALICE_UID).collection("media_items").doc("item_no_year").set(
+      validMediaItem(ALICE_UID, created, {
+        releaseYear: 0,
+        synopsis: "Mystery series.",
+        seasons: [{ seasonNumber: 1, totalEpisodes: 8, episodesWatched: 0 }],
+      })
+    )
+  );
+
   // Owner delete succeeds
   await assertSucceeds(itemRef.delete());
 });

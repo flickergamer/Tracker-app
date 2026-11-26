@@ -4,9 +4,12 @@ import com.example.data.model.AccentColorPreset
 import com.example.data.model.MediaCategory
 import com.example.data.model.MediaItem
 import com.example.data.model.QuoteItem
+import com.example.data.model.SeasonProgress
 import com.example.data.model.UserProfile
 import com.example.data.model.WatchStatus
 import com.example.data.model.WatchlistPriority
+import com.example.data.model.normalizeGenres
+import com.example.data.model.normalizePlatform
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -24,7 +27,7 @@ object LibrarySerializer {
     ): String {
         val root = JSONObject()
         root.put("app", "Zenix")
-        root.put("schemaVersion", 1)
+        root.put("schemaVersion", 2)
         root.put("exportedAtMillis", System.currentTimeMillis())
 
         if (profile != null) {
@@ -46,13 +49,15 @@ object LibrarySerializer {
         mediaItems.forEach { item ->
             itemsArray.put(
                 JSONObject().apply {
+                    put("id", item.id)
+                    put("updatedAtMillis", item.updatedAt?.toDate()?.time ?: 0L)
                     put("title", item.title)
                     put("mediaCategory", item.mediaCategory)
                     put("posterUrl", item.posterUrl)
-                    put("genre", item.genre)
+                    put("genre", normalizeGenres(item.genre))
                     put("language", item.language)
                     put("releaseYear", item.releaseYear)
-                    put("streamingPlatform", item.streamingPlatform)
+                    put("streamingPlatform", normalizePlatform(item.streamingPlatform))
                     put("imdbRating", item.imdbRating)
                     put("personalRating", item.personalRating)
                     put("runtimeMinutes", item.runtimeMinutes)
@@ -68,11 +73,26 @@ object LibrarySerializer {
                     put("imdbLink", item.imdbLink)
                     put("personalReview", item.personalReview)
                     put("notes", item.notes)
+                    put("synopsis", item.synopsis)
                     put("totalSeasons", item.totalSeasons)
                     put("currentSeason", item.currentSeason)
                     put("totalEpisodes", item.totalEpisodes)
                     put("episodesWatched", item.episodesWatched)
                     put("currentEpisode", item.currentEpisode)
+                    put(
+                        "seasons",
+                        JSONArray().apply {
+                            item.seasons.forEach { s ->
+                                put(
+                                    JSONObject().apply {
+                                        put("seasonNumber", s.seasonNumber)
+                                        put("totalEpisodes", s.totalEpisodes)
+                                        put("episodesWatched", s.episodesWatched)
+                                    }
+                                )
+                            }
+                        }
+                    )
                     put("watchlistItem", item.watchlistItem)
                     put("priority", item.priority)
                     put("dateAdded", item.dateAdded)
@@ -90,6 +110,7 @@ object LibrarySerializer {
         quotes.forEach { q ->
             quotesArray.put(
                 JSONObject().apply {
+                    put("id", q.id)
                     put("quoteText", q.quoteText)
                     put("sourceTitle", q.sourceTitle)
                     put("characterName", q.characterName)
@@ -128,15 +149,30 @@ object LibrarySerializer {
             for (m in 0 until moodArr.length()) {
                 moodArr.optString(m)?.takeIf { it.isNotBlank() }?.let { moods.add(it) }
             }
+            val seasonsArr = obj.optJSONArray("seasons") ?: JSONArray()
+            val seasons = mutableListOf<SeasonProgress>()
+            for (s in 0 until seasonsArr.length()) {
+                val sObj = seasonsArr.optJSONObject(s) ?: continue
+                seasons.add(
+                    SeasonProgress(
+                        seasonNumber = sObj.optLong("seasonNumber", (s + 1).toLong()).coerceIn(1L, 200L),
+                        totalEpisodes = sObj.optLong("totalEpisodes", 0L).coerceIn(0L, 10000L),
+                        episodesWatched = sObj.optLong("episodesWatched", 0L).coerceIn(0L, 10000L)
+                    )
+                )
+            }
+            val rawYear = obj.optLong("releaseYear", 0L)
+            val safeYear = if (rawYear <= 0L) 0L else rawYear.coerceIn(1880L, 2040L)
             items.add(
                 MediaItem(
+                    id = obj.optString("id", ""),
                     title = title.take(160),
                     mediaCategory = MediaCategory.fromRaw(obj.optString("mediaCategory")).name,
                     posterUrl = obj.optString("posterUrl", ""),
-                    genre = obj.optString("genre", ""),
-                    language = obj.optString("language", "English"),
-                    releaseYear = obj.optLong("releaseYear", 2024L).coerceIn(1880L, 2040L),
-                    streamingPlatform = obj.optString("streamingPlatform", ""),
+                    genre = normalizeGenres(obj.optString("genre", "")),
+                    language = obj.optString("language", ""),
+                    releaseYear = safeYear,
+                    streamingPlatform = normalizePlatform(obj.optString("streamingPlatform", "")),
                     imdbRating = obj.optDouble("imdbRating", 0.0).coerceIn(0.0, 10.0),
                     personalRating = obj.optDouble("personalRating", 0.0).coerceIn(0.0, 10.0),
                     runtimeMinutes = obj.optLong("runtimeMinutes", 0L).coerceIn(0L, 2000L),
@@ -152,11 +188,13 @@ object LibrarySerializer {
                     imdbLink = obj.optString("imdbLink", ""),
                     personalReview = obj.optString("personalReview", ""),
                     notes = obj.optString("notes", ""),
+                    synopsis = obj.optString("synopsis", "").take(1500),
                     totalSeasons = obj.optLong("totalSeasons", 1L).coerceIn(0L, 200L),
                     currentSeason = obj.optLong("currentSeason", 1L).coerceIn(0L, 200L),
-                    totalEpisodes = obj.optLong("totalEpisodes", 1L).coerceIn(0L, 10000L),
+                    totalEpisodes = obj.optLong("totalEpisodes", 0L).coerceIn(0L, 10000L),
                     episodesWatched = obj.optLong("episodesWatched", 0L).coerceIn(0L, 10000L),
                     currentEpisode = obj.optLong("currentEpisode", 0L).coerceIn(0L, 10000L),
+                    seasons = seasons,
                     watchlistItem = obj.optBoolean("watchlistItem", false),
                     priority = WatchlistPriority.fromRaw(obj.optString("priority")).name,
                     dateAdded = obj.optString("dateAdded", ""),
@@ -178,6 +216,7 @@ object LibrarySerializer {
             if (text.isBlank() || source.isBlank()) continue
             quotes.add(
                 QuoteItem(
+                    id = obj.optString("id", ""),
                     quoteText = text.take(600),
                     sourceTitle = source.take(160),
                     characterName = obj.optString("characterName", "").take(120),
@@ -202,10 +241,10 @@ object LibrarySerializer {
                 item.title,
                 item.categoryEnum.label,
                 item.statusEnum.label,
-                item.releaseYear.toString(),
-                item.genre,
+                item.formattedYearOrBlank(),
+                normalizeGenres(item.genre),
                 item.language,
-                item.streamingPlatform,
+                normalizePlatform(item.streamingPlatform),
                 item.imdbRating.toString(),
                 item.personalRating.toString(),
                 item.runtimeMinutes.toString(),

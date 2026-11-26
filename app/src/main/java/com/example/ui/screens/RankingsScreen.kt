@@ -226,7 +226,10 @@ fun RankingsScreen(
                                         overflow = TextOverflow.Ellipsis
                                     )
                                     Text(
-                                        text = "${item.categoryEnum.label} • ${item.releaseYear}",
+                                        text = listOfNotNull(
+                                            item.categoryEnum.label,
+                                            item.formattedYearOrBlank().takeIf { it.isNotBlank() }
+                                        ).joinToString(" • "),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = tokens.textSecondary
                                     )

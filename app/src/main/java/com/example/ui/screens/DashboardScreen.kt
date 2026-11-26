@@ -43,6 +43,7 @@ import com.example.data.model.DashboardStats
 import com.example.data.model.MediaCategory
 import com.example.data.model.MediaItem
 import com.example.data.model.UserProfile
+import com.example.data.model.WatchStatus
 import com.example.data.model.formatWatchTime
 import com.example.ui.components.FloatingBottomBarClearance
 import com.example.ui.components.LiquidGlassHeroCard
@@ -89,9 +90,12 @@ fun DashboardScreen(
     val spacing = LocalZenixSpacing.current
     val radii = LocalZenixRadii.current
 
-    val isContinuing = stats.currentlyWatching.isNotEmpty()
-    val spotlightItem = remember(stats) {
-        stats.currentlyWatching.firstOrNull() ?: stats.nextUpTitle
+    val spotlightItem = stats.nextUpTitle
+    val isContinuing = spotlightItem?.statusEnum == WatchStatus.WATCHING
+    val spotlightLabel = when (spotlightItem?.statusEnum) {
+        WatchStatus.WATCHING -> "CONTINUE WATCHING"
+        WatchStatus.ON_HOLD -> "ON HOLD"
+        else -> "NEXT UP"
     }
 
     val completionRatio = remember(stats.totalTitles, stats.completedCount) {
@@ -105,7 +109,8 @@ fun DashboardScreen(
     val animatedCompleted = rememberAnimatedIntCount(stats.completedCount)
     val animatedMovies = rememberAnimatedIntCount(stats.totalMovies)
     val animatedSeries = rememberAnimatedIntCount(stats.totalWebSeries)
-    val animatedAnimeKd = rememberAnimatedIntCount(stats.totalAnimeAndKDrama)
+    val animatedAnime = rememberAnimatedIntCount(stats.totalAnime)
+    val animatedKDrama = rememberAnimatedIntCount(stats.totalKDrama)
     val animatedPct = rememberAnimatedIntCount((completionRatio * 100f).roundToInt())
 
     LazyColumn(
@@ -150,12 +155,19 @@ fun DashboardScreen(
                     } else if (spotlightItem.imdbRating > 0.0) {
                         "★ ${String.format(Locale.US, "%.1f", spotlightItem.imdbRating)}"
                     } else {
-                        "Unrated"
+                        null
                     }
-                    val metaText = if (isContinuing && spotlightItem.categoryEnum.isEpisodic) {
-                        spotlightItem.formattedCompactSeriesProgress()
+                    val metaText = if (spotlightItem.categoryEnum.isEpisodic) {
+                        listOfNotNull(
+                            spotlightItem.categoryEnum.label,
+                            spotlightItem.progressHint()
+                        ).joinToString(" · ")
                     } else {
-                        "${spotlightItem.categoryEnum.label} · ${spotlightItem.releaseYear} · $ratingLabel"
+                        listOfNotNull(
+                            spotlightItem.categoryEnum.label,
+                            spotlightItem.formattedYearOrBlank().takeIf { it.isNotBlank() },
+                            ratingLabel ?: "Unrated"
+                        ).joinToString(" · ")
                     }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -173,7 +185,7 @@ fun DashboardScreen(
                             verticalArrangement = Arrangement.spacedBy(spacing.space2)
                         ) {
                             Text(
-                                text = if (isContinuing) "CONTINUE WATCHING" else "NEXT UP",
+                                text = spotlightLabel,
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = 1.4.sp,
@@ -318,40 +330,53 @@ fun DashboardScreen(
             }
         }
 
-        // 5. Stats row (4 cells)
+        // 5. Stats cells (Titles, Movies, Series + Anime, K-Drama)
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(spacing.space2)
-            ) {
-                DashboardStatCell(
-                    label = "Titles",
-                    value = animatedTotalTitles.toString(),
-                    accentColor = NeonPurple,
-                    modifier = Modifier.weight(1f)
-                )
-                DashboardStatCell(
-                    label = "Movies",
-                    value = animatedMovies.toString(),
-                    accentColor = NeonCyan,
-                    modifier = Modifier.weight(1f)
-                )
-                DashboardStatCell(
-                    label = "Series",
-                    value = animatedSeries.toString(),
-                    accentColor = NeonPink,
-                    modifier = Modifier.weight(1f)
-                )
-                DashboardStatCell(
-                    label = "Anime/KD",
-                    value = animatedAnimeKd.toString(),
-                    accentColor = NeonGreen,
-                    modifier = Modifier.weight(1f)
-                )
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.space2)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(spacing.space2)
+                ) {
+                    DashboardStatCell(
+                        label = "Titles",
+                        value = animatedTotalTitles.toString(),
+                        accentColor = NeonPurple,
+                        modifier = Modifier.weight(1f)
+                    )
+                    DashboardStatCell(
+                        label = "Movies",
+                        value = animatedMovies.toString(),
+                        accentColor = NeonCyan,
+                        modifier = Modifier.weight(1f)
+                    )
+                    DashboardStatCell(
+                        label = "Series",
+                        value = animatedSeries.toString(),
+                        accentColor = NeonPink,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(spacing.space2)
+                ) {
+                    DashboardStatCell(
+                        label = "Anime",
+                        value = animatedAnime.toString(),
+                        accentColor = NeonGreen,
+                        modifier = Modifier.weight(1f)
+                    )
+                    DashboardStatCell(
+                        label = "K-Drama",
+                        value = animatedKDrama.toString(),
+                        accentColor = NeonAmber,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
         }
 
-        // 6. Three pill buttons: Random Pick, Watchlist, Analytics
+        // 6. Three pill buttons: Random Pick, Watchlist, Statistics
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -378,7 +403,7 @@ fun DashboardScreen(
                         .testTag("dashboard_watchlist_chip")
                 )
                 NeonGlassChip(
-                    label = "Analytics",
+                    label = "Statistics",
                     selected = false,
                     onClick = onOpenStatistics,
                     accentColor = NeonPink,
@@ -473,8 +498,12 @@ fun DashboardScreen(
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis
                                             )
+                                            val topMeta = listOfNotNull(
+                                                item.categoryEnum.label,
+                                                item.formattedYearOrBlank().takeIf { it.isNotBlank() }
+                                            ).joinToString(" · ")
                                             Text(
-                                                text = "${item.categoryEnum.label} · ${item.releaseYear}",
+                                                text = topMeta,
                                                 style = MaterialTheme.typography.bodySmall,
                                                 color = tokens.textSecondary,
                                                 maxLines = 1,
@@ -564,11 +593,11 @@ private fun RecentPosterCard(
     val spacing = LocalZenixSpacing.current
     val radii = LocalZenixRadii.current
     val accent = themedCategoryColor(item.categoryEnum)
-    val metaLine = if (item.personalRating > 0.0) {
-        "${item.releaseYear} · ★ ${String.format(Locale.US, "%.1f", item.personalRating)}"
-    } else {
-        "${item.releaseYear}"
-    }
+    val yearPart = item.formattedYearOrBlank().takeIf { it.isNotBlank() }
+    val ratingPart = if (item.personalRating > 0.0) {
+        "★ ${String.format(Locale.US, "%.1f", item.personalRating)}"
+    } else null
+    val metaLine = listOfNotNull(yearPart, ratingPart).joinToString(" · ").ifBlank { item.categoryEnum.label }
 
     NeonGlassCard(
         modifier = Modifier.width(126.dp),

@@ -312,7 +312,11 @@ fun WatchlistScreen(
                                             overflow = TextOverflow.Ellipsis
                                         )
                                         Text(
-                                            text = "${item.categoryEnum.label} · ${item.releaseYear} · ${item.streamingPlatform.ifBlank { "TBD" }}",
+                                            text = listOfNotNull(
+                                                item.categoryEnum.label,
+                                                item.formattedYearOrBlank().takeIf { it.isNotBlank() },
+                                                item.normalizedPlatform.ifBlank { "TBD" }
+                                            ).joinToString(" · "),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = tokens.textSecondary
                                         )
