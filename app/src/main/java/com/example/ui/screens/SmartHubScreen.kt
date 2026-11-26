@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -69,6 +70,9 @@ import com.example.ui.components.PosterArtwork
 import com.example.ui.components.RatingPill
 import com.example.ui.components.themedCategoryColor
 import com.example.ui.components.themedPaletteColor
+import com.example.ui.components.zenixHeading
+import com.example.ui.theme.LocalZenixRadii
+import com.example.ui.theme.LocalZenixSpacing
 import com.example.ui.theme.LocalZenixTokens
 import kotlin.random.Random
 
@@ -90,6 +94,8 @@ fun SmartHubScreen(
     modifier: Modifier = Modifier
 ) {
     val tokens = LocalZenixTokens.current
+    val spacing = LocalZenixSpacing.current
+    val radii = LocalZenixRadii.current
     val tabs = listOf(
         "Random Picker",
         "Mood Match",
@@ -114,13 +120,18 @@ fun SmartHubScreen(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(horizontal = spacing.space4, vertical = spacing.space3),
+            verticalArrangement = Arrangement.spacedBy(spacing.space3)
         ) {
-            Text("Smart Discovery", style = MaterialTheme.typography.displayMedium, color = tokens.textPrimary)
+            Text(
+                text = "Smart Discovery",
+                style = MaterialTheme.typography.displayMedium,
+                color = tokens.textPrimary,
+                modifier = Modifier.zenixHeading()
+            )
             Row(
                 modifier = Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(spacing.space2)
             ) {
                 tabs.forEachIndexed { idx, label ->
                     NeonGlassChip(
@@ -134,8 +145,8 @@ fun SmartHubScreen(
         }
 
         LazyColumn(
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottomPadding),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            contentPadding = PaddingValues(start = spacing.space4, end = spacing.space4, top = spacing.space2, bottom = bottomPadding),
+            verticalArrangement = Arrangement.spacedBy(spacing.space4),
             modifier = Modifier.fillMaxSize()
         ) {
             when (selectedTab) {
@@ -144,10 +155,10 @@ fun SmartHubScreen(
                         NeonGlassCard(
                             modifier = Modifier.fillMaxWidth(),
                             accentColor = tokens.tertiaryAccent,
-                            cornerRadius = 22.dp,
-                            contentPadding = PaddingValues(18.dp)
+                            cornerRadius = radii.lg,
+                            contentPadding = PaddingValues(spacing.space4)
                         ) {
-                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(spacing.space3)) {
                                 Text("Random Tonight Picker", style = MaterialTheme.typography.titleLarge, color = tokens.textPrimary)
                                 Text(
                                     "Can't decide what to watch? Spin your personal vault or watchlist.",
@@ -438,10 +449,16 @@ fun SmartHubScreen(
                                             modifier = Modifier.weight(1f)
                                         )
                                         Row {
-                                            IconButton(onClick = { editingQuote = q; showQuoteDialog = true }) {
+                                            IconButton(
+                                                onClick = { editingQuote = q; showQuoteDialog = true },
+                                                modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                                            ) {
                                                 Icon(Icons.Rounded.Edit, contentDescription = "Edit quote", tint = tokens.tertiaryAccent)
                                             }
-                                            IconButton(onClick = { onDeleteQuote(q) }) {
+                                            IconButton(
+                                                onClick = { onDeleteQuote(q) },
+                                                modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                                            ) {
                                                 Icon(Icons.Rounded.Delete, contentDescription = "Delete quote", tint = tokens.dangerAccent)
                                             }
                                         }

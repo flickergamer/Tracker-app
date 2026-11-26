@@ -2,6 +2,7 @@ package com.example.data.tmdb
 
 import android.content.Context
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.example.BuildConfig
@@ -10,6 +11,7 @@ import com.squareup.moshi.Json
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import okhttp3.OkHttpClient
@@ -25,16 +27,20 @@ object TmdbPreferences {
     private val KEY_TMDB_API_KEY = stringPreferencesKey("tmdb_api_key")
 
     fun observeUserKey(context: Context): Flow<String> =
-        context.tmdbDataStore.data.map { prefs -> prefs[KEY_TMDB_API_KEY] ?: "" }
+        context.tmdbDataStore.data
+            .catch { emit(emptyPreferences()) }
+            .map { prefs -> prefs[KEY_TMDB_API_KEY] ?: "" }
 
     suspend fun saveUserKey(context: Context, key: String) {
-        context.tmdbDataStore.edit { prefs ->
-            prefs[KEY_TMDB_API_KEY] = key.trim()
+        runCatching {
+            context.tmdbDataStore.edit { prefs ->
+                prefs[KEY_TMDB_API_KEY] = key.trim()
+            }
         }
     }
 
     suspend fun resolveEffectiveKey(context: Context): String {
-        val userKey = observeUserKey(context).first().trim()
+        val userKey = runCatching { observeUserKey(context).first().trim() }.getOrDefault("")
         if (userKey.isNotBlank()) return userKey
         return BuildConfig.TMDB_API_KEY.trim().takeIf { it != "MY_TMDB_API_KEY" } ?: ""
     }

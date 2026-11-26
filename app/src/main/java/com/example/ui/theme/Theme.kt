@@ -1,6 +1,12 @@
 package com.example.ui.theme
 
+import android.database.ContentObserver
+import android.os.Handler
+import android.os.Looper
+import android.provider.Settings
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -8,19 +14,44 @@ import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
+@Immutable
+data class ZenixSpacingScale(
+    val space1: Dp = 4.dp,
+    val space2: Dp = 8.dp,
+    val space3: Dp = 12.dp,
+    val space4: Dp = 16.dp,
+    val space5: Dp = 24.dp,
+    val space6: Dp = 32.dp
+)
+
+@Immutable
+data class ZenixRadiusScale(
+    val sm: Dp = 12.dp,
+    val md: Dp = 18.dp,
+    val lg: Dp = 24.dp
+)
+
+val ZenixSpacing = ZenixSpacingScale()
+val ZenixRadii = ZenixRadiusScale()
+
 val AfterglowShapes = Shapes(
-    extraSmall = RoundedCornerShape(10.dp),
-    small = RoundedCornerShape(14.dp),
-    medium = RoundedCornerShape(18.dp),
-    large = RoundedCornerShape(24.dp),
+    extraSmall = RoundedCornerShape(ZenixRadii.sm),
+    small = RoundedCornerShape(ZenixRadii.sm),
+    medium = RoundedCornerShape(ZenixRadii.md),
+    large = RoundedCornerShape(ZenixRadii.lg),
     extraLarge = RoundedCornerShape(28.dp)
 )
 
@@ -67,6 +98,9 @@ val LocalAppThemeMode = staticCompositionLocalOf { AppThemeMode.NEON_GLOSSY }
 val LocalZenixTokens = staticCompositionLocalOf {
     buildStaticTokens(AppThemeMode.NEON_GLOSSY, ZenixAccentColor.PURPLE)
 }
+val LocalZenixSpacing = staticCompositionLocalOf { ZenixSpacing }
+val LocalZenixRadii = staticCompositionLocalOf { ZenixRadii }
+val LocalReducedMotion = staticCompositionLocalOf { false }
 
 private fun accentSecondaryPair(accent: ZenixAccentColor): Color = when (accent) {
     ZenixAccentColor.PURPLE -> NeonPink
@@ -120,8 +154,8 @@ private fun buildStaticTokens(
             chipSelectedBg = primary,
             chipSelectedText = buttonTextOnAccent,
             chipRadius = 50.dp,
-            cardRadius = 24.dp,
-            heroRadius = 24.dp,
+            cardRadius = ZenixRadii.lg,
+            heroRadius = ZenixRadii.lg,
             cardElevation = 0.dp,
             fontFamily = InterFontFamily
         )
@@ -158,8 +192,8 @@ private fun buildStaticTokens(
             chipSelectedBg = primary.copy(alpha = 0.22f),
             chipSelectedText = MinimalDarkTextPrimary,
             chipRadius = 50.dp,
-            cardRadius = 24.dp,
-            heroRadius = 24.dp,
+            cardRadius = ZenixRadii.lg,
+            heroRadius = ZenixRadii.lg,
             cardElevation = 0.dp,
             fontFamily = InterFontFamily
         )
@@ -196,8 +230,8 @@ private fun buildStaticTokens(
             chipSelectedBg = primary.copy(alpha = 0.24f),
             chipSelectedText = AmoledTextPrimary,
             chipRadius = 50.dp,
-            cardRadius = 24.dp,
-            heroRadius = 24.dp,
+            cardRadius = ZenixRadii.lg,
+            heroRadius = ZenixRadii.lg,
             cardElevation = 0.dp,
             fontFamily = InterFontFamily
         )
@@ -205,10 +239,59 @@ private fun buildStaticTokens(
 }
 
 @Composable
+fun rememberSystemReducedMotion(): Boolean {
+    val context = LocalContext.current
+    fun readScale(): Boolean = runCatching {
+        val animatorScale = Settings.Global.getFloat(
+            context.contentResolver,
+            Settings.Global.ANIMATOR_DURATION_SCALE,
+            1f
+        )
+        val transitionScale = Settings.Global.getFloat(
+            context.contentResolver,
+            Settings.Global.TRANSITION_ANIMATION_SCALE,
+            1f
+        )
+        animatorScale == 0f || transitionScale == 0f
+    }.getOrDefault(false)
+
+    var reduced by remember { mutableStateOf(readScale()) }
+
+    DisposableEffect(context) {
+        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) {
+                reduced = readScale()
+            }
+        }
+        runCatching {
+            context.contentResolver.registerContentObserver(
+                Settings.Global.getUriFor(Settings.Global.ANIMATOR_DURATION_SCALE),
+                false,
+                observer
+            )
+            context.contentResolver.registerContentObserver(
+                Settings.Global.getUriFor(Settings.Global.TRANSITION_ANIMATION_SCALE),
+                false,
+                observer
+            )
+        }
+        onDispose {
+            runCatching { context.contentResolver.unregisterContentObserver(observer) }
+        }
+    }
+    return reduced
+}
+
+@Composable
 private fun rememberAnimatedTokens(
-    target: ZenixThemeTokens
+    target: ZenixThemeTokens,
+    reducedMotion: Boolean
 ): ZenixThemeTokens {
-    val animSpec = tween<Color>(durationMillis = 240)
+    val animSpec = if (reducedMotion) {
+        snap<Color>()
+    } else {
+        tween<Color>(durationMillis = 300, easing = FastOutSlowInEasing)
+    }
     val bg by animateColorAsState(target.background, animSpec, label = "theme_bg")
     val surface by animateColorAsState(target.surface, animSpec, label = "theme_surface")
     val cardBg by animateColorAsState(target.cardBackground, animSpec, label = "theme_card")
@@ -246,7 +329,8 @@ fun AfterglowTheme(
     accentColor: ZenixAccentColor = ZenixAccentColor.PURPLE,
     content: @Composable () -> Unit
 ) {
-    val tokens = rememberAnimatedTokens(buildStaticTokens(themeMode, accentColor))
+    val reducedMotion = rememberSystemReducedMotion()
+    val tokens = rememberAnimatedTokens(buildStaticTokens(themeMode, accentColor), reducedMotion)
 
     val colorScheme = darkColorScheme(
         primary = tokens.primaryAccent,
@@ -278,7 +362,10 @@ fun AfterglowTheme(
 
     CompositionLocalProvider(
         LocalAppThemeMode provides themeMode,
-        LocalZenixTokens provides tokens
+        LocalZenixTokens provides tokens,
+        LocalZenixSpacing provides ZenixSpacing,
+        LocalZenixRadii provides ZenixRadii,
+        LocalReducedMotion provides reducedMotion
     ) {
         MaterialTheme(
             colorScheme = colorScheme,

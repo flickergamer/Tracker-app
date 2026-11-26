@@ -44,6 +44,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -51,6 +52,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
 import com.example.R
 import com.example.data.model.MediaCategory
 import com.example.data.model.MediaItem
@@ -61,6 +63,8 @@ import com.example.ui.theme.AmoledCard
 import com.example.ui.theme.AmoledOutline
 import com.example.ui.theme.AppThemeMode
 import com.example.ui.theme.LocalAppThemeMode
+import com.example.ui.theme.LocalReducedMotion
+import com.example.ui.theme.LocalZenixRadii
 import com.example.ui.theme.LocalZenixTokens
 import com.example.ui.theme.MinimalDarkCard
 import com.example.ui.theme.MinimalDarkOutline
@@ -99,7 +103,10 @@ fun PosterArtwork(
     category: MediaCategory,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val tokens = LocalZenixTokens.current
+    val radii = LocalZenixRadii.current
+    val reducedMotion = LocalReducedMotion.current
     val accent = themedCategoryColor(category)
     val fallbackBrush = when (tokens.mode) {
         AppThemeMode.NEON_GLOSSY -> Brush.linearGradient(
@@ -124,14 +131,17 @@ fun PosterArtwork(
 
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(radii.md))
             .background(fallbackBrush)
-            .border(1.dp, borderColor, RoundedCornerShape(16.dp)),
+            .border(1.dp, borderColor, RoundedCornerShape(radii.md)),
         contentAlignment = Alignment.Center
     ) {
         if (posterUrl.isNotBlank()) {
             SubcomposeAsyncImage(
-                model = posterUrl,
+                model = ImageRequest.Builder(context)
+                    .data(posterUrl)
+                    .crossfade(!reducedMotion)
+                    .build(),
                 contentDescription = "$title poster",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
@@ -750,52 +760,16 @@ fun EmptyStateView(
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
     accentColor: Color = NeonPurple,
+    icon: ImageVector = Icons.Rounded.AutoAwesome,
     modifier: Modifier = Modifier
 ) {
-    val tokens = LocalZenixTokens.current
-    NeonGlassCard(
-        modifier = modifier.fillMaxWidth(),
+    ZenixEmptyState(
+        icon = icon,
+        title = title,
+        subtitle = subtitle,
         accentColor = accentColor,
-        cornerRadius = 22.dp,
-        contentPadding = PaddingValues(22.dp)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Image(
-                painter = painterResource(id = R.drawable.img_empty_reel),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(145.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .border(1.dp, tokens.outlineSubtle, RoundedCornerShape(16.dp))
-            )
-            Text(
-                text = title,
-                style = MaterialTheme.typography.headlineMedium,
-                color = tokens.textPrimary,
-                textAlign = TextAlign.Center
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = tokens.textSecondary,
-                textAlign = TextAlign.Center
-            )
-            if (actionLabel != null && onAction != null) {
-                NeonPrimaryButton(
-                    onClick = onAction,
-                    modifier = Modifier.padding(top = 4.dp)
-                ) {
-                    Icon(Icons.Rounded.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(actionLabel, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-    }
+        primaryActionLabel = actionLabel,
+        onPrimaryAction = onAction,
+        modifier = modifier
+    )
 }

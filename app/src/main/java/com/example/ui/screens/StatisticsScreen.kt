@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.Schedule
@@ -19,10 +20,10 @@ import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import com.example.data.model.DashboardStats
 import com.example.data.model.MediaCategory
 import com.example.data.model.MediaItem
@@ -42,6 +43,9 @@ import com.example.ui.components.RatingPill
 import com.example.ui.components.StatKpiCard
 import com.example.ui.components.statusColor
 import com.example.ui.components.themedPastelFill
+import com.example.ui.components.zenixHeading
+import com.example.ui.theme.LocalZenixRadii
+import com.example.ui.theme.LocalZenixSpacing
 import com.example.ui.theme.LocalZenixTokens
 import java.util.Locale
 
@@ -51,24 +55,32 @@ fun StatisticsScreen(
     profile: UserProfile,
     allItems: List<MediaItem>,
     onSelectItem: (MediaItem) -> Unit,
+    onAddTitle: () -> Unit = {},
     bottomPadding: Dp = FloatingBottomBarClearance,
     modifier: Modifier = Modifier
 ) {
     val tokens = LocalZenixTokens.current
-    val moviesWatched = allItems.count { it.categoryEnum == MediaCategory.MOVIE && it.statusEnum == WatchStatus.COMPLETED }
-    val seriesCompleted = allItems.count { it.categoryEnum.isEpisodic && it.statusEnum == WatchStatus.COMPLETED }
+    val spacing = LocalZenixSpacing.current
+    val radii = LocalZenixRadii.current
+    val moviesWatched = remember(allItems) {
+        allItems.count { it.categoryEnum == MediaCategory.MOVIE && it.statusEnum == WatchStatus.COMPLETED }
+    }
+    val seriesCompleted = remember(allItems) {
+        allItems.count { it.categoryEnum.isEpisodic && it.statusEnum == WatchStatus.COMPLETED }
+    }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottomPadding),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        contentPadding = PaddingValues(start = spacing.space4, end = spacing.space4, top = spacing.space2, bottom = bottomPadding),
+        verticalArrangement = Arrangement.spacedBy(spacing.space4)
     ) {
         item {
             Column {
                 Text(
                     text = "Statistics & Analytics",
                     style = MaterialTheme.typography.displayMedium,
-                    color = tokens.textPrimary
+                    color = tokens.textPrimary,
+                    modifier = Modifier.zenixHeading()
                 )
                 Text(
                     text = "Computed live from ${allItems.size} library records",
@@ -83,13 +95,16 @@ fun StatisticsScreen(
                 EmptyStateView(
                     title = "No Analytics Data Yet",
                     subtitle = "Once you add movies, series, anime, or K-dramas, your real-time charts and watch habits will appear here.",
-                    accentColor = tokens.tertiaryAccent
+                    actionLabel = "Add First Title",
+                    onAction = onAddTitle,
+                    accentColor = tokens.tertiaryAccent,
+                    icon = Icons.Rounded.BarChart
                 )
             }
         } else {
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.space3)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(spacing.space3)) {
                         StatKpiCard(
                             title = "Movies Watched",
                             value = moviesWatched.toString(),
@@ -107,7 +122,7 @@ fun StatisticsScreen(
                             modifier = Modifier.weight(1f)
                         )
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(spacing.space3)) {
                         StatKpiCard(
                             title = "Episodes Watched",
                             value = stats.totalEpisodesWatched.toString(),
@@ -125,7 +140,7 @@ fun StatisticsScreen(
                             modifier = Modifier.weight(1f)
                         )
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(spacing.space3)) {
                         StatKpiCard(
                             title = "Average Rating",
                             value = if (stats.averagePersonalRating <= 0.0) "—" else String.format(Locale.US, "%.2f", stats.averagePersonalRating),
@@ -152,16 +167,16 @@ fun StatisticsScreen(
                     NeonGlassCard(
                         modifier = Modifier.fillMaxWidth(),
                         accentColor = tokens.ratingGold,
-                        cornerRadius = 22.dp,
+                        cornerRadius = radii.lg,
                         onClick = { onSelectItem(top) },
-                        contentPadding = PaddingValues(16.dp)
+                        contentPadding = PaddingValues(spacing.space4)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.space1)) {
                                 Text("Highest Rated Title", style = MaterialTheme.typography.labelMedium, color = tokens.ratingGold)
                                 Text(top.title, style = MaterialTheme.typography.titleLarge, color = tokens.textPrimary)
                                 Text("${top.categoryEnum.label} • ${top.releaseYear}", style = MaterialTheme.typography.bodySmall, color = tokens.textSecondary)
@@ -175,9 +190,14 @@ fun StatisticsScreen(
 
             // Progress Charts (Yearly Goals)
             item {
-                Text("Goal Progress", style = MaterialTheme.typography.titleLarge, color = tokens.textPrimary)
-                Spacer(modifier = Modifier.height(10.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = "Goal Progress",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = tokens.textPrimary,
+                    modifier = Modifier.zenixHeading()
+                )
+                Spacer(modifier = Modifier.height(spacing.space3))
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing.space3)) {
                     GoalRingCard("Movies", stats.completedMoviesThisYear, profile.yearlyMovieGoal.toInt(), tokens.primaryAccent, Modifier.weight(1f))
                     GoalRingCard("Series", stats.completedSeriesThisYear, profile.yearlySeriesGoal.toInt(), tokens.positiveAccent, Modifier.weight(1f))
                     GoalRingCard("Episodes", stats.episodesWatchedTotal, profile.yearlyEpisodeGoal.toInt(), tokens.tertiaryAccent, Modifier.weight(1f))

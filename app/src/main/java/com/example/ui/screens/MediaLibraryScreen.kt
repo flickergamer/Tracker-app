@@ -17,17 +17,22 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Sort
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FilterList
 import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.material.icons.rounded.TableRows
+import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -40,7 +45,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -58,8 +62,12 @@ import com.example.ui.components.NeonGlassChip
 import com.example.ui.components.NeonGlassTextField
 import com.example.ui.components.NeonPrimaryButton
 import com.example.ui.components.SeriesProgressCard
+import com.example.ui.components.StaggeredFadeItem
 import com.example.ui.components.statusColor
 import com.example.ui.components.themedCategoryColor
+import com.example.ui.components.zenixHeading
+import com.example.ui.theme.LocalZenixRadii
+import com.example.ui.theme.LocalZenixSpacing
 import com.example.ui.theme.LocalZenixTokens
 
 enum class LibraryMode { MOVIES, WEB_SERIES, ANIME, K_DRAMA }
@@ -167,14 +175,16 @@ fun MediaLibraryScreen(
     }
 
     val tokens = LocalZenixTokens.current
+    val spacing = LocalZenixSpacing.current
+    val radii = LocalZenixRadii.current
     val modeNeon = themedCategoryColor(defaultAddCategory)
 
     Column(modifier = modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(horizontal = spacing.space4, vertical = spacing.space3),
+            verticalArrangement = Arrangement.spacedBy(spacing.space3)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -182,18 +192,23 @@ fun MediaLibraryScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text(headerTitle, style = MaterialTheme.typography.displayMedium, color = tokens.textPrimary)
                     Text(
-                        "${filteredItems.size} of ${baseItems.size} titles",
+                        text = headerTitle,
+                        style = MaterialTheme.typography.displayMedium,
+                        color = tokens.textPrimary,
+                        modifier = Modifier.zenixHeading()
+                    )
+                    Text(
+                        text = "${filteredItems.size} of ${baseItems.size} titles",
                         style = MaterialTheme.typography.bodySmall,
                         color = tokens.textSecondary
                     )
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing.space2), verticalAlignment = Alignment.CenterVertically) {
                     GlassIconButton(
                         onClick = { isTableView = !isTableView },
                         glowColor = modeNeon,
-                        size = 46.dp
+                        size = 48.dp
                     ) {
                         Icon(
                             imageVector = if (isTableView) Icons.Rounded.GridView else Icons.Rounded.TableRows,
@@ -204,8 +219,8 @@ fun MediaLibraryScreen(
                     }
                     NeonPrimaryButton(
                         onClick = { onAdd(defaultAddCategory) },
-                        cornerRadius = 14.dp,
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                        cornerRadius = radii.sm,
+                        contentPadding = PaddingValues(horizontal = spacing.space4, vertical = spacing.space3),
                         modifier = Modifier.testTag("library_add_button")
                     ) {
                         Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -217,7 +232,7 @@ fun MediaLibraryScreen(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(spacing.space2),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 NeonGlassTextField(
@@ -235,10 +250,10 @@ fun MediaLibraryScreen(
                     GlassSecondaryButton(
                         onClick = { showSortMenu = true },
                         accentBorderColor = modeNeon,
-                        cornerRadius = 14.dp,
-                        contentPadding = PaddingValues(horizontal = 13.dp, vertical = 12.dp)
+                        cornerRadius = radii.sm,
+                        contentPadding = PaddingValues(horizontal = spacing.space3, vertical = spacing.space3)
                     ) {
-                        Icon(Icons.AutoMirrored.Rounded.Sort, contentDescription = "Sort", modifier = Modifier.size(18.dp))
+                        Icon(Icons.AutoMirrored.Rounded.Sort, contentDescription = "Sort titles", modifier = Modifier.size(18.dp))
                     }
                     DropdownMenu(
                         expanded = showSortMenu,
@@ -265,17 +280,17 @@ fun MediaLibraryScreen(
                     GlassSecondaryButton(
                         onClick = { showFilterMenu = true },
                         accentBorderColor = tokens.secondaryAccent,
-                        cornerRadius = 14.dp,
-                        contentPadding = PaddingValues(horizontal = 13.dp, vertical = 12.dp)
+                        cornerRadius = radii.sm,
+                        contentPadding = PaddingValues(horizontal = spacing.space3, vertical = spacing.space3)
                     ) {
-                        Icon(Icons.Rounded.FilterList, contentDescription = "Filters", modifier = Modifier.size(18.dp))
+                        Icon(Icons.Rounded.FilterList, contentDescription = "Filter titles", modifier = Modifier.size(18.dp))
                     }
                     DropdownMenu(
                         expanded = showFilterMenu,
                         onDismissRequest = { showFilterMenu = false },
                         modifier = Modifier
                             .background(tokens.dialogBackground)
-                            .border(1.dp, tokens.secondaryAccent.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                            .border(1.dp, tokens.secondaryAccent.copy(alpha = 0.5f), RoundedCornerShape(radii.sm))
                     ) {
                         DropdownMenuItem(
                             text = { Text("Reset All Filters", color = tokens.dangerAccent) },
@@ -315,7 +330,7 @@ fun MediaLibraryScreen(
             // Status filter chips
             Row(
                 modifier = Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(spacing.space2)
             ) {
                 NeonGlassChip(
                     label = "All Statuses",
@@ -359,10 +374,18 @@ fun MediaLibraryScreen(
         }
 
         if (filteredItems.isEmpty()) {
+            val emptyIcon = if (baseItems.isNotEmpty()) {
+                Icons.Rounded.SearchOff
+            } else when (mode) {
+                LibraryMode.MOVIES -> Icons.Rounded.Movie
+                LibraryMode.WEB_SERIES -> Icons.Rounded.Tv
+                LibraryMode.ANIME -> Icons.Rounded.AutoAwesome
+                LibraryMode.K_DRAMA -> Icons.Rounded.Favorite
+            }
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottomPadding)
+                    .padding(start = spacing.space4, end = spacing.space4, top = spacing.space2, bottom = bottomPadding)
             ) {
                 EmptyStateView(
                     title = if (baseItems.isEmpty()) "No $headerTitle Yet" else "No Matching Titles",
@@ -372,6 +395,7 @@ fun MediaLibraryScreen(
                         "Try clearing your search or active filter chips.",
                     actionLabel = if (baseItems.isEmpty()) "Add ${defaultAddCategory.label}" else "Reset Filters",
                     accentColor = modeNeon,
+                    icon = emptyIcon,
                     onAction = {
                         if (baseItems.isEmpty()) onAdd(defaultAddCategory)
                         else {
@@ -382,7 +406,7 @@ fun MediaLibraryScreen(
             }
         } else if (isTableView) {
             LazyColumn(
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottomPadding)
+                contentPadding = PaddingValues(start = spacing.space4, end = spacing.space4, top = spacing.space2, bottom = bottomPadding)
             ) {
                 item {
                     MovieTableView(
@@ -397,37 +421,41 @@ fun MediaLibraryScreen(
         } else if (mode == LibraryMode.MOVIES) {
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(minSize = 158.dp),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottomPadding),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(start = spacing.space4, end = spacing.space4, top = spacing.space2, bottom = bottomPadding),
+                verticalArrangement = Arrangement.spacedBy(spacing.space3),
+                horizontalArrangement = Arrangement.spacedBy(spacing.space3),
                 modifier = Modifier.fillMaxSize()
             ) {
-                items(filteredItems, key = { it.id }) { movie ->
-                    MediaGridCard(
-                        item = movie,
-                        compact = compact,
-                        onClick = { onSelect(movie) },
-                        onToggleFavourite = { onToggleFavourite(movie) },
-                        onEdit = { onEdit(movie) }
-                    )
+                itemsIndexed(filteredItems, key = { _, item -> item.id }) { idx, movie ->
+                    StaggeredFadeItem(index = idx) {
+                        MediaGridCard(
+                            item = movie,
+                            compact = compact,
+                            onClick = { onSelect(movie) },
+                            onToggleFavourite = { onToggleFavourite(movie) },
+                            onEdit = { onEdit(movie) }
+                        )
+                    }
                 }
             }
         } else {
             // Web Series, Anime, or K-Drama with live Episode Progress cards + quick Edit button
             LazyColumn(
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottomPadding),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(start = spacing.space4, end = spacing.space4, top = spacing.space2, bottom = bottomPadding),
+                verticalArrangement = Arrangement.spacedBy(spacing.space4),
                 modifier = Modifier.fillMaxSize()
             ) {
-                items(filteredItems, key = { it.id }) { series ->
-                    SeriesProgressCard(
-                        item = series,
-                        compact = compact,
-                        onClick = { onSelect(series) },
-                        onStepEpisode = { delta -> onStepEpisode(series, delta) },
-                        onToggleFavourite = { onToggleFavourite(series) },
-                        onEdit = { onEdit(series) }
-                    )
+                itemsIndexed(filteredItems, key = { _, item -> item.id }) { idx, series ->
+                    StaggeredFadeItem(index = idx) {
+                        SeriesProgressCard(
+                            item = series,
+                            compact = compact,
+                            onClick = { onSelect(series) },
+                            onStepEpisode = { delta -> onStepEpisode(series, delta) },
+                            onToggleFavourite = { onToggleFavourite(series) },
+                            onEdit = { onEdit(series) }
+                        )
+                    }
                 }
             }
         }

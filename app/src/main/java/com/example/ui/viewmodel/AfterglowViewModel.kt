@@ -19,12 +19,15 @@ import com.example.data.tmdb.TmdbRepository
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestoreException
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -32,6 +35,13 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 
+data class AfterglowUiEvent(
+    val message: String,
+    val undoLabel: String? = null,
+    val onUndo: (() -> Unit)? = null
+)
+
+@OptIn(ExperimentalCoroutinesApi::class)
 class AfterglowViewModel(
     private val repository: AfterglowRepository,
     private val currentUserId: String,
@@ -39,8 +49,9 @@ class AfterglowViewModel(
 ) : ViewModel() {
 
     private val tmdbRepository = TmdbRepository()
+    private val syncTrigger = MutableStateFlow(0)
 
-    private val _events = MutableSharedFlow<String>(extraBufferCapacity = 8)
+    private val _events = MutableSharedFlow<AfterglowUiEvent>(extraBufferCapacity = 12)
     val events = _events.asSharedFlow()
 
     init {
@@ -49,23 +60,33 @@ class AfterglowViewModel(
         }
     }
 
-    val profileState: StateFlow<UiState<UserProfile>> = repository.observeProfile(currentUserId)
-        .map<UserProfile?, UiState<UserProfile>> { profile ->
-            UiState.Success(
-                profile ?: UserProfile(
-                    userId = currentUserId,
-                    displayName = defaultDisplayName?.takeIf { it.isNotBlank() } ?: "Cinephile"
-                )
-            )
+    fun retrySync() {
+        syncTrigger.value += 1
+        viewModelScope.launch {
+            repository.ensureUserProfile(currentUserId, defaultDisplayName)
         }
-        .catch { error ->
-            val firestoreError = generateSequence(error) { it.cause }
-                .filterIsInstance<FirebaseFirestoreException>()
-                .firstOrNull()
-            if (firestoreError == null && error is CancellationException) throw error
-            val rootError = firestoreError ?: error
-            Log.w(TAG, "Error observing profile", rootError)
-            emit(UiState.Error(rootError.message ?: "Failed to load profile"))
+    }
+
+    val profileState: StateFlow<UiState<UserProfile>> = syncTrigger
+        .flatMapLatest {
+            repository.observeProfile(currentUserId)
+                .map<UserProfile?, UiState<UserProfile>> { profile ->
+                    UiState.Success(
+                        profile ?: UserProfile(
+                            userId = currentUserId,
+                            displayName = defaultDisplayName?.takeIf { it.isNotBlank() } ?: "Cinephile"
+                        )
+                    )
+                }
+                .catch { error ->
+                    val firestoreError = generateSequence(error) { it.cause }
+                        .filterIsInstance<FirebaseFirestoreException>()
+                        .firstOrNull()
+                    if (firestoreError == null && error is CancellationException) throw error
+                    val rootError = firestoreError ?: error
+                    Log.w(TAG, "Error observing profile", rootError)
+                    emit(UiState.Error(rootError.message ?: "Failed to load profile"))
+                }
         }
         .stateIn(
             scope = viewModelScope,
@@ -73,18 +94,21 @@ class AfterglowViewModel(
             initialValue = UiState.Loading
         )
 
-    val mediaItemsState: StateFlow<UiState<List<MediaItem>>> = repository.observeMediaItems(currentUserId)
-        .map<List<MediaItem>, UiState<List<MediaItem>>> { items ->
-            UiState.Success(items.sortedByDescending { it.updatedAt ?: it.createdAt ?: Timestamp(0, 0) })
-        }
-        .catch { error ->
-            val firestoreError = generateSequence(error) { it.cause }
-                .filterIsInstance<FirebaseFirestoreException>()
-                .firstOrNull()
-            if (firestoreError == null && error is CancellationException) throw error
-            val rootError = firestoreError ?: error
-            Log.w(TAG, "Error observing media items", rootError)
-            emit(UiState.Error(rootError.message ?: "Failed to load library"))
+    val mediaItemsState: StateFlow<UiState<List<MediaItem>>> = syncTrigger
+        .flatMapLatest {
+            repository.observeMediaItems(currentUserId)
+                .map<List<MediaItem>, UiState<List<MediaItem>>> { items ->
+                    UiState.Success(items.sortedByDescending { it.updatedAt ?: it.createdAt ?: Timestamp(0, 0) })
+                }
+                .catch { error ->
+                    val firestoreError = generateSequence(error) { it.cause }
+                        .filterIsInstance<FirebaseFirestoreException>()
+                        .firstOrNull()
+                    if (firestoreError == null && error is CancellationException) throw error
+                    val rootError = firestoreError ?: error
+                    Log.w(TAG, "Error observing media items", rootError)
+                    emit(UiState.Error(rootError.message ?: "Failed to load library"))
+                }
         }
         .stateIn(
             scope = viewModelScope,
@@ -92,18 +116,21 @@ class AfterglowViewModel(
             initialValue = UiState.Loading
         )
 
-    val quotesState: StateFlow<UiState<List<QuoteItem>>> = repository.observeQuotes(currentUserId)
-        .map<List<QuoteItem>, UiState<List<QuoteItem>>> { quotes ->
-            UiState.Success(quotes.sortedByDescending { it.createdAt ?: Timestamp(0, 0) })
-        }
-        .catch { error ->
-            val firestoreError = generateSequence(error) { it.cause }
-                .filterIsInstance<FirebaseFirestoreException>()
-                .firstOrNull()
-            if (firestoreError == null && error is CancellationException) throw error
-            val rootError = firestoreError ?: error
-            Log.w(TAG, "Error observing quotes", rootError)
-            emit(UiState.Error(rootError.message ?: "Failed to load quotes"))
+    val quotesState: StateFlow<UiState<List<QuoteItem>>> = syncTrigger
+        .flatMapLatest {
+            repository.observeQuotes(currentUserId)
+                .map<List<QuoteItem>, UiState<List<QuoteItem>>> { quotes ->
+                    UiState.Success(quotes.sortedByDescending { it.createdAt ?: Timestamp(0, 0) })
+                }
+                .catch { error ->
+                    val firestoreError = generateSequence(error) { it.cause }
+                        .filterIsInstance<FirebaseFirestoreException>()
+                        .firstOrNull()
+                    if (firestoreError == null && error is CancellationException) throw error
+                    val rootError = firestoreError ?: error
+                    Log.w(TAG, "Error observing quotes", rootError)
+                    emit(UiState.Error(rootError.message ?: "Failed to load quotes"))
+                }
         }
         .stateIn(
             scope = viewModelScope,
@@ -132,6 +159,10 @@ class AfterglowViewModel(
         initialValue = emptyList()
     )
 
+    private fun emitMessage(message: String) {
+        _events.tryEmit(AfterglowUiEvent(message = message))
+    }
+
     fun saveMediaItem(item: MediaItem, isEdit: Boolean) {
         viewModelScope.launch {
             val res = if (isEdit && item.id.isNotBlank()) {
@@ -140,18 +171,35 @@ class AfterglowViewModel(
                 repository.createMediaItem(currentUserId, item)
             }
             res.onSuccess {
-                _events.tryEmit(if (isEdit) "Updated \"${item.title}\"" else "Added \"${item.title}\" to Zenix")
+                emitMessage(if (isEdit) "Saved \"${item.title}\"" else "Added \"${item.title}\" to ZENIX")
             }.onFailure { err ->
-                _events.tryEmit(err.localizedMessage ?: "Failed to save \"${item.title}\"")
+                emitMessage(err.localizedMessage ?: "Failed to save \"${item.title}\"")
             }
         }
     }
 
     fun deleteMediaItem(item: MediaItem) {
         viewModelScope.launch {
+            val snapshot = item.copy()
             repository.deleteMediaItem(currentUserId, item.id)
-                .onSuccess { _events.tryEmit("Removed \"${item.title}\"") }
-                .onFailure { _events.tryEmit(it.localizedMessage ?: "Failed to delete item") }
+                .onSuccess {
+                    _events.tryEmit(
+                        AfterglowUiEvent(
+                            message = "Deleted \"${snapshot.title}\"",
+                            undoLabel = "Undo",
+                            onUndo = { restoreMediaItem(snapshot) }
+                        )
+                    )
+                }
+                .onFailure { emitMessage(it.localizedMessage ?: "Failed to delete item") }
+        }
+    }
+
+    private fun restoreMediaItem(item: MediaItem) {
+        viewModelScope.launch {
+            repository.createMediaItem(currentUserId, item.copy(id = ""))
+                .onSuccess { emitMessage("Restored \"${item.title}\"") }
+                .onFailure { emitMessage(it.localizedMessage ?: "Failed to restore \"${item.title}\"") }
         }
     }
 
@@ -160,25 +208,25 @@ class AfterglowViewModel(
             repository.incrementEpisode(currentUserId, item, delta)
                 .onSuccess {
                     if (delta > 0 && item.totalEpisodes > 0 && item.episodesWatched + delta >= item.totalEpisodes) {
-                        _events.tryEmit("Completed \"${item.title}\"!")
+                        emitMessage("Completed \"${item.title}\"!")
                     }
                 }
-                .onFailure { _events.tryEmit(it.localizedMessage ?: "Could not update episode progress") }
+                .onFailure { emitMessage(it.localizedMessage ?: "Could not update episode progress") }
         }
     }
 
     fun moveWatchlistToLibrary(item: MediaItem, status: WatchStatus) {
         viewModelScope.launch {
             repository.moveWatchlistToLibrary(currentUserId, item, status)
-                .onSuccess { _events.tryEmit("Moved \"${item.title}\" to ${status.label}") }
-                .onFailure { _events.tryEmit(it.localizedMessage ?: "Failed to move item") }
+                .onSuccess { emitMessage("Moved \"${item.title}\" to ${status.label}") }
+                .onFailure { emitMessage(it.localizedMessage ?: "Failed to move item") }
         }
     }
 
     fun toggleFavourite(item: MediaItem) {
         viewModelScope.launch {
             repository.updateQuickFlags(currentUserId, item.id, favourite = !item.favourite)
-                .onFailure { _events.tryEmit(it.localizedMessage ?: "Failed to update favourite") }
+                .onFailure { emitMessage(it.localizedMessage ?: "Failed to update favourite") }
         }
     }
 
@@ -190,21 +238,21 @@ class AfterglowViewModel(
                 item.id,
                 allTimeFavourite = next,
                 favourite = if (next) true else item.favourite
-            ).onFailure { _events.tryEmit(it.localizedMessage ?: "Failed to update all-time favourite") }
+            ).onFailure { emitMessage(it.localizedMessage ?: "Failed to update all-time favourite") }
         }
     }
 
     fun toggleHiddenGem(item: MediaItem) {
         viewModelScope.launch {
             repository.updateQuickFlags(currentUserId, item.id, hiddenGem = !item.hiddenGem)
-                .onFailure { _events.tryEmit(it.localizedMessage ?: "Failed to update hidden gem") }
+                .onFailure { emitMessage(it.localizedMessage ?: "Failed to update hidden gem") }
         }
     }
 
     fun toggleRewatchFlag(item: MediaItem) {
         viewModelScope.launch {
             repository.updateQuickFlags(currentUserId, item.id, rewatchFlag = !item.rewatchFlag)
-                .onFailure { _events.tryEmit(it.localizedMessage ?: "Failed to update rewatch list") }
+                .onFailure { emitMessage(it.localizedMessage ?: "Failed to update rewatch list") }
         }
     }
 
@@ -216,9 +264,9 @@ class AfterglowViewModel(
                 rewatchCount = item.rewatchCount + 1L,
                 rewatchFlag = true
             ).onSuccess {
-                _events.tryEmit("Logged rewatch #${item.rewatchCount + 1} for \"${item.title}\"")
+                emitMessage("Logged rewatch #${item.rewatchCount + 1} for \"${item.title}\"")
             }.onFailure {
-                _events.tryEmit(it.localizedMessage ?: "Failed to log rewatch")
+                emitMessage(it.localizedMessage ?: "Failed to log rewatch")
             }
         }
     }
@@ -226,15 +274,15 @@ class AfterglowViewModel(
     fun resumeDroppedItem(item: MediaItem) {
         viewModelScope.launch {
             repository.updateQuickFlags(currentUserId, item.id, watchStatus = WatchStatus.WATCHING)
-                .onSuccess { _events.tryEmit("Resumed \"${item.title}\"") }
-                .onFailure { _events.tryEmit(it.localizedMessage ?: "Failed to resume title") }
+                .onSuccess { emitMessage("Resumed \"${item.title}\"") }
+                .onFailure { emitMessage(it.localizedMessage ?: "Failed to resume title") }
         }
     }
 
     fun updateManualRank(item: MediaItem, newRank: Long) {
         viewModelScope.launch {
             repository.updateQuickFlags(currentUserId, item.id, manualRank = newRank)
-                .onFailure { _events.tryEmit(it.localizedMessage ?: "Failed to update rank") }
+                .onFailure { emitMessage(it.localizedMessage ?: "Failed to update rank") }
         }
     }
 
@@ -246,42 +294,59 @@ class AfterglowViewModel(
                 repository.addQuote(currentUserId, quote)
             }
             res.onSuccess {
-                _events.tryEmit(if (isEdit) "Quote updated" else "Quote saved to collection")
+                emitMessage(if (isEdit) "Quote saved" else "Added quote to collection")
             }.onFailure {
-                _events.tryEmit(it.localizedMessage ?: "Failed to save quote")
+                emitMessage(it.localizedMessage ?: "Failed to save quote")
             }
         }
     }
 
     fun deleteQuote(quote: QuoteItem) {
         viewModelScope.launch {
+            val snapshot = quote.copy()
             repository.deleteQuote(currentUserId, quote.id)
-                .onSuccess { _events.tryEmit("Quote removed") }
-                .onFailure { _events.tryEmit(it.localizedMessage ?: "Failed to delete quote") }
+                .onSuccess {
+                    _events.tryEmit(
+                        AfterglowUiEvent(
+                            message = "Deleted quote",
+                            undoLabel = "Undo",
+                            onUndo = { restoreQuote(snapshot) }
+                        )
+                    )
+                }
+                .onFailure { emitMessage(it.localizedMessage ?: "Failed to delete quote") }
+        }
+    }
+
+    private fun restoreQuote(quote: QuoteItem) {
+        viewModelScope.launch {
+            repository.addQuote(currentUserId, quote.copy(id = ""))
+                .onSuccess { emitMessage("Restored quote") }
+                .onFailure { emitMessage(it.localizedMessage ?: "Failed to restore quote") }
         }
     }
 
     fun updateProfile(profile: UserProfile) {
         viewModelScope.launch {
             repository.updateProfile(currentUserId, profile)
-                .onSuccess { _events.tryEmit("Preferences saved") }
-                .onFailure { _events.tryEmit(it.localizedMessage ?: "Failed to save preferences") }
+                .onSuccess { emitMessage("Saved preferences") }
+                .onFailure { emitMessage(it.localizedMessage ?: "Failed to save preferences") }
         }
     }
 
     fun importBackup(backup: ImportedBackup) {
         viewModelScope.launch {
             repository.importData(currentUserId, backup.mediaItems, backup.quotes, backup.profile)
-                .onSuccess { count -> _events.tryEmit("Imported $count records to your cloud library") }
-                .onFailure { _events.tryEmit(it.localizedMessage ?: "Import failed") }
+                .onSuccess { count -> emitMessage("Imported $count records to your cloud library") }
+                .onFailure { emitMessage(it.localizedMessage ?: "Import failed") }
         }
     }
 
     fun clearAllData() {
         viewModelScope.launch {
             repository.clearAllUserData(currentUserId)
-                .onSuccess { _events.tryEmit("All library items and quotes cleared") }
-                .onFailure { _events.tryEmit(it.localizedMessage ?: "Failed to clear data") }
+                .onSuccess { emitMessage("All library items and quotes cleared") }
+                .onFailure { emitMessage(it.localizedMessage ?: "Failed to clear data") }
         }
     }
 

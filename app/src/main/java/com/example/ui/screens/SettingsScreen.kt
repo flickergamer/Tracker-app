@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -20,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.AddToHomeScreen
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.Backup
@@ -32,8 +34,6 @@ import androidx.compose.material.icons.rounded.TableView
 import androidx.compose.material.icons.rounded.Upload
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -55,7 +55,12 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.pm.ShortcutInfoCompat
+import androidx.core.content.pm.ShortcutManagerCompat
+import androidx.core.graphics.drawable.IconCompat
 import com.example.BuildConfig
+import com.example.MainActivity
+import com.example.R
 import com.example.data.export.ImportedBackup
 import com.example.data.export.LibrarySerializer
 import com.example.data.model.MediaItem
@@ -68,10 +73,15 @@ import com.example.ui.components.NeonGlassCard
 import com.example.ui.components.NeonGlassDialog
 import com.example.ui.components.NeonGlassTextField
 import com.example.ui.components.NeonPrimaryButton
+import com.example.ui.components.ZenixToggleSwitch
+import com.example.ui.components.zenixHeading
 import com.example.ui.theme.AppThemeMode
+import com.example.ui.theme.LocalZenixRadii
+import com.example.ui.theme.LocalZenixSpacing
 import com.example.ui.theme.LocalZenixTokens
 import com.example.ui.theme.NeonCyan
 import com.example.ui.theme.NeonPink
+import com.example.ui.theme.NeonPurple
 import com.example.ui.theme.ZenixAccentColor
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -99,6 +109,8 @@ fun SettingsScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val tokens = LocalZenixTokens.current
+    val spacing = LocalZenixSpacing.current
+    val radii = LocalZenixRadii.current
 
     var displayName by remember(profile.displayName) { mutableStateOf(profile.displayName) }
     var bio by remember(profile.bio) { mutableStateOf(profile.bio) }
@@ -114,6 +126,9 @@ fun SettingsScreen(
     var showClearConfirm2 by remember { mutableStateOf(false) }
 
     val dateStamp = remember { SimpleDateFormat("yyyyMMdd", Locale.US).format(Date()) }
+    val canPinShortcut = remember(context) {
+        runCatching { ShortcutManagerCompat.isRequestPinShortcutSupported(context) }.getOrDefault(false)
+    }
 
     val exportJsonLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
@@ -162,14 +177,20 @@ fun SettingsScreen(
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottomPadding),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        contentPadding = PaddingValues(
+            start = spacing.space4,
+            end = spacing.space4,
+            top = spacing.space2,
+            bottom = bottomPadding
+        ),
+        verticalArrangement = Arrangement.spacedBy(spacing.space4)
     ) {
         item {
             Text(
                 text = "Settings & Data",
                 style = MaterialTheme.typography.displayMedium,
-                color = tokens.textPrimary
+                color = tokens.textPrimary,
+                modifier = Modifier.zenixHeading()
             )
         }
 
@@ -205,12 +226,13 @@ fun SettingsScreen(
                 NeonPrimaryButton(
                     onClick = onOpenAppearance,
                     accentColor = currentAccent.color,
+                    cornerRadius = radii.md,
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("settings_open_appearance_button")
                 ) {
                     Text("Customize Theme & Accent", fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(spacing.space2))
                     Icon(Icons.AutoMirrored.Rounded.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
                 }
 
@@ -223,26 +245,22 @@ fun SettingsScreen(
                         Text("Compact Card Density", style = MaterialTheme.typography.bodyMedium, color = tokens.textPrimary)
                         Text("Fit more posters and episode cards per screen", style = MaterialTheme.typography.bodySmall, color = tokens.textSecondary)
                     }
-                    Switch(
+                    ZenixToggleSwitch(
                         checked = compactMode,
                         onCheckedChange = {
                             compactMode = it
                             onUpdateProfile(profile.copy(compactMode = it))
                         },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = tokens.primaryAccent,
-                            uncheckedThumbColor = tokens.textSecondary,
-                            uncheckedTrackColor = tokens.outlineSubtle
-                        )
+                        accentColor = tokens.primaryAccent,
+                        contentDescriptionLabel = "Compact Card Density"
                     )
                 }
             }
         }
 
-        // Updates Entry Card -> opens UpdatesScreen
+        // Updates & Install App Shortcut Card
         item {
-            SettingsCard(title = "App Updates", icon = Icons.Rounded.SystemUpdate, accentColor = NeonCyan) {
+            SettingsCard(title = "App Updates & Home Shortcut", icon = Icons.Rounded.SystemUpdate, accentColor = NeonCyan) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -265,7 +283,7 @@ fun SettingsScreen(
                             .clip(RoundedCornerShape(50))
                             .background(NeonPink.copy(alpha = 0.20f))
                             .border(1.dp, NeonPink.copy(alpha = 0.85f), RoundedCornerShape(50))
-                            .padding(horizontal = 9.dp, vertical = 3.dp)
+                            .padding(horizontal = spacing.space2, vertical = spacing.space1)
                     ) {
                         Text(
                             text = "NEW",
@@ -279,11 +297,45 @@ fun SettingsScreen(
                 GlassSecondaryButton(
                     onClick = onOpenUpdates,
                     accentBorderColor = NeonCyan,
+                    cornerRadius = radii.md,
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("settings_open_updates_button")
                 ) {
                     Text("View Updates", fontWeight = FontWeight.SemiBold)
+                }
+                GlassSecondaryButton(
+                    onClick = {
+                        if (canPinShortcut) {
+                            runCatching {
+                                val launchIntent = Intent(context, MainActivity::class.java).apply {
+                                    action = Intent.ACTION_VIEW
+                                }
+                                val shortcut = ShortcutInfoCompat.Builder(context, "zenix_home_shortcut")
+                                    .setShortLabel("ZENIX")
+                                    .setLongLabel("ZENIX Tracker")
+                                    .setIcon(IconCompat.createWithResource(context, R.mipmap.ic_launcher))
+                                    .setIntent(launchIntent)
+                                    .build()
+                                ShortcutManagerCompat.requestPinShortcut(context, shortcut, null)
+                            }.onSuccess {
+                                onNotify("Home Screen pin prompt opened for ZENIX")
+                            }.onFailure {
+                                onNotify("Unable to pin shortcut on this launcher")
+                            }
+                        } else {
+                            onNotify("ZENIX is already installed; pin shortcuts from your launcher if needed.")
+                        }
+                    },
+                    accentBorderColor = NeonPurple,
+                    cornerRadius = radii.md,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("settings_install_shortcut_button")
+                ) {
+                    Icon(Icons.AutoMirrored.Rounded.AddToHomeScreen, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(spacing.space2))
+                    Text("Pin ZENIX to Home Screen", fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -315,7 +367,7 @@ fun SettingsScreen(
                     focusNeonColor = tokens.primaryAccent,
                     modifier = Modifier.fillMaxWidth()
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing.space2)) {
                     NeonGlassTextField(
                         value = movieGoal,
                         onValueChange = { movieGoal = it.filter(Char::isDigit).take(4) },
@@ -351,6 +403,7 @@ fun SettingsScreen(
                             )
                         )
                     },
+                    cornerRadius = radii.md,
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("save_profile_button")
@@ -386,6 +439,7 @@ fun SettingsScreen(
                         }
                     },
                     accentBorderColor = tokens.tertiaryAccent,
+                    cornerRadius = radii.md,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Save TMDB Key")
@@ -401,32 +455,35 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.bodySmall,
                     color = tokens.textSecondary
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing.space2)) {
                     NeonPrimaryButton(
                         onClick = { exportJsonLauncher.launch("zenix_backup_$dateStamp.json") },
+                        cornerRadius = radii.md,
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(Icons.Rounded.Download, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(spacing.space1))
                         Text("Export JSON", fontWeight = FontWeight.Bold)
                     }
                     GlassSecondaryButton(
                         onClick = { importJsonLauncher.launch(arrayOf("application/json", "*/*")) },
                         accentBorderColor = tokens.positiveAccent,
+                        cornerRadius = radii.md,
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(Icons.Rounded.Upload, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(spacing.space1))
                         Text("Import JSON")
                     }
                 }
                 GlassSecondaryButton(
                     onClick = { exportCsvLauncher.launch("zenix_library_$dateStamp.csv") },
                     accentBorderColor = tokens.tertiaryAccent,
+                    cornerRadius = radii.md,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(Icons.Rounded.TableView, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(spacing.space2))
                     Text("Export Library to CSV")
                 }
             }
@@ -437,21 +494,23 @@ fun SettingsScreen(
             SettingsCard(title = "Account & Danger Zone", icon = Icons.Rounded.DeleteForever, accentColor = tokens.dangerAccent) {
                 GlassSecondaryButton(
                     onClick = onSignOut,
+                    cornerRadius = radii.md,
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("sign_out_button")
                 ) {
                     Icon(Icons.AutoMirrored.Rounded.Logout, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(spacing.space2))
                     Text("Sign Out")
                 }
                 GlassSecondaryButton(
                     onClick = { showClearConfirm1 = true },
                     accentBorderColor = tokens.dangerAccent,
+                    cornerRadius = radii.md,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(Icons.Rounded.DeleteForever, contentDescription = null, modifier = Modifier.size(18.dp), tint = tokens.dangerAccent)
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(spacing.space2))
                     Text("Clear All Library Data", color = tokens.dangerAccent, fontWeight = FontWeight.Bold)
                 }
             }
@@ -504,16 +563,23 @@ private fun SettingsCard(
     content: @Composable () -> Unit
 ) {
     val tokens = LocalZenixTokens.current
+    val spacing = LocalZenixSpacing.current
+    val radii = LocalZenixRadii.current
     NeonGlassCard(
         modifier = Modifier.fillMaxWidth(),
         accentColor = accentColor,
-        cornerRadius = 24.dp,
-        contentPadding = PaddingValues(18.dp)
+        cornerRadius = radii.lg,
+        contentPadding = PaddingValues(spacing.space4)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(spacing.space3)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.space2)) {
                 Icon(icon, contentDescription = null, tint = accentColor)
-                Text(title, style = MaterialTheme.typography.titleLarge, color = tokens.textPrimary)
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = tokens.textPrimary,
+                    modifier = Modifier.zenixHeading()
+                )
             }
             content()
         }

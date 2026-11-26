@@ -14,24 +14,22 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.DriveFileMove
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Bookmark
-import androidx.compose.material.icons.rounded.Casino
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -44,11 +42,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -56,7 +52,6 @@ import com.example.data.model.MediaCategory
 import com.example.data.model.MediaItem
 import com.example.data.model.WatchStatus
 import com.example.data.model.WatchlistPriority
-import com.example.ui.components.EmptyStateView
 import com.example.ui.components.FloatingBottomBarClearance
 import com.example.ui.components.GlassIconButton
 import com.example.ui.components.GlassSecondaryButton
@@ -66,11 +61,14 @@ import com.example.ui.components.NeonGlassDialog
 import com.example.ui.components.NeonGlassTextField
 import com.example.ui.components.NeonPrimaryButton
 import com.example.ui.components.PosterArtwork
-import com.example.ui.components.neonGlow
+import com.example.ui.components.StaggeredFadeItem
+import com.example.ui.components.ZenixEmptyState
 import com.example.ui.components.priorityColor
 import com.example.ui.components.themedCategoryColor
+import com.example.ui.components.zenixHeading
+import com.example.ui.theme.LocalZenixRadii
+import com.example.ui.theme.LocalZenixSpacing
 import com.example.ui.theme.LocalZenixTokens
-import com.example.ui.theme.NeonCyan
 import com.example.ui.theme.NeonPurple
 
 @Composable
@@ -87,6 +85,9 @@ fun WatchlistScreen(
 ) {
     val context = LocalContext.current
     val tokens = LocalZenixTokens.current
+    val spacing = LocalZenixSpacing.current
+    val radii = LocalZenixRadii.current
+
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf<MediaCategory?>(null) }
     var selectedPriority by remember { mutableStateOf<WatchlistPriority?>(null) }
@@ -119,8 +120,8 @@ fun WatchlistScreen(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(horizontal = spacing.space4, vertical = spacing.space2),
+            verticalArrangement = Arrangement.spacedBy(spacing.space3)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -129,7 +130,7 @@ fun WatchlistScreen(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(spacing.space3)
                 ) {
                     GlassIconButton(
                         onClick = onBack,
@@ -147,7 +148,8 @@ fun WatchlistScreen(
                         Text(
                             text = "Watchlist",
                             style = MaterialTheme.typography.displayMedium,
-                            color = tokens.textPrimary
+                            color = tokens.textPrimary,
+                            modifier = Modifier.zenixHeading()
                         )
                         if (watchlistItems.isNotEmpty()) {
                             Text(
@@ -162,12 +164,12 @@ fun WatchlistScreen(
                 if (watchlistItems.isNotEmpty()) {
                     NeonPrimaryButton(
                         onClick = onAddWatchlistItem,
-                        cornerRadius = 14.dp,
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                        cornerRadius = radii.sm,
+                        contentPadding = PaddingValues(horizontal = spacing.space4, vertical = spacing.space2),
                         modifier = Modifier.testTag("watchlist_add_button")
                     ) {
                         Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(spacing.space1))
                         Text("Add", fontWeight = FontWeight.Bold)
                     }
                 }
@@ -185,7 +187,7 @@ fun WatchlistScreen(
 
                 Row(
                     modifier = Modifier.horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(spacing.space2)
                 ) {
                     NeonGlassChip(
                         label = if (sortByPriority) "Sort: Priority" else "Sort: Date Added",
@@ -214,122 +216,134 @@ fun WatchlistScreen(
         }
 
         if (watchlistItems.isEmpty()) {
-            WatchlistEmptyState(
-                onAddFirstTitle = onAddWatchlistItem,
-                onTryRandomPicker = onTryRandomPicker,
-                bottomPadding = bottomPadding,
-                modifier = Modifier.fillMaxSize()
-            )
-        } else if (filtered.isEmpty()) {
-            Box(
+            ZenixEmptyState(
+                icon = Icons.Rounded.Bookmark,
+                title = "Your watchlist is empty",
+                subtitle = "Save movies and shows you want to watch next, and they will show up here.",
+                accentColor = NeonPurple,
+                primaryActionLabel = "Add your first title",
+                onPrimaryAction = onAddWatchlistItem,
+                secondaryActionLabel = "Try Random Picker",
+                onSecondaryAction = onTryRandomPicker,
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottomPadding)
-            ) {
-                EmptyStateView(
-                    title = "No Matching Titles",
-                    subtitle = "Try clearing your search or priority/category filters to view your saved watchlist.",
-                    actionLabel = "Reset Filters",
-                    accentColor = tokens.tertiaryAccent,
-                    onAction = {
-                        searchQuery = ""
-                        selectedCategory = null
-                        selectedPriority = null
-                    }
-                )
-            }
+                    .padding(bottom = bottomPadding)
+            )
+        } else if (filtered.isEmpty()) {
+            ZenixEmptyState(
+                icon = Icons.Rounded.SearchOff,
+                title = "No matching titles",
+                subtitle = "Try clearing your search or priority/category filters to view your saved watchlist.",
+                accentColor = tokens.tertiaryAccent,
+                primaryActionLabel = "Reset Filters",
+                onPrimaryAction = {
+                    searchQuery = ""
+                    selectedCategory = null
+                    selectedPriority = null
+                },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = bottomPadding)
+            )
         } else {
             LazyColumn(
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottomPadding),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                contentPadding = PaddingValues(
+                    start = spacing.space4,
+                    end = spacing.space4,
+                    top = spacing.space2,
+                    bottom = bottomPadding
+                ),
+                verticalArrangement = Arrangement.spacedBy(spacing.space4)
             ) {
-                items(filtered, key = { it.id }) { item ->
+                itemsIndexed(filtered, key = { _, item -> item.id }) { idx, item ->
                     val pColor = priorityColor(item.priorityEnum)
-                    NeonGlassCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        accentColor = pColor,
-                        cornerRadius = 24.dp,
-                        onClick = { onSelectItem(item) },
-                        contentPadding = PaddingValues(14.dp)
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                PosterArtwork(
-                                    posterUrl = item.posterUrl,
-                                    title = item.title,
-                                    category = item.categoryEnum,
-                                    modifier = Modifier.size(width = 68.dp, height = 98.dp)
-                                )
-                                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(50))
-                                                .background(pColor.copy(alpha = 0.16f))
-                                                .border(1.dp, pColor.copy(alpha = 0.55f), RoundedCornerShape(50))
-                                                .padding(horizontal = 9.dp, vertical = 3.dp)
+                    StaggeredFadeItem(index = idx) {
+                        NeonGlassCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            accentColor = pColor,
+                            cornerRadius = radii.lg,
+                            onClick = { onSelectItem(item) },
+                            contentPadding = PaddingValues(spacing.space3)
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(spacing.space3)) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(spacing.space3)) {
+                                    PosterArtwork(
+                                        posterUrl = item.posterUrl,
+                                        title = item.title,
+                                        category = item.categoryEnum,
+                                        modifier = Modifier.size(width = 68.dp, height = 98.dp)
+                                    )
+                                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.space1)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Text(
-                                                text = "${item.priorityEnum.label.uppercase()} PRIORITY",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                fontWeight = FontWeight.Bold,
-                                                color = pColor
-                                            )
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(50))
+                                                    .background(pColor.copy(alpha = 0.16f))
+                                                    .border(1.dp, pColor.copy(alpha = 0.55f), RoundedCornerShape(50))
+                                                    .padding(horizontal = spacing.space2, vertical = spacing.space1)
+                                            ) {
+                                                Text(
+                                                    text = "${item.priorityEnum.label.uppercase()} PRIORITY",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = pColor
+                                                )
+                                            }
+                                            IconButton(onClick = { onDeleteItem(item) }) {
+                                                Icon(Icons.Rounded.Delete, contentDescription = "Remove ${item.title} from watchlist", tint = tokens.dangerAccent)
+                                            }
                                         }
-                                        IconButton(onClick = { onDeleteItem(item) }) {
-                                            Icon(Icons.Rounded.Delete, contentDescription = "Remove from watchlist", tint = tokens.dangerAccent)
-                                        }
-                                    }
-                                    Text(
-                                        text = item.title,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = tokens.textPrimary,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Text(
-                                        text = "${item.categoryEnum.label} · ${item.releaseYear} · ${item.streamingPlatform.ifBlank { "TBD" }}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = tokens.textSecondary
-                                    )
-                                    if (item.dateAdded.isNotBlank()) {
                                         Text(
-                                            text = "Added ${item.dateAdded}",
-                                            style = MaterialTheme.typography.labelSmall,
+                                            text = item.title,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = tokens.textPrimary,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            text = "${item.categoryEnum.label} · ${item.releaseYear} · ${item.streamingPlatform.ifBlank { "TBD" }}",
+                                            style = MaterialTheme.typography.bodySmall,
                                             color = tokens.textSecondary
                                         )
+                                        if (item.dateAdded.isNotBlank()) {
+                                            Text(
+                                                text = "Added ${item.dateAdded}",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = tokens.textSecondary
+                                            )
+                                        }
                                     }
                                 }
-                            }
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                NeonPrimaryButton(
-                                    onClick = { moveCandidate = item },
-                                    cornerRadius = 14.dp,
-                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Icon(Icons.AutoMirrored.Rounded.DriveFileMove, contentDescription = null, modifier = Modifier.size(18.dp))
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Move to Library", fontWeight = FontWeight.Bold)
-                                }
-                                if (item.trailerLink.isNotBlank()) {
-                                    GlassSecondaryButton(
-                                        onClick = {
-                                            runCatching {
-                                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(item.trailerLink)))
-                                            }
-                                        },
-                                        accentBorderColor = tokens.tertiaryAccent,
-                                        cornerRadius = 14.dp,
-                                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)
+                                Row(horizontalArrangement = Arrangement.spacedBy(spacing.space2)) {
+                                    NeonPrimaryButton(
+                                        onClick = { moveCandidate = item },
+                                        cornerRadius = radii.sm,
+                                        contentPadding = PaddingValues(horizontal = spacing.space3, vertical = spacing.space2),
+                                        modifier = Modifier.weight(1f)
                                     ) {
-                                        Icon(Icons.Rounded.PlayArrow, contentDescription = "Trailer", modifier = Modifier.size(18.dp))
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Trailer")
+                                        Icon(Icons.AutoMirrored.Rounded.DriveFileMove, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(spacing.space2))
+                                        Text("Move to Library", fontWeight = FontWeight.Bold)
+                                    }
+                                    if (item.trailerLink.isNotBlank()) {
+                                        GlassSecondaryButton(
+                                            onClick = {
+                                                runCatching {
+                                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(item.trailerLink)))
+                                                }
+                                            },
+                                            accentBorderColor = tokens.tertiaryAccent,
+                                            cornerRadius = radii.sm,
+                                            contentPadding = PaddingValues(horizontal = spacing.space3, vertical = spacing.space2)
+                                        ) {
+                                            Icon(Icons.Rounded.PlayArrow, contentDescription = "Watch trailer for ${item.title}", modifier = Modifier.size(18.dp))
+                                            Spacer(modifier = Modifier.width(spacing.space1))
+                                            Text("Trailer")
+                                        }
                                     }
                                 }
                             }
@@ -362,102 +376,6 @@ fun WatchlistScreen(
                 style = MaterialTheme.typography.bodyMedium,
                 color = tokens.textSecondary
             )
-        }
-    }
-}
-
-@Composable
-private fun WatchlistEmptyState(
-    onAddFirstTitle: () -> Unit,
-    onTryRandomPicker: () -> Unit,
-    bottomPadding: Dp,
-    modifier: Modifier = Modifier
-) {
-    val tokens = LocalZenixTokens.current
-    Box(
-        modifier = modifier
-            .padding(start = 24.dp, end = 24.dp, bottom = bottomPadding),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(84.dp)
-                    .then(
-                        if (tokens.useGlow) {
-                            Modifier.neonGlow(
-                                color = NeonPurple,
-                                cornerRadius = 42.dp,
-                                alpha = 0.45f,
-                                spread = 14.dp
-                            )
-                        } else Modifier
-                    )
-                    .clip(CircleShape)
-                    .background(
-                        Brush.linearGradient(
-                            colors = listOf(
-                                NeonPurple.copy(alpha = 0.28f),
-                                NeonCyan.copy(alpha = 0.20f)
-                            )
-                        )
-                    )
-                    .border(1.2.dp, NeonPurple.copy(alpha = 0.65f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Bookmark,
-                    contentDescription = "Empty watchlist bookmark",
-                    tint = NeonPurple,
-                    modifier = Modifier.size(38.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(2.dp))
-
-            Text(
-                text = "Your watchlist is empty",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = tokens.textPrimary,
-                textAlign = TextAlign.Center
-            )
-            Text(
-                text = "Save movies and shows you want to watch next, and they will show up here.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = tokens.textSecondary,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            NeonPrimaryButton(
-                onClick = onAddFirstTitle,
-                accentColor = NeonPurple,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("watchlist_empty_add_button")
-            ) {
-                Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Add your first title", fontWeight = FontWeight.Bold)
-            }
-
-            GlassSecondaryButton(
-                onClick = onTryRandomPicker,
-                accentBorderColor = NeonCyan,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("watchlist_empty_random_button")
-            ) {
-                Icon(Icons.Rounded.Casino, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Try Random Picker", fontWeight = FontWeight.SemiBold)
-            }
         }
     }
 }

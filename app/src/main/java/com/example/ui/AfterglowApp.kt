@@ -2,8 +2,15 @@ package com.example.ui
 
 import android.app.Activity
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -41,10 +48,10 @@ import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material.icons.rounded.Tv
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -53,9 +60,12 @@ import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.PermanentDrawerSheet
 import androidx.compose.material3.PermanentNavigationDrawer
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -76,8 +86,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -111,9 +123,15 @@ import com.example.ui.components.PosterArtwork
 import com.example.ui.components.RatingPill
 import com.example.ui.components.ZenixBottomBar
 import com.example.ui.components.ZenixBrandLogo
+import com.example.ui.components.ZenixEmptyState
+import com.example.ui.components.ZenixErrorState
+import com.example.ui.components.ZenixHomeSkeleton
+import com.example.ui.components.ZenixOfflineBanner
 import com.example.ui.components.neonGlow
+import com.example.ui.components.rememberIsOnline
 import com.example.ui.components.rememberSafeHazeState
 import com.example.ui.components.safeHazeSource
+import com.example.ui.components.zenixFocusRing
 import com.example.ui.screens.AppearanceScreen
 import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.LibraryMode
@@ -126,6 +144,9 @@ import com.example.ui.screens.UpdatesScreen
 import com.example.ui.screens.WatchlistScreen
 import com.example.ui.theme.AfterglowTheme
 import com.example.ui.theme.AppThemeMode
+import com.example.ui.theme.LocalReducedMotion
+import com.example.ui.theme.LocalZenixRadii
+import com.example.ui.theme.LocalZenixSpacing
 import com.example.ui.theme.LocalZenixTokens
 import com.example.ui.theme.NeonCyan
 import com.example.ui.theme.NeonPink
@@ -274,8 +295,15 @@ private fun AuthenticatedAfterglowShell(
     }
 
     LaunchedEffect(Unit) {
-        viewModel.events.collect { msg ->
-            snackbarHostState.showSnackbar(msg)
+        viewModel.events.collect { event ->
+            val result = snackbarHostState.showSnackbar(
+                message = event.message,
+                actionLabel = event.undoLabel,
+                duration = if (event.onUndo != null) SnackbarDuration.Long else SnackbarDuration.Short
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                event.onUndo?.invoke()
+            }
         }
     }
 
@@ -292,6 +320,11 @@ private fun AuthenticatedAfterglowShell(
         accentColor = accentColor
     ) {
         val tokens = LocalZenixTokens.current
+        val spacing = LocalZenixSpacing.current
+        val radii = LocalZenixRadii.current
+        val reducedMotion = LocalReducedMotion.current
+        val isOnline = rememberIsOnline()
+        val slideOffsetPx = with(LocalDensity.current) { 8.dp.roundToPx() }
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val isExpandedScreen = maxWidth >= 840.dp
             val screenBottomPadding = if (isExpandedScreen) 24.dp else FloatingBottomBarClearance
@@ -354,7 +387,11 @@ private fun AuthenticatedAfterglowShell(
                                     }
                                 )
                             } else {
-                                Spacer(modifier = Modifier.statusBarsPadding().height(8.dp))
+                                Spacer(modifier = Modifier.statusBarsPadding().height(spacing.space2))
+                            }
+
+                            AnimatedVisibility(visible = !isOnline) {
+                                ZenixOfflineBanner()
                             }
 
                             Box(
@@ -364,31 +401,35 @@ private fun AuthenticatedAfterglowShell(
                             ) {
                                 when {
                                     mediaItemsState is UiState.Loading -> {
-                                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                            CircularProgressIndicator(color = tokens.primaryAccent)
-                                        }
+                                        ZenixHomeSkeleton()
                                     }
                                     mediaItemsState is UiState.Error -> {
                                         val err = (mediaItemsState as UiState.Error).message
-                                        Box(modifier = Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-                                            NeonGlassCard(
-                                                accentColor = tokens.dangerAccent,
-                                                cornerRadius = 24.dp,
-                                                contentPadding = PaddingValues(18.dp)
-                                            ) {
-                                                Text(
-                                                    text = "Unable to sync library: $err",
-                                                    color = tokens.dangerAccent
-                                                )
-                                            }
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .padding(horizontal = spacing.space4, vertical = spacing.space5),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            ZenixErrorState(
+                                                message = err,
+                                                onRetry = viewModel::retrySync
+                                            )
                                         }
                                     }
                                     else -> {
                                         val renderKey = Pair(currentSection, showAppearanceScreen)
-                                        Crossfade(
+                                        AnimatedContent(
                                             targetState = renderKey,
-                                            animationSpec = tween(200),
-                                            label = "section_crossfade"
+                                            transitionSpec = {
+                                                if (reducedMotion) {
+                                                    EnterTransition.None togetherWith ExitTransition.None
+                                                } else {
+                                                    (fadeIn(tween(250)) + slideInVertically(tween(250)) { slideOffsetPx }) togetherWith
+                                                        fadeOut(tween(200))
+                                                }
+                                            },
+                                            label = "section_transition"
                                         ) { (section, isAppearance) ->
                                             when {
                                                 section == AfterglowSection.SETTINGS && isAppearance -> AppearanceScreen(
@@ -507,6 +548,7 @@ private fun AuthenticatedAfterglowShell(
                                                     onUpdateManualRank = viewModel::updateManualRank,
                                                     onToggleFavourite = viewModel::toggleFavourite,
                                                     onToggleAllTime = viewModel::toggleAllTimeFavourite,
+                                                    onOpenLibrary = { navigateToSection(AfterglowSection.MOVIES) },
                                                     bottomPadding = screenBottomPadding
                                                 )
 
@@ -515,6 +557,7 @@ private fun AuthenticatedAfterglowShell(
                                                     profile = profile,
                                                     allItems = allItems,
                                                     onSelectItem = { detailItemId = it.id },
+                                                    onAddTitle = { openAddEditor(MediaCategory.MOVIE, false) },
                                                     bottomPadding = screenBottomPadding
                                                 )
 
@@ -577,21 +620,44 @@ private fun AuthenticatedAfterglowShell(
                             .align(Alignment.BottomCenter)
                             .navigationBarsPadding()
                             .padding(
-                                start = 16.dp,
-                                end = 16.dp,
+                                start = spacing.space4,
+                                end = spacing.space4,
                                 bottom = if (isExpandedScreen) 20.dp else 98.dp
                             )
                     ) { data ->
                         NeonGlassCard(
                             accentColor = tokens.tertiaryAccent,
-                            cornerRadius = 18.dp,
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
+                            cornerRadius = radii.md,
+                            contentPadding = PaddingValues(horizontal = spacing.space4, vertical = spacing.space3)
                         ) {
-                            Text(
-                                text = data.visuals.message,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = tokens.textPrimary
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = data.visuals.message,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = tokens.textPrimary,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                val actionLabel = data.visuals.actionLabel
+                                if (actionLabel != null) {
+                                    TextButton(
+                                        onClick = { data.performAction() },
+                                        modifier = Modifier
+                                            .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                                            .zenixFocusRing(NeonCyan, radii.sm)
+                                    ) {
+                                        Text(
+                                            text = actionLabel,
+                                            style = MaterialTheme.typography.labelLarge,
+                                            fontWeight = FontWeight.Bold,
+                                            color = NeonCyan
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
 
@@ -729,26 +795,28 @@ private fun DrawerMenuContent(
     onSelectSection: (AfterglowSection) -> Unit
 ) {
     val tokens = LocalZenixTokens.current
+    val spacing = LocalZenixSpacing.current
+    val radii = LocalZenixRadii.current
 
     Column(
         modifier = Modifier
             .fillMaxHeight()
             .statusBarsPadding()
             .navigationBarsPadding()
-            .padding(14.dp),
+            .padding(spacing.space4),
         verticalArrangement = Arrangement.SpaceBetween
     ) {
         Column(
             modifier = Modifier
                 .weight(1f, fill = false)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(5.dp)
+            verticalArrangement = Arrangement.spacedBy(spacing.space1)
         ) {
             // Drawer Header: Z logo, ZENIX, username in cyan
             Row(
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
+                modifier = Modifier.padding(horizontal = spacing.space2, vertical = spacing.space3),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(spacing.space3)
             ) {
                 ZenixBrandLogo(size = 40.dp)
                 Column {
@@ -771,20 +839,20 @@ private fun DrawerMenuContent(
                 }
             }
 
-            HorizontalDivider(color = tokens.outlineSubtle, modifier = Modifier.padding(vertical = 4.dp))
+            HorizontalDivider(color = tokens.outlineSubtle, modifier = Modifier.padding(vertical = spacing.space1))
 
             val activeEnd = lerp(NeonPurple, Color(0xFF4C1D95), 0.38f)
 
             AfterglowSection.entries.forEach { section ->
                 val selected = currentSection == section
                 val isUpdates = section == AfterglowSection.UPDATES
-                val shape = RoundedCornerShape(16.dp)
+                val shape = RoundedCornerShape(radii.md)
 
                 val rowMod = when {
                     selected -> Modifier
                         .then(
                             if (tokens.useGlow) {
-                                Modifier.neonGlow(NeonPurple, cornerRadius = 16.dp, alpha = 0.34f, spread = 5.dp)
+                                Modifier.neonGlow(NeonPurple, cornerRadius = radii.md, alpha = 0.34f, spread = 5.dp)
                             } else Modifier
                         )
                         .clip(shape)
@@ -817,11 +885,12 @@ private fun DrawerMenuContent(
                         .fillMaxWidth()
                         .defaultMinSize(minHeight = 48.dp)
                         .then(rowMod)
-                        .clickable { onSelectSection(section) }
-                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                        .zenixFocusRing(NeonPurple, radii.md)
+                        .clickable(role = Role.Button) { onSelectSection(section) }
+                        .padding(horizontal = spacing.space3, vertical = spacing.space3)
                         .testTag("nav_${section.name.lowercase()}"),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(spacing.space3)
                 ) {
                     Icon(
                         imageVector = section.icon,
@@ -858,14 +927,14 @@ private fun DrawerMenuContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(spacing.space3))
 
         // Bottom Drawer Update Card
         NeonGlassCard(
             modifier = Modifier.fillMaxWidth(),
             accentColor = NeonCyan,
-            cornerRadius = 20.dp,
-            contentPadding = PaddingValues(14.dp)
+            cornerRadius = radii.md,
+            contentPadding = PaddingValues(spacing.space3)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
@@ -939,29 +1008,39 @@ private fun GlobalSearchDialog(
         )
 
         if (results.isEmpty()) {
-            Text(
-                text = if (allItems.isEmpty()) "Your library is empty. Add a movie or series first." else "No titles match \"$query\".",
-                style = MaterialTheme.typography.bodyMedium,
-                color = tokens.textSecondary
+            ZenixEmptyState(
+                icon = Icons.Rounded.SearchOff,
+                title = if (allItems.isEmpty()) "Library is Empty" else "No Results Found",
+                subtitle = if (allItems.isEmpty())
+                    "Add a movie, series, anime, or K-drama to start searching."
+                else
+                    "Nothing matched \"$query\". Try another title, genre, or cast name.",
+                accentColor = NeonCyan,
+                primaryActionLabel = if (query.isNotBlank()) "Clear search" else null,
+                onPrimaryAction = if (query.isNotBlank()) ({ query = "" }) else null
             )
         } else {
+            val spacing = LocalZenixSpacing.current
+            val radii = LocalZenixRadii.current
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 320.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(spacing.space2)
             ) {
                 items(results, key = { "gs_${it.id}" }) { item ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
+                            .defaultMinSize(minHeight = 48.dp)
+                            .clip(RoundedCornerShape(radii.sm))
                             .background(Color.White.copy(alpha = 0.05f))
-                            .border(1.dp, tokens.outlineSubtle, RoundedCornerShape(14.dp))
-                            .clickable { onSelectItem(item) }
-                            .padding(10.dp),
+                            .border(1.dp, tokens.outlineSubtle, RoundedCornerShape(radii.sm))
+                            .zenixFocusRing(NeonCyan, radii.sm)
+                            .clickable(role = Role.Button) { onSelectItem(item) }
+                            .padding(spacing.space3),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(spacing.space3)
                     ) {
                         PosterArtwork(
                             posterUrl = item.posterUrl,

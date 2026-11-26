@@ -4,12 +4,12 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,11 +50,16 @@ import com.example.ui.components.GlassIconButton
 import com.example.ui.components.NeonGlassCard
 import com.example.ui.components.NeonPrimaryButton
 import com.example.ui.components.neonGlow
+import com.example.ui.components.pressScale
+import com.example.ui.components.zenixFocusRing
+import com.example.ui.components.zenixHeading
 import com.example.ui.theme.AmoledBackground
 import com.example.ui.theme.AmoledCard
 import com.example.ui.theme.AmoledOutline
 import com.example.ui.theme.AmoledSurface
 import com.example.ui.theme.AppThemeMode
+import com.example.ui.theme.LocalZenixRadii
+import com.example.ui.theme.LocalZenixSpacing
 import com.example.ui.theme.LocalZenixTokens
 import com.example.ui.theme.MinimalDarkBackground
 import com.example.ui.theme.MinimalDarkCard
@@ -74,6 +80,8 @@ fun AppearanceScreen(
     modifier: Modifier = Modifier
 ) {
     val tokens = LocalZenixTokens.current
+    val spacing = LocalZenixSpacing.current
+    val radii = LocalZenixRadii.current
     var pendingTheme by remember(currentTheme) { mutableStateOf(currentTheme) }
     var pendingAccent by remember(currentAccent) { mutableStateOf(currentAccent) }
 
@@ -81,14 +89,19 @@ fun AppearanceScreen(
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottomPadding),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        contentPadding = PaddingValues(
+            start = spacing.space4,
+            end = spacing.space4,
+            top = spacing.space2,
+            bottom = bottomPadding
+        ),
+        verticalArrangement = Arrangement.spacedBy(spacing.space4)
     ) {
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(spacing.space3)
             ) {
                 GlassIconButton(
                     onClick = onBack,
@@ -102,11 +115,12 @@ fun AppearanceScreen(
                         tint = tokens.textPrimary
                     )
                 }
-                Column {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
                         text = "Appearance",
                         style = MaterialTheme.typography.displayMedium,
-                        color = tokens.textPrimary
+                        color = tokens.textPrimary,
+                        modifier = Modifier.zenixHeading()
                     )
                     Text(
                         text = "Customize your ZENIX surface & neon accent",
@@ -122,17 +136,17 @@ fun AppearanceScreen(
             NeonGlassCard(
                 modifier = Modifier.fillMaxWidth(),
                 accentColor = pendingAccent.color,
-                cornerRadius = 24.dp,
-                contentPadding = PaddingValues(18.dp)
+                cornerRadius = radii.lg,
+                contentPadding = PaddingValues(spacing.space4)
             ) {
-                Text(
-                    text = "Theme",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = tokens.textPrimary
-                )
-                Spacer(modifier = Modifier.height(12.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.space3)) {
+                    Text(
+                        text = "Theme",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = tokens.textPrimary,
+                        modifier = Modifier.zenixHeading()
+                    )
 
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     AppThemeMode.entries.forEach { mode ->
                         AppearanceThemeCard(
                             mode = mode,
@@ -150,82 +164,88 @@ fun AppearanceScreen(
             NeonGlassCard(
                 modifier = Modifier.fillMaxWidth(),
                 accentColor = pendingAccent.color,
-                cornerRadius = 24.dp,
-                contentPadding = PaddingValues(18.dp)
+                cornerRadius = radii.lg,
+                contentPadding = PaddingValues(spacing.space4)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Accent color",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = tokens.textPrimary
-                    )
-                    Text(
-                        text = pendingAccent.label,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = pendingAccent.color,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.space3)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Accent color",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = tokens.textPrimary,
+                            modifier = Modifier.zenixHeading()
+                        )
+                        Text(
+                            text = pendingAccent.label,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = pendingAccent.color,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
 
-                Spacer(modifier = Modifier.height(14.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    ZenixAccentColor.entries.forEach { option ->
-                        val isSelected = pendingAccent == option
-                        Box(
-                            modifier = Modifier
-                                .size(50.dp)
-                                .clip(CircleShape)
-                                .clickable(
-                                    role = Role.RadioButton,
-                                    onClick = { pendingAccent = option }
-                                )
-                                .semantics {
-                                    contentDescription = "${option.label} accent color"
-                                }
-                                .testTag("accent_circle_${option.key}"),
-                            contentAlignment = Alignment.Center
-                        ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        ZenixAccentColor.entries.forEach { option ->
+                            val isSelected = pendingAccent == option
+                            val interactionSource = remember { MutableInteractionSource() }
                             Box(
                                 modifier = Modifier
-                                    .size(42.dp)
-                                    .then(
-                                        if (tokens.useGlow && isSelected) {
-                                            Modifier.neonGlow(
-                                                color = option.color,
-                                                cornerRadius = 21.dp,
-                                                alpha = 0.50f,
-                                                spread = 6.dp
-                                            )
-                                        } else Modifier
-                                    )
+                                    .size(50.dp)
+                                    .pressScale(interactionSource, 0.96f)
                                     .clip(CircleShape)
-                                    .then(
-                                        if (isSelected) {
-                                            Modifier
-                                                .border(2.5.dp, Color.White, CircleShape)
-                                                .padding(4.dp)
-                                        } else Modifier
+                                    .zenixFocusRing(Color.White, 25.dp)
+                                    .clickable(
+                                        interactionSource = interactionSource,
+                                        indication = ripple(bounded = false, radius = 25.dp, color = option.color),
+                                        role = Role.RadioButton,
+                                        onClick = { pendingAccent = option }
                                     )
-                                    .clip(CircleShape)
-                                    .background(option.color),
+                                    .semantics {
+                                        contentDescription = "${option.label} accent color"
+                                    }
+                                    .testTag("accent_circle_${option.key}"),
                                 contentAlignment = Alignment.Center
                             ) {
-                                if (isSelected) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Check,
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(16.dp)
-                                    )
+                                Box(
+                                    modifier = Modifier
+                                        .size(42.dp)
+                                        .then(
+                                            if (tokens.useGlow && isSelected) {
+                                                Modifier.neonGlow(
+                                                    color = option.color,
+                                                    cornerRadius = 21.dp,
+                                                    alpha = 0.50f,
+                                                    spread = 6.dp
+                                                )
+                                            } else Modifier
+                                        )
+                                        .clip(CircleShape)
+                                        .then(
+                                            if (isSelected) {
+                                                Modifier
+                                                    .border(2.5.dp, Color.White, CircleShape)
+                                                    .padding(4.dp)
+                                            } else Modifier
+                                        )
+                                        .clip(CircleShape)
+                                        .background(option.color),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Check,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -240,6 +260,7 @@ fun AppearanceScreen(
             NeonPrimaryButton(
                 onClick = { onApplyAppearance(pendingTheme, pendingAccent) },
                 accentColor = pendingAccent.color,
+                cornerRadius = radii.md,
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("apply_theme_button")
@@ -261,7 +282,10 @@ private fun AppearanceThemeCard(
     onSelect: () -> Unit
 ) {
     val tokens = LocalZenixTokens.current
-    val shape = RoundedCornerShape(18.dp)
+    val spacing = LocalZenixSpacing.current
+    val radii = LocalZenixRadii.current
+    val shape = RoundedCornerShape(radii.md)
+    val interactionSource = remember { MutableInteractionSource() }
     val borderColor = if (selected) previewAccent else tokens.outlineSubtle
     val rowBg = when (tokens.mode) {
         AppThemeMode.NEON_GLOSSY -> if (selected) previewAccent.copy(alpha = 0.16f) else Color.White.copy(alpha = 0.05f)
@@ -273,19 +297,26 @@ private fun AppearanceThemeCard(
         modifier = Modifier
             .fillMaxWidth()
             .defaultMinSize(minHeight = 68.dp)
+            .pressScale(interactionSource, 0.96f)
             .then(
                 if (selected && tokens.useGlow) {
-                    Modifier.neonGlow(previewAccent, cornerRadius = 18.dp, alpha = 0.28f, spread = 5.dp)
+                    Modifier.neonGlow(previewAccent, cornerRadius = radii.md, alpha = 0.28f, spread = 5.dp)
                 } else Modifier
             )
             .clip(shape)
             .background(rowBg)
             .border(if (selected) 1.5.dp else 1.dp, borderColor, shape)
-            .clickable(onClick = onSelect)
-            .padding(12.dp)
+            .zenixFocusRing(previewAccent, radii.md)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = ripple(color = previewAccent),
+                role = Role.RadioButton,
+                onClick = onSelect
+            )
+            .padding(spacing.space3)
             .testTag("theme_option_${mode.key}"),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(spacing.space3)
     ) {
         AppearanceMiniPreview(mode = mode, accentColor = previewAccent)
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -313,7 +344,8 @@ private fun AppearanceThemeCard(
 
 @Composable
 private fun AppearanceMiniPreview(mode: AppThemeMode, accentColor: Color) {
-    val shape = RoundedCornerShape(12.dp)
+    val radii = LocalZenixRadii.current
+    val shape = RoundedCornerShape(radii.sm)
     when (mode) {
         AppThemeMode.NEON_GLOSSY -> {
             Box(
