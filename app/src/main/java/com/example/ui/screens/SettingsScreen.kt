@@ -133,6 +133,7 @@ fun SettingsScreen(
     onSignOut: () -> Unit,
     cloudSyncState: CloudSyncUiState = CloudSyncUiState(),
     isOnline: Boolean = true,
+    showUpdateBadge: Boolean = false,
     onSyncNow: () -> Unit = {},
     onConfirmFirstSync: () -> Unit = {},
     onCancelFirstSync: () -> Unit = {},
@@ -309,23 +310,28 @@ fun SettingsScreen(
 
         // 2. Updates
         item {
+            val isUpdateAvailable = ZenixUpdateConfig.isUpdateAvailable()
             SettingsCard(
                 title = "Updates",
                 icon = Icons.Rounded.SystemUpdate,
                 accentColor = NeonCyan,
                 expanded = updatesExpanded,
                 onToggle = { updatesExpanded = !updatesExpanded },
-                badgeText = "NEW",
+                badgeText = if (showUpdateBadge) "NEW" else null,
                 testTag = "settings_section_updates"
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
-                        text = "Update ${ZenixUpdateConfig.availableVersion} available",
+                        text = if (isUpdateAvailable) {
+                            "Update ${ZenixUpdateConfig.latestVersion} available"
+                        } else {
+                            "You're up to date"
+                        },
                         style = MaterialTheme.typography.titleSmall,
                         color = tokens.textPrimary
                     )
                     Text(
-                        text = "Current version ${ZenixUpdateConfig.currentVersion}",
+                        text = "Installed version v$APP_VERSION",
                         style = MaterialTheme.typography.bodySmall,
                         color = tokens.textSecondary
                     )
@@ -338,7 +344,7 @@ fun SettingsScreen(
                         .fillMaxWidth()
                         .testTag("settings_open_updates_button")
                 ) {
-                    Text("View Updates", fontWeight = FontWeight.SemiBold)
+                    Text(if (isUpdateAvailable) "View Update" else "Release Notes", fontWeight = FontWeight.SemiBold)
                 }
                 GlassSecondaryButton(
                     onClick = {
@@ -657,7 +663,7 @@ fun SettingsScreen(
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(spacing.space1)) {
                     Text(
-                        text = "ZENIX · Version ${ZenixUpdateConfig.currentVersion}",
+                        text = "ZENIX · Version $APP_VERSION",
                         style = MaterialTheme.typography.titleMedium,
                         color = tokens.textPrimary
                     )

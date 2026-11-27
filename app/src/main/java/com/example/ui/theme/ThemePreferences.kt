@@ -66,6 +66,8 @@ object ThemePreferences {
     private val KEY_THEME_MODE = stringPreferencesKey("app_theme_mode")
     private val KEY_ACCENT_COLOR = stringPreferencesKey("app_accent_color")
     private val KEY_NOTIFY_UPDATES = booleanPreferencesKey("notify_updates")
+    private val KEY_LAST_SEEN_VERSION = stringPreferencesKey("last_seen_update_version")
+    private val KEY_LAST_LAUNCHED_VERSION = stringPreferencesKey("last_launched_app_version")
 
     private fun safePrefsFlow(context: Context) = context.themeDataStore.data
         .catch { err ->
@@ -91,6 +93,16 @@ object ThemePreferences {
             prefs[KEY_NOTIFY_UPDATES] ?: true
         }
 
+    fun observeLastSeenVersion(context: Context): Flow<String> =
+        safePrefsFlow(context).map { prefs ->
+            prefs[KEY_LAST_SEEN_VERSION] ?: ""
+        }
+
+    fun observeLastLaunchedVersion(context: Context): Flow<String> =
+        safePrefsFlow(context).map { prefs ->
+            prefs[KEY_LAST_LAUNCHED_VERSION] ?: ""
+        }
+
     suspend fun saveTheme(context: Context, mode: AppThemeMode) {
         runCatching {
             context.themeDataStore.edit { prefs ->
@@ -112,6 +124,22 @@ object ThemePreferences {
         runCatching {
             context.themeDataStore.edit { prefs ->
                 prefs[KEY_NOTIFY_UPDATES] = enabled
+            }
+        }
+    }
+
+    suspend fun saveLastSeenVersion(context: Context, version: String) {
+        runCatching {
+            context.themeDataStore.edit { prefs ->
+                prefs[KEY_LAST_SEEN_VERSION] = version.trim()
+            }
+        }
+    }
+
+    suspend fun saveLastLaunchedVersion(context: Context, version: String) {
+        runCatching {
+            context.themeDataStore.edit { prefs ->
+                prefs[KEY_LAST_LAUNCHED_VERSION] = version.trim()
             }
         }
     }

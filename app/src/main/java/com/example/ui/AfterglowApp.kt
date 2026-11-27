@@ -113,6 +113,7 @@ import com.example.ui.components.GlassSecondaryButton
 import com.example.ui.components.LiquidNavTab
 import com.example.ui.components.MediaEditorDialog
 import com.example.ui.components.NeonGlassCard
+import com.example.ui.components.NeonGlassDialog
 import com.example.ui.components.NeonPrimaryButton
 import com.example.ui.components.ZenixBottomBar
 import com.example.ui.components.ZenixBrandLogo
@@ -125,6 +126,7 @@ import com.example.ui.components.rememberIsOnline
 import com.example.ui.components.rememberSafeHazeState
 import com.example.ui.components.safeHazeSource
 import com.example.ui.components.zenixFocusRing
+import com.example.ui.screens.APP_VERSION
 import com.example.ui.screens.AppearanceScreen
 import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.GlobalSearchScreen
@@ -227,6 +229,15 @@ private fun AuthenticatedAfterglowShell(
         .collectAsStateWithLifecycle(initialValue = ZenixAccentColor.PURPLE)
     val notifyUpdates by ThemePreferences.observeNotifyUpdates(context)
         .collectAsStateWithLifecycle(initialValue = true)
+    val lastSeenVersion by ThemePreferences.observeLastSeenVersion(context)
+        .collectAsStateWithLifecycle(initialValue = null)
+    val lastLaunchedVersion by ThemePreferences.observeLastLaunchedVersion(context)
+        .collectAsStateWithLifecycle(initialValue = null)
+
+    val isUpdateAvailable = remember { ZenixUpdateConfig.isUpdateAvailable(APP_VERSION) }
+    val showUpdateBadge = remember(lastSeenVersion) {
+        ZenixUpdateConfig.shouldShowUpdateBadge(lastSeenVersion, APP_VERSION)
+    }
 
     SideEffect {
         val window = (view.context as? Activity)?.window
@@ -275,6 +286,7 @@ private fun AuthenticatedAfterglowShell(
     var smartHubTab by remember { mutableIntStateOf(0) }
     var showGlobalSearch by remember { mutableStateOf(false) }
     var showYearInReview by remember { mutableStateOf(false) }
+    var showWhatsNewDialog by remember { mutableStateOf(false) }
 
     var showAddSheet by remember { mutableStateOf(false) }
     var addSheetPreselected by remember { mutableStateOf<MediaCategory?>(null) }
@@ -311,6 +323,19 @@ private fun AuthenticatedAfterglowShell(
         addSheetPreselected = preselected
         addSheetWatchlist = isWatchlist
         showAddSheet = true
+    }
+
+    LaunchedEffect(lastLaunchedVersion) {
+        val launched = lastLaunchedVersion
+        if (launched != null && launched != APP_VERSION) {
+            ThemePreferences.saveLastLaunchedVersion(context, APP_VERSION)
+            if (!isUpdateAvailable) {
+                ThemePreferences.saveLastSeenVersion(context, ZenixUpdateConfig.latestVersion)
+            }
+            if (notifyUpdates) {
+                showWhatsNewDialog = true
+            }
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -620,6 +645,18 @@ private fun AuthenticatedAfterglowShell(
                                                     },
                                                     onBack = { navigateToSection(AfterglowSection.DASHBOARD) },
                                                     onNotify = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } },
+                                                    lastSeenVersion = lastSeenVersion,
+                                                    onMarkUpdatesSeen = { version ->
+                                                        scope.launch {
+                                                            ThemePreferences.saveLastSeenVersion(context, version)
+                                                        }
+                                                    },
+                                                    onUpdateApplied = { version ->
+                                                        scope.launch {
+                                                            ThemePreferences.saveLastSeenVersion(context, version)
+                                                            ThemePreferences.saveLastLaunchedVersion(context, version)
+                                                        }
+                                                    },
                                                     bottomPadding = screenBottomPadding
                                                 )
 
@@ -645,6 +682,7 @@ private fun AuthenticatedAfterglowShell(
                                                     onConfirmFirstSync = viewModel::confirmFirstSyncMerge,
                                                     onCancelFirstSync = viewModel::cancelFirstSyncMerge,
                                                     onRestoreFromCloud = { viewModel.restoreFromCloud(isOnline) },
+                                                    showUpdateBadge = showUpdateBadge,
                                                     bottomPadding = screenBottomPadding
                                                 )
                                             }
@@ -747,6 +785,7 @@ private fun AuthenticatedAfterglowShell(
                                 userEmail = userEmail,
                                 currentSection = currentSection,
                                 showHomeItem = true,
+                                showUpdateBadge = showUpdateBadge,
                                 onSelectSection = navigateToSection,
                                 onSignOut = { signOut(credentialManager, scope, onSignOutComplete = onSignedOut) }
                             )
@@ -773,6 +812,7 @@ private fun AuthenticatedAfterglowShell(
                                 userEmail = userEmail,
                                 currentSection = currentSection,
                                 showHomeItem = false,
+                                showUpdateBadge = showUpdateBadge,
                                 onSelectSection = { sec ->
                                     navigateToSection(sec)
                                     scope.launch { drawerState.close() }
@@ -851,6 +891,57 @@ private fun AuthenticatedAfterglowShell(
                 }
             )
         }
+        if (showWhatsNewDialog) {
+            NeonGlassDialog(
+                onDismissRequest = { showWhatsNewDialog = false },
+                title = "What's new in ZENIX v$APP_VERSION",
+                accentColor = tokens.tertiaryAccent,
+                confirmText = "Got it",
+                onConfirm = { showWhatsNewDialog = false },
+                dismissText = null,
+                secondaryText = "Release Notes",
+                onSecondary = {
+                    showWhatsNewDialog = false
+                    navigateToSection(AfterglowSection.UPDATES)
+                }
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.space2)) {
+                    Text(
+                        text = "Released ${ZenixUpdateConfig.releaseDate}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = tokens.tertiaryAccent
+                    )
+                    ZenixUpdateConfig.features.forEach { feature ->
+                        Row(
+                            verticalAlignment = Alignment.Top,
+                            horizontalArrangement = Arrangement.spacedBy(spacing.space2)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.AutoAwesome,
+                                contentDescription = null,
+                                tint = tokens.tertiaryAccent,
+                                modifier = Modifier
+                                    .padding(top = 2.dp)
+                                    .size(16.dp)
+                            )
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(
+                                    text = feature.name,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = tokens.textPrimary
+                                )
+                                Text(
+                                    text = feature.description,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = tokens.textSecondary
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -860,6 +951,7 @@ private fun DrawerMenuContent(
     userEmail: String?,
     currentSection: AfterglowSection,
     showHomeItem: Boolean,
+    showUpdateBadge: Boolean,
     onSelectSection: (AfterglowSection) -> Unit,
     onSignOut: () -> Unit
 ) {
@@ -925,7 +1017,7 @@ private fun DrawerMenuContent(
         ) {
             drawerSections.forEach { section ->
                 val selected = currentSection == section
-                val isUpdates = section == AfterglowSection.UPDATES
+                val highlightUpdates = section == AfterglowSection.UPDATES && showUpdateBadge
                 val shape = RoundedCornerShape(radii.md)
 
                 val rowMod = when {
@@ -939,7 +1031,7 @@ private fun DrawerMenuContent(
                         .background(Brush.horizontalGradient(listOf(NeonPurple, activeEnd)))
                         .border(1.dp, Color.White.copy(alpha = 0.30f), shape)
 
-                    isUpdates -> Modifier
+                    highlightUpdates -> Modifier
                         .clip(shape)
                         .background(NeonCyan.copy(alpha = 0.08f))
                         .border(1.dp, NeonCyan.copy(alpha = 0.65f), shape)
@@ -951,12 +1043,12 @@ private fun DrawerMenuContent(
 
                 val labelColor = when {
                     selected -> Color.White
-                    isUpdates -> NeonCyan
+                    highlightUpdates -> NeonCyan
                     else -> tokens.textPrimary
                 }
                 val iconColor = when {
                     selected -> Color.White
-                    isUpdates -> NeonCyan
+                    highlightUpdates -> NeonCyan
                     else -> tokens.textSecondary
                 }
 
@@ -981,13 +1073,13 @@ private fun DrawerMenuContent(
                     Text(
                         text = section.label,
                         style = MaterialTheme.typography.labelLarge,
-                        fontWeight = if (selected || isUpdates) FontWeight.Bold else FontWeight.Medium,
+                        fontWeight = if (selected || highlightUpdates) FontWeight.Bold else FontWeight.Medium,
                         color = labelColor,
                         modifier = Modifier.weight(1f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    if (isUpdates) {
+                    if (highlightUpdates) {
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(50))
@@ -1021,7 +1113,7 @@ private fun DrawerMenuContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "ZENIX v${ZenixUpdateConfig.currentVersion}",
+                    text = "ZENIX v$APP_VERSION",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
                     color = tokens.textSecondary
