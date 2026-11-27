@@ -105,7 +105,6 @@ import com.example.ui.components.NeonPrimaryButton
 import com.example.ui.components.NeutralIconButton
 import com.example.ui.components.SeriesProgressCard
 import com.example.ui.components.StaggeredFadeItem
-import com.example.ui.components.SwipeableMediaCard
 import com.example.ui.components.neonGlow
 import com.example.ui.components.pressScale
 import com.example.ui.components.statusColor
@@ -692,25 +691,18 @@ fun MediaLibraryScreen(
                     ) {
                         itemsIndexed(filteredItems, key = { _, item -> item.id }) { idx, movie ->
                             StaggeredFadeItem(index = idx) {
-                                SwipeableMediaCard(
-                                    enabled = !isSelectionMode,
-                                    isFavourite = movie.favourite,
+                                MediaGridCard(
+                                    item = movie,
+                                    compact = compact,
+                                    onClick = {
+                                        if (isSelectionMode) toggleSelection(movie.id) else onSelect(movie)
+                                    },
                                     onToggleFavourite = { onToggleFavourite(movie) },
-                                    onDelete = { onDelete(movie) }
-                                ) {
-                                    MediaGridCard(
-                                        item = movie,
-                                        compact = compact,
-                                        onClick = {
-                                            if (isSelectionMode) toggleSelection(movie.id) else onSelect(movie)
-                                        },
-                                        onToggleFavourite = { onToggleFavourite(movie) },
-                                        onEdit = { onEdit(movie) },
-                                        onLongClick = { toggleSelection(movie.id) },
-                                        isSelectionMode = isSelectionMode,
-                                        isSelected = movie.id in selectedIds
-                                    )
-                                }
+                                    onEdit = { onEdit(movie) },
+                                    onLongClick = { toggleSelection(movie.id) },
+                                    isSelectionMode = isSelectionMode,
+                                    isSelected = movie.id in selectedIds
+                                )
                             }
                         }
                     }
@@ -726,26 +718,19 @@ fun MediaLibraryScreen(
                     ) {
                         itemsIndexed(filteredItems, key = { _, item -> item.id }) { idx, series ->
                             StaggeredFadeItem(index = idx) {
-                                SwipeableMediaCard(
-                                    enabled = !isSelectionMode,
-                                    isFavourite = series.favourite,
+                                SeriesProgressCard(
+                                    item = series,
+                                    compact = compact,
+                                    onClick = {
+                                        if (isSelectionMode) toggleSelection(series.id) else onSelect(series)
+                                    },
+                                    onStepEpisode = { delta -> onStepEpisode(series, delta) },
                                     onToggleFavourite = { onToggleFavourite(series) },
-                                    onDelete = { onDelete(series) }
-                                ) {
-                                    SeriesProgressCard(
-                                        item = series,
-                                        compact = compact,
-                                        onClick = {
-                                            if (isSelectionMode) toggleSelection(series.id) else onSelect(series)
-                                        },
-                                        onStepEpisode = { delta -> onStepEpisode(series, delta) },
-                                        onToggleFavourite = { onToggleFavourite(series) },
-                                        onEdit = { onEdit(series) },
-                                        onLongClick = { toggleSelection(series.id) },
-                                        isSelectionMode = isSelectionMode,
-                                        isSelected = series.id in selectedIds
-                                    )
-                                }
+                                    onEdit = { onEdit(series) },
+                                    onLongClick = { toggleSelection(series.id) },
+                                    isSelectionMode = isSelectionMode,
+                                    isSelected = series.id in selectedIds
+                                )
                             }
                         }
                     }

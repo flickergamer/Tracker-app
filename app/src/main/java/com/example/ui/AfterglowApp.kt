@@ -6,14 +6,19 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -22,7 +27,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -31,12 +35,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Logout
-import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.outlined.BarChart
+import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.Casino
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.EmojiEvents
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.Bookmark
@@ -48,21 +57,16 @@ import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material.icons.rounded.Tv
-import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.PermanentDrawerSheet
-import androidx.compose.material3.PermanentNavigationDrawer
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDrawerState
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -77,19 +81,29 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.credentials.CredentialManager
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
@@ -109,14 +123,11 @@ import com.example.data.model.UserProfile
 import com.example.ui.components.AddCategoryBottomSheet
 import com.example.ui.components.AfterglowBackdrop
 import com.example.ui.components.AfterglowTopBar
-import com.example.ui.components.GlassSecondaryButton
 import com.example.ui.components.LiquidNavTab
 import com.example.ui.components.MediaEditorDialog
 import com.example.ui.components.NeonGlassCard
 import com.example.ui.components.NeonGlassDialog
-import com.example.ui.components.NeonPrimaryButton
 import com.example.ui.components.ZenixBottomBar
-import com.example.ui.components.ZenixBrandLogo
 import com.example.ui.components.ZenixErrorState
 import com.example.ui.components.ZenixHomeSkeleton
 import com.example.ui.components.ZenixOfflineBanner
@@ -149,7 +160,6 @@ import com.example.ui.theme.LocalZenixSpacing
 import com.example.ui.theme.LocalZenixTokens
 import com.example.ui.theme.NeonCyan
 import com.example.ui.theme.NeonPink
-import com.example.ui.theme.NeonPurple
 import com.example.ui.theme.ThemePreferences
 import com.example.ui.theme.ZenixAccentColor
 import com.example.ui.viewmodel.AfterglowViewModel
@@ -157,6 +167,7 @@ import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 enum class AfterglowSection(val label: String, val icon: ImageVector) {
@@ -304,9 +315,20 @@ private fun AuthenticatedAfterglowShell(
     }
 
     val snackbarHostState = remember { SnackbarHostState() }
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    var showSettingsMenu by remember { mutableStateOf(false) }
+    var showSignOutConfirm by remember { mutableStateOf(false) }
+    val settingsButtonFocusRequester = remember { FocusRequester() }
+    var wasSettingsMenuOpen by remember { mutableStateOf(false) }
+
+    LaunchedEffect(showSettingsMenu) {
+        if (wasSettingsMenuOpen && !showSettingsMenu) {
+            runCatching { settingsButtonFocusRequester.requestFocus() }
+        }
+        wasSettingsMenuOpen = showSettingsMenu
+    }
 
     val navigateToSection: (AfterglowSection) -> Unit = { target ->
+        showSettingsMenu = false
         showAppearanceScreen = false
         showGlobalSearch = false
         showYearInReview = false
@@ -341,11 +363,18 @@ private fun AuthenticatedAfterglowShell(
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
+            val dismissJob = if (event.onUndo != null) {
+                launch {
+                    delay(5000L)
+                    snackbarHostState.currentSnackbarData?.dismiss()
+                }
+            } else null
             val result = snackbarHostState.showSnackbar(
                 message = event.message,
                 actionLabel = event.undoLabel,
-                duration = if (event.onUndo != null) SnackbarDuration.Long else SnackbarDuration.Short
+                duration = if (event.onUndo != null) SnackbarDuration.Indefinite else SnackbarDuration.Short
             )
+            dismissJob?.cancel()
             if (result == SnackbarResult.ActionPerformed) {
                 event.onUndo?.invoke()
             }
@@ -353,13 +382,15 @@ private fun AuthenticatedAfterglowShell(
     }
 
     BackHandler(
-        enabled = detailItem != null ||
+        enabled = showSettingsMenu ||
+            detailItem != null ||
             showYearInReview ||
             showGlobalSearch ||
             showAppearanceScreen ||
             currentSection != AfterglowSection.DASHBOARD
     ) {
         when {
+            showSettingsMenu -> showSettingsMenu = false
             detailItem != null -> detailItemId = null
             showYearInReview -> showYearInReview = false
             showGlobalSearch -> showGlobalSearch = false
@@ -381,19 +412,9 @@ private fun AuthenticatedAfterglowShell(
         val mobileBottomClearance = rememberFloatingBottomBarClearance()
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val isExpandedScreen = maxWidth >= 840.dp
-            val screenBottomPadding = if (isExpandedScreen) 24.dp else mobileBottomClearance
             val hazeState = rememberSafeHazeState(
-                enabled = !isExpandedScreen && themeMode == AppThemeMode.NEON_GLOSSY
+                enabled = themeMode == AppThemeMode.NEON_GLOSSY
             )
-
-            val defaultCategoryForSection: () -> MediaCategory = {
-                when (currentSection) {
-                    AfterglowSection.WEB_SERIES -> MediaCategory.WEB_SERIES
-                    AfterglowSection.ANIME -> MediaCategory.ANIME
-                    AfterglowSection.K_DRAMA -> MediaCategory.K_DRAMA
-                    else -> MediaCategory.MOVIE
-                }
-            }
 
             val bottomSections = remember {
                 listOf(
@@ -414,35 +435,37 @@ private fun AuthenticatedAfterglowShell(
                 }
             }
 
-            val mainShellContent: @Composable () -> Unit = {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    AfterglowBackdrop(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .safeHazeSource(hazeState)
-                    ) {
-                        Column(modifier = Modifier.fillMaxSize()) {
-                            if (!isExpandedScreen && !showGlobalSearch) {
-                                AfterglowTopBar(
-                                    onOpenMenu = { scope.launch { drawerState.open() } },
-                                    onSearchClick = {
-                                        globalSearchInitialCategory = when (currentSection) {
-                                            AfterglowSection.MOVIES -> MediaCategory.MOVIE
-                                            AfterglowSection.WEB_SERIES -> MediaCategory.WEB_SERIES
-                                            AfterglowSection.ANIME -> MediaCategory.ANIME
-                                            AfterglowSection.K_DRAMA -> MediaCategory.K_DRAMA
-                                            else -> null
-                                        }
-                                        showGlobalSearch = true
-                                    }
-                                )
-                            } else if (isExpandedScreen && !showGlobalSearch) {
-                                Spacer(modifier = Modifier.statusBarsPadding().height(spacing.space2))
-                            }
+            Box(modifier = Modifier.fillMaxSize()) {
+                AfterglowBackdrop(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .safeHazeSource(hazeState)
+                ) {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        // Global Header on every screen
+                        AfterglowTopBar(
+                            onSearchClick = {
+                                showSettingsMenu = false
+                                globalSearchInitialCategory = when (currentSection) {
+                                    AfterglowSection.MOVIES -> MediaCategory.MOVIE
+                                    AfterglowSection.WEB_SERIES -> MediaCategory.WEB_SERIES
+                                    AfterglowSection.ANIME -> MediaCategory.ANIME
+                                    AfterglowSection.K_DRAMA -> MediaCategory.K_DRAMA
+                                    else -> null
+                                }
+                                showGlobalSearch = true
+                            },
+                            onSettingsMenuClick = {
+                                showSettingsMenu = !showSettingsMenu
+                            },
+                            settingsMenuExpanded = showSettingsMenu,
+                            showUpdateBadge = showUpdateBadge,
+                            settingsButtonFocusRequester = settingsButtonFocusRequester
+                        )
 
-                            AnimatedVisibility(visible = !isOnline) {
-                                ZenixOfflineBanner()
-                            }
+                        AnimatedVisibility(visible = !isOnline) {
+                            ZenixOfflineBanner()
+                        }
 
                             Box(
                                 modifier = Modifier
@@ -487,7 +510,7 @@ private fun AuthenticatedAfterglowShell(
                                                     onBack = { showGlobalSearch = false },
                                                     onSelectItem = { item -> detailItemId = item.id },
                                                     initialCategory = globalSearchInitialCategory,
-                                                    bottomPadding = screenBottomPadding
+                                                    bottomPadding = mobileBottomClearance
                                                 )
 
                                                 section == AfterglowSection.SETTINGS && isAppearance -> AppearanceScreen(
@@ -502,7 +525,7 @@ private fun AuthenticatedAfterglowShell(
                                                         }
                                                     },
                                                     onBack = { showAppearanceScreen = false },
-                                                    bottomPadding = screenBottomPadding
+                                                    bottomPadding = mobileBottomClearance
                                                 )
 
                                                 section == AfterglowSection.DASHBOARD -> DashboardScreen(
@@ -519,7 +542,7 @@ private fun AuthenticatedAfterglowShell(
                                                     },
                                                     onOpenStatistics = { navigateToSection(AfterglowSection.STATISTICS) },
                                                     onOpenRankings = { navigateToSection(AfterglowSection.RANKINGS) },
-                                                    bottomPadding = screenBottomPadding
+                                                    bottomPadding = mobileBottomClearance
                                                 )
 
                                                 section == AfterglowSection.MOVIES -> MediaLibraryScreen(
@@ -538,7 +561,7 @@ private fun AuthenticatedAfterglowShell(
                                                     onBulkUpdateStatus = viewModel::bulkUpdateStatus,
                                                     onBulkAddToWatchlist = viewModel::bulkAddToWatchlist,
                                                     onBulkDelete = viewModel::bulkDeleteMediaItems,
-                                                    bottomPadding = screenBottomPadding
+                                                    bottomPadding = mobileBottomClearance
                                                 )
 
                                                 section == AfterglowSection.WEB_SERIES -> MediaLibraryScreen(
@@ -557,7 +580,7 @@ private fun AuthenticatedAfterglowShell(
                                                     onBulkUpdateStatus = viewModel::bulkUpdateStatus,
                                                     onBulkAddToWatchlist = viewModel::bulkAddToWatchlist,
                                                     onBulkDelete = viewModel::bulkDeleteMediaItems,
-                                                    bottomPadding = screenBottomPadding
+                                                    bottomPadding = mobileBottomClearance
                                                 )
 
                                                 section == AfterglowSection.ANIME -> MediaLibraryScreen(
@@ -576,7 +599,7 @@ private fun AuthenticatedAfterglowShell(
                                                     onBulkUpdateStatus = viewModel::bulkUpdateStatus,
                                                     onBulkAddToWatchlist = viewModel::bulkAddToWatchlist,
                                                     onBulkDelete = viewModel::bulkDeleteMediaItems,
-                                                    bottomPadding = screenBottomPadding
+                                                    bottomPadding = mobileBottomClearance
                                                 )
 
                                                 section == AfterglowSection.K_DRAMA -> MediaLibraryScreen(
@@ -595,7 +618,7 @@ private fun AuthenticatedAfterglowShell(
                                                     onBulkUpdateStatus = viewModel::bulkUpdateStatus,
                                                     onBulkAddToWatchlist = viewModel::bulkAddToWatchlist,
                                                     onBulkDelete = viewModel::bulkDeleteMediaItems,
-                                                    bottomPadding = screenBottomPadding
+                                                    bottomPadding = mobileBottomClearance
                                                 )
 
                                                 section == AfterglowSection.WATCHLIST -> WatchlistScreen(
@@ -609,7 +632,7 @@ private fun AuthenticatedAfterglowShell(
                                                         smartHubTab = 0
                                                         navigateToSection(AfterglowSection.SMART_HUB)
                                                     },
-                                                    bottomPadding = screenBottomPadding
+                                                    bottomPadding = mobileBottomClearance
                                                 )
 
                                                 section == AfterglowSection.RANKINGS -> RankingsScreen(
@@ -619,7 +642,7 @@ private fun AuthenticatedAfterglowShell(
                                                     onToggleFavourite = viewModel::toggleFavourite,
                                                     onToggleAllTime = viewModel::toggleAllTimeFavourite,
                                                     onOpenLibrary = { navigateToSection(AfterglowSection.MOVIES) },
-                                                    bottomPadding = screenBottomPadding
+                                                    bottomPadding = mobileBottomClearance
                                                 )
 
                                                 section == AfterglowSection.STATISTICS -> StatisticsScreen(
@@ -629,7 +652,7 @@ private fun AuthenticatedAfterglowShell(
                                                     onSelectItem = { detailItemId = it.id },
                                                     onAddTitle = { openAddPicker(null, false) },
                                                     onOpenYearInReview = { showYearInReview = true },
-                                                    bottomPadding = screenBottomPadding
+                                                    bottomPadding = mobileBottomClearance
                                                 )
 
                                                 section == AfterglowSection.SMART_HUB -> SmartHubScreen(
@@ -644,7 +667,7 @@ private fun AuthenticatedAfterglowShell(
                                                     onIncrementRewatch = viewModel::incrementRewatch,
                                                     onSaveQuote = viewModel::saveQuote,
                                                     onDeleteQuote = viewModel::deleteQuote,
-                                                    bottomPadding = screenBottomPadding
+                                                    bottomPadding = mobileBottomClearance
                                                 )
 
                                                 section == AfterglowSection.UPDATES -> UpdatesScreen(
@@ -668,7 +691,7 @@ private fun AuthenticatedAfterglowShell(
                                                             ThemePreferences.saveLastLaunchedVersion(context, version)
                                                         }
                                                     },
-                                                    bottomPadding = screenBottomPadding
+                                                    bottomPadding = mobileBottomClearance
                                                 )
 
                                                 section == AfterglowSection.SETTINGS -> SettingsScreen(
@@ -685,7 +708,7 @@ private fun AuthenticatedAfterglowShell(
                                                     onClearAllData = viewModel::clearAllData,
                                                     onNotify = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } },
                                                     onSignOut = {
-                                                        signOut(credentialManager, scope, onSignOutComplete = onSignedOut)
+                                                        showSignOutConfirm = true
                                                     },
                                                     cloudSyncState = cloudSyncState,
                                                     isOnline = isOnline,
@@ -694,7 +717,7 @@ private fun AuthenticatedAfterglowShell(
                                                     onCancelFirstSync = viewModel::cancelFirstSyncMerge,
                                                     onRestoreFromCloud = { viewModel.restoreFromCloud(isOnline) },
                                                     showUpdateBadge = showUpdateBadge,
-                                                    bottomPadding = screenBottomPadding
+                                                    bottomPadding = mobileBottomClearance
                                                 )
                                             }
                                         }
@@ -704,143 +727,118 @@ private fun AuthenticatedAfterglowShell(
                         }
                     }
 
-                    SnackbarHost(
-                        hostState = snackbarHostState,
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .navigationBarsPadding()
-                            .padding(
-                                start = spacing.space4,
-                                end = spacing.space4,
-                                bottom = if (isExpandedScreen) 20.dp else 98.dp
-                            )
-                    ) { data ->
-                        NeonGlassCard(
-                            accentColor = tokens.tertiaryAccent,
-                            cornerRadius = radii.md,
-                            contentPadding = PaddingValues(horizontal = spacing.space4, vertical = spacing.space3)
+                SnackbarHost(
+                    hostState = snackbarHostState,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                        .padding(
+                            start = spacing.space4,
+                            end = spacing.space4,
+                            bottom = 98.dp
+                        )
+                ) { data ->
+                    NeonGlassCard(
+                        accentColor = tokens.tertiaryAccent,
+                        cornerRadius = radii.md,
+                        contentPadding = PaddingValues(horizontal = spacing.space4, vertical = spacing.space3)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = data.visuals.message,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = tokens.textPrimary,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                val actionLabel = data.visuals.actionLabel
-                                if (actionLabel != null) {
-                                    TextButton(
-                                        onClick = { data.performAction() },
-                                        modifier = Modifier
-                                            .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
-                                            .zenixFocusRing(NeonCyan, radii.sm)
-                                    ) {
-                                        Text(
-                                            text = actionLabel,
-                                            style = MaterialTheme.typography.labelLarge,
-                                            fontWeight = FontWeight.Bold,
-                                            color = NeonCyan
-                                        )
-                                    }
+                            Text(
+                                text = data.visuals.message,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = tokens.textPrimary,
+                                modifier = Modifier.weight(1f)
+                            )
+                            val actionLabel = data.visuals.actionLabel
+                            if (actionLabel != null) {
+                                TextButton(
+                                    onClick = { data.performAction() },
+                                    modifier = Modifier
+                                        .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                                        .zenixFocusRing(NeonCyan, radii.sm)
+                                ) {
+                                    Text(
+                                        text = actionLabel,
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = NeonCyan
+                                    )
                                 }
                             }
                         }
                     }
-
-                    val isListSection = currentSection == AfterglowSection.MOVIES ||
-                        currentSection == AfterglowSection.WEB_SERIES ||
-                        currentSection == AfterglowSection.ANIME ||
-                        currentSection == AfterglowSection.K_DRAMA
-                    if (!isExpandedScreen) {
-                        val selectedIndex = if (showGlobalSearch) -1 else bottomSections.indexOf(currentSection)
-                        ZenixBottomBar(
-                            tabs = bottomTabs,
-                            selectedIndex = selectedIndex,
-                            onSelectTab = { idx -> navigateToSection(bottomSections[idx]) },
-                            hazeState = hazeState,
-                            modifier = Modifier.align(Alignment.BottomCenter)
-                        )
-                    } else if (!isListSection && !showGlobalSearch) {
-                        NeonPrimaryButton(
-                            onClick = {
-                                openAddPicker(
-                                    defaultCategoryForSection().takeIf { currentSection != AfterglowSection.DASHBOARD },
-                                    currentSection == AfterglowSection.WATCHLIST
-                                )
-                            },
-                            cornerRadius = 18.dp,
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .navigationBarsPadding()
-                                .padding(20.dp)
-                        ) {
-                            Icon(Icons.Rounded.Add, contentDescription = "Add title")
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Add", fontWeight = FontWeight.Bold)
-                        }
-                    }
                 }
-            }
 
-            if (isExpandedScreen) {
-                PermanentNavigationDrawer(
-                    drawerContent = {
-                        PermanentDrawerSheet(
-                            drawerContainerColor = tokens.drawerBackground,
-                            modifier = Modifier
-                                .width(276.dp)
-                                .border(1.dp, tokens.outlineSubtle)
-                        ) {
-                            DrawerMenuContent(
-                                profile = profile,
-                                userEmail = userEmail,
-                                currentSection = currentSection,
-                                showHomeItem = true,
-                                showUpdateBadge = showUpdateBadge,
-                                onSelectSection = navigateToSection,
-                                onSignOut = { signOut(credentialManager, scope, onSignOutComplete = onSignedOut) }
-                            )
-                        }
-                    },
-                    content = mainShellContent
+                val selectedIndex = if (showGlobalSearch) -1 else bottomSections.indexOf(currentSection)
+                ZenixBottomBar(
+                    tabs = bottomTabs,
+                    selectedIndex = selectedIndex,
+                    onSelectTab = { idx -> navigateToSection(bottomSections[idx]) },
+                    hazeState = hazeState,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .then(if (isExpandedScreen) Modifier.widthIn(max = 560.dp) else Modifier)
                 )
-            } else {
-                ModalNavigationDrawer(
-                    drawerState = drawerState,
-                    drawerContent = {
-                        ModalDrawerSheet(
-                            drawerContainerColor = tokens.drawerBackground,
-                            modifier = Modifier
-                                .width(292.dp)
-                                .border(
-                                    1.dp,
-                                    tokens.outlineSubtle,
-                                    RoundedCornerShape(topEnd = 24.dp, bottomEnd = 24.dp)
-                                )
-                        ) {
-                            DrawerMenuContent(
-                                profile = profile,
-                                userEmail = userEmail,
-                                currentSection = currentSection,
-                                showHomeItem = false,
-                                showUpdateBadge = showUpdateBadge,
-                                onSelectSection = { sec ->
-                                    navigateToSection(sec)
-                                    scope.launch { drawerState.close() }
-                                },
-                                onSignOut = {
-                                    scope.launch { drawerState.close() }
-                                    signOut(credentialManager, scope, onSignOutComplete = onSignedOut)
-                                }
+
+                // Dimmed backdrop when Settings popup menu is open
+                AnimatedVisibility(
+                    visible = showSettingsMenu,
+                    enter = if (reducedMotion) EnterTransition.None else fadeIn(tween(150, easing = FastOutSlowInEasing)),
+                    exit = if (reducedMotion) ExitTransition.None else fadeOut(tween(120))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.45f))
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = { showSettingsMenu = false }
                             )
-                        }
+                    )
+                }
+
+                // Anchored Settings & Navigation Dropdown Popup (top-right, 16dp from edge, 248dp wide)
+                AnimatedVisibility(
+                    visible = showSettingsMenu,
+                    enter = if (reducedMotion) EnterTransition.None else {
+                        fadeIn(tween(150, easing = FastOutSlowInEasing)) + scaleIn(
+                            animationSpec = tween(150, easing = FastOutSlowInEasing),
+                            initialScale = 0.90f,
+                            transformOrigin = TransformOrigin(1f, 0f)
+                        )
                     },
-                    content = mainShellContent
-                )
+                    exit = if (reducedMotion) ExitTransition.None else {
+                        fadeOut(tween(120)) + scaleOut(
+                            animationSpec = tween(120),
+                            targetScale = 0.92f,
+                            transformOrigin = TransformOrigin(1f, 0f)
+                        )
+                    },
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .statusBarsPadding()
+                        .padding(top = 60.dp, end = 16.dp)
+                ) {
+                    SettingsPopupMenu(
+                        profile = profile,
+                        userEmail = userEmail,
+                        currentSection = currentSection,
+                        isRootSection = !showGlobalSearch && !showAppearanceScreen,
+                        showUpdateBadge = showUpdateBadge,
+                        onSelectSection = navigateToSection,
+                        onDismiss = { showSettingsMenu = false },
+                        onRequestSignOut = {
+                            showSettingsMenu = false
+                            showSignOutConfirm = true
+                        }
+                    )
+                }
             }
         }
 
@@ -893,8 +891,9 @@ private fun AuthenticatedAfterglowShell(
         }
 
         if (showEditor) {
+            val activeEditorItem = editorItem
             MediaEditorDialog(
-                initialItem = editorItem,
+                initialItem = activeEditorItem,
                 defaultCategory = editorDefaultCategory,
                 defaultWatchlist = editorDefaultWatchlist,
                 onSearchTmdb = viewModel::searchTmdb,
@@ -903,9 +902,36 @@ private fun AuthenticatedAfterglowShell(
                 onSave = { item, isEdit ->
                     viewModel.saveMediaItem(item, isEdit)
                     showEditor = false
+                },
+                onDelete = activeEditorItem?.takeIf { it.id.isNotBlank() }?.let { target ->
+                    {
+                        viewModel.deleteMediaItem(target)
+                        showEditor = false
+                    }
                 }
             )
         }
+
+        if (showSignOutConfirm) {
+            NeonGlassDialog(
+                onDismissRequest = { showSignOutConfirm = false },
+                title = "Sign out of ZENIX?",
+                accentColor = NeonPink,
+                confirmText = "Sign out",
+                confirmDangerous = true,
+                onConfirm = {
+                    showSignOutConfirm = false
+                    signOut(credentialManager, scope, onSignOutComplete = onSignedOut)
+                }
+            ) {
+                Text(
+                    text = "Your library stays synced to your account. You can sign back in anytime.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = tokens.textSecondary
+                )
+            }
+        }
+
         if (showWhatsNewDialog) {
             NeonGlassDialog(
                 onDismissRequest = { showWhatsNewDialog = false },
@@ -960,147 +986,231 @@ private fun AuthenticatedAfterglowShell(
     }
 }
 
+private data class PopupMenuItemSpec(
+    val section: AfterglowSection,
+    val label: String,
+    val icon: ImageVector
+)
+
 @Composable
-private fun DrawerMenuContent(
+private fun SettingsPopupMenu(
     profile: UserProfile,
     userEmail: String?,
     currentSection: AfterglowSection,
-    showHomeItem: Boolean,
+    isRootSection: Boolean,
     showUpdateBadge: Boolean,
     onSelectSection: (AfterglowSection) -> Unit,
-    onSignOut: () -> Unit
+    onDismiss: () -> Unit,
+    onRequestSignOut: () -> Unit
 ) {
     val tokens = LocalZenixTokens.current
     val spacing = LocalZenixSpacing.current
-    val radii = LocalZenixRadii.current
 
-    val drawerSections = remember(showHomeItem) {
-        buildList {
-            if (showHomeItem) add(AfterglowSection.DASHBOARD)
-            add(AfterglowSection.WATCHLIST)
-            add(AfterglowSection.RANKINGS)
-            add(AfterglowSection.STATISTICS)
-            add(AfterglowSection.SMART_HUB)
-            add(AfterglowSection.UPDATES)
-            add(AfterglowSection.SETTINGS)
-        }
+    val menuItems = remember {
+        listOf(
+            PopupMenuItemSpec(AfterglowSection.WATCHLIST, "Watchlist", Icons.Outlined.BookmarkBorder),
+            PopupMenuItemSpec(AfterglowSection.RANKINGS, "Favourites and rankings", Icons.Outlined.EmojiEvents),
+            PopupMenuItemSpec(AfterglowSection.STATISTICS, "Statistics", Icons.Outlined.BarChart),
+            PopupMenuItemSpec(AfterglowSection.SMART_HUB, "Smart discovery", Icons.Outlined.Casino),
+            PopupMenuItemSpec(AfterglowSection.UPDATES, "Updates", Icons.Outlined.Download),
+            PopupMenuItemSpec(AfterglowSection.SETTINGS, "Settings and data", Icons.Outlined.Settings)
+        )
     }
+
+    // 6 nav items + Sign out button = 7 focusable targets
+    val focusRequesters = remember { List(7) { FocusRequester() } }
+    var focusedIndex by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(Unit) {
+        delay(16L)
+        runCatching { focusRequesters[0].requestFocus() }
+    }
+
+    val popupBg = tokens.dialogBackground
+    val popupBorder = when (tokens.mode) {
+        AppThemeMode.NEON_GLOSSY -> Color.White.copy(alpha = 0.20f)
+        else -> tokens.outline
+    }
+    val popupShape = RoundedCornerShape(16.dp)
+    val initialChar = profile.displayName.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "Z"
 
     Column(
         modifier = Modifier
-            .fillMaxHeight()
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .padding(spacing.space4)
-    ) {
-        // Drawer Header: Z logo, ZENIX, username in cyan
-        Row(
-            modifier = Modifier.padding(horizontal = spacing.space2, vertical = spacing.space3),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(spacing.space3)
-        ) {
-            ZenixBrandLogo(size = 40.dp)
-            Column {
-                Text(
-                    text = "ZENIX",
-                    fontFamily = tokens.fontFamily,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    letterSpacing = 2.2.sp,
-                    color = tokens.textPrimary
-                )
-                Text(
-                    text = profile.displayName,
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Medium,
-                    color = NeonCyan,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+            .width(248.dp)
+            .semantics { contentDescription = "Settings and navigation menu" }
+            .onPreviewKeyEvent { keyEvent ->
+                if (keyEvent.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                when (keyEvent.key) {
+                    Key.Escape -> {
+                        onDismiss()
+                        true
+                    }
+                    Key.DirectionDown -> {
+                        val next = (focusedIndex + 1) % focusRequesters.size
+                        focusedIndex = next
+                        runCatching { focusRequesters[next].requestFocus() }
+                        true
+                    }
+                    Key.DirectionUp -> {
+                        val prev = (focusedIndex - 1 + focusRequesters.size) % focusRequesters.size
+                        focusedIndex = prev
+                        runCatching { focusRequesters[prev].requestFocus() }
+                        true
+                    }
+                    else -> false
+                }
             }
+            .testTag("settings_popup_menu"),
+        horizontalAlignment = Alignment.End
+    ) {
+        // Small caret pointing up to the Settings gear button center (22dp from popup right edge)
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(7.dp)
+        ) {
+            val tipX = size.width - 22.dp.toPx()
+            val halfW = 6.dp.toPx()
+            val bottomY = size.height + 0.5.dp.toPx()
+            val fillPath = Path().apply {
+                moveTo(tipX, 0f)
+                lineTo(tipX + halfW, bottomY)
+                lineTo(tipX - halfW, bottomY)
+                close()
+            }
+            drawPath(path = fillPath, color = popupBg)
+            val strokePath = Path().apply {
+                moveTo(tipX - halfW, size.height)
+                lineTo(tipX, 0f)
+                lineTo(tipX + halfW, size.height)
+            }
+            drawPath(
+                path = strokePath,
+                color = popupBorder,
+                style = Stroke(width = 0.75.dp.toPx())
+            )
         }
-
-        HorizontalDivider(color = tokens.outlineSubtle, modifier = Modifier.padding(vertical = spacing.space1))
-
-        val activeEnd = lerp(NeonPurple, Color(0xFF4C1D95), 0.38f)
 
         Column(
             modifier = Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(spacing.space1)
+                .fillMaxWidth()
+                .then(
+                    if (tokens.useGlow) {
+                        Modifier.neonGlow(tokens.primaryAccent, cornerRadius = 16.dp, alpha = 0.24f, spread = 8.dp)
+                    } else Modifier
+                )
+                .clip(popupShape)
+                .background(popupBg)
+                .border(0.5.dp, popupBorder, popupShape)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = {}
+                )
+                .padding(vertical = spacing.space2)
         ) {
-            drawerSections.forEach { section ->
-                val selected = currentSection == section
-                val highlightUpdates = section == AfterglowSection.UPDATES && showUpdateBadge
-                val shape = RoundedCornerShape(radii.md)
-
-                val rowMod = when {
-                    selected -> Modifier
-                        .then(
-                            if (tokens.useGlow) {
-                                Modifier.neonGlow(NeonPurple, cornerRadius = radii.md, alpha = 0.34f, spread = 5.dp)
-                            } else Modifier
+            // a) Profile row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = spacing.space3, vertical = spacing.space2),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(spacing.space3)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(tokens.primaryAccent.copy(alpha = 0.22f))
+                        .border(1.dp, tokens.primaryAccent.copy(alpha = 0.55f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = initialChar,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = tokens.primaryAccent
+                    )
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = profile.displayName,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = tokens.textPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (!userEmail.isNullOrBlank()) {
+                        Text(
+                            text = userEmail,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = NeonCyan,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
-                        .clip(shape)
-                        .background(Brush.horizontalGradient(listOf(NeonPurple, activeEnd)))
-                        .border(1.dp, Color.White.copy(alpha = 0.30f), shape)
-
-                    highlightUpdates -> Modifier
-                        .clip(shape)
-                        .background(NeonCyan.copy(alpha = 0.08f))
-                        .border(1.dp, NeonCyan.copy(alpha = 0.65f), shape)
-
-                    else -> Modifier
-                        .clip(shape)
-                        .background(Color.White.copy(alpha = 0.03f))
+                    }
                 }
+            }
 
-                val labelColor = when {
-                    selected -> Color.White
-                    highlightUpdates -> NeonCyan
-                    else -> tokens.textPrimary
-                }
-                val iconColor = when {
-                    selected -> Color.White
-                    highlightUpdates -> NeonCyan
-                    else -> tokens.textSecondary
-                }
+            HorizontalDivider(
+                color = tokens.outlineSubtle,
+                modifier = Modifier.padding(vertical = spacing.space1)
+            )
+
+            // b) 6 menu rows (44dp tap target >= 44px, outline icon on left, highlight current screen)
+            menuItems.forEachIndexed { index, spec ->
+                val isSelected = isRootSection && currentSection == spec.section
+                val isUpdatesRow = spec.section == AfterglowSection.UPDATES
+                val rowShape = RoundedCornerShape(10.dp)
+                val rowBg = if (isSelected) tokens.primaryAccent.copy(alpha = 0.16f) else Color.Transparent
+                val itemColor = if (isSelected) tokens.primaryAccent else tokens.textPrimary
+                val iconColor = if (isSelected) tokens.primaryAccent else tokens.textSecondary
+                val interaction = remember { MutableInteractionSource() }
 
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .defaultMinSize(minHeight = 48.dp)
-                        .then(rowMod)
-                        .zenixFocusRing(NeonPurple, radii.md)
-                        .clickable(role = Role.Button) { onSelectSection(section) }
-                        .padding(horizontal = spacing.space3, vertical = spacing.space3)
-                        .testTag("nav_${section.name.lowercase()}"),
+                        .padding(horizontal = spacing.space2)
+                        .defaultMinSize(minHeight = 44.dp)
+                        .clip(rowShape)
+                        .background(rowBg)
+                        .focusRequester(focusRequesters[index])
+                        .onFocusChanged { if (it.isFocused) focusedIndex = index }
+                        .zenixFocusRing(tokens.primaryAccent, 10.dp)
+                        .clickable(
+                            interactionSource = interaction,
+                            indication = ripple(color = tokens.primaryAccent),
+                            role = Role.Button,
+                            onClick = { onSelectSection(spec.section) }
+                        )
+                        .padding(horizontal = spacing.space2, vertical = 10.dp)
+                        .testTag("menu_${spec.section.name.lowercase()}"),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(spacing.space3)
                 ) {
                     Icon(
-                        imageVector = section.icon,
+                        imageVector = spec.icon,
                         contentDescription = null,
                         tint = iconColor,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(19.dp)
                     )
                     Text(
-                        text = section.label,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = if (selected || highlightUpdates) FontWeight.Bold else FontWeight.Medium,
-                        color = labelColor,
-                        modifier = Modifier.weight(1f),
+                        text = spec.label,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                        color = itemColor,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
                     )
-                    if (highlightUpdates) {
+                    if (isUpdatesRow && showUpdateBadge) {
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(50))
-                                .background(NeonPink.copy(alpha = 0.22f))
-                                .border(1.dp, NeonPink.copy(alpha = 0.85f), RoundedCornerShape(50))
-                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                                .background(NeonPink.copy(alpha = 0.20f))
+                                .border(0.5.dp, NeonPink.copy(alpha = 0.85f), RoundedCornerShape(50))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 text = "NEW",
@@ -1112,55 +1222,58 @@ private fun DrawerMenuContent(
                     }
                 }
             }
-        }
 
-        // Pinned Drawer Footer: App Version + Email + Sign Out
-        HorizontalDivider(color = tokens.outlineSubtle, modifier = Modifier.padding(vertical = spacing.space2))
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(spacing.space2)
-        ) {
+            HorizontalDivider(
+                color = tokens.outlineSubtle,
+                modifier = Modifier.padding(vertical = spacing.space1)
+            )
+
+            // c) Footer row: APP_VERSION on left, pink Sign out on right
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = spacing.space1),
+                    .padding(horizontal = spacing.space3),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "ZENIX v$APP_VERSION",
+                    text = "v$APP_VERSION",
                     style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.Medium,
                     color = tokens.textSecondary
                 )
-                if (!userEmail.isNullOrBlank()) {
+                val signOutInteraction = remember { MutableInteractionSource() }
+                Row(
+                    modifier = Modifier
+                        .defaultMinSize(minHeight = 44.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .focusRequester(focusRequesters[6])
+                        .onFocusChanged { if (it.isFocused) focusedIndex = 6 }
+                        .zenixFocusRing(NeonPink, 10.dp)
+                        .clickable(
+                            interactionSource = signOutInteraction,
+                            indication = ripple(color = NeonPink),
+                            role = Role.Button,
+                            onClick = onRequestSignOut
+                        )
+                        .padding(horizontal = spacing.space2, vertical = 8.dp)
+                        .testTag("menu_sign_out_button"),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.Logout,
+                        contentDescription = null,
+                        tint = NeonPink,
+                        modifier = Modifier.size(16.dp)
+                    )
                     Text(
-                        text = userEmail,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = NeonCyan,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(start = spacing.space2)
+                        text = "Sign out",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = NeonPink
                     )
                 }
-            }
-            GlassSecondaryButton(
-                onClick = onSignOut,
-                accentBorderColor = tokens.dangerAccent,
-                cornerRadius = radii.md,
-                contentPadding = PaddingValues(horizontal = spacing.space3, vertical = spacing.space2),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("drawer_sign_out_button")
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.Logout,
-                    contentDescription = null,
-                    tint = tokens.dangerAccent,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(spacing.space2))
-                Text("Sign Out", color = tokens.dangerAccent, fontWeight = FontWeight.Bold)
             }
         }
     }

@@ -40,6 +40,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Search
@@ -117,7 +118,8 @@ fun MediaEditorDialog(
     onSearchTmdb: suspend (String, String) -> Result<List<TmdbMultiResult>>,
     onFetchTmdbDetails: suspend (String, TmdbMultiResult) -> Result<TmdbPrefillResult>,
     onDismiss: () -> Unit,
-    onSave: (MediaItem, Boolean) -> Unit
+    onSave: (MediaItem, Boolean) -> Unit,
+    onDelete: (() -> Unit)? = null
 ) {
     val isEdit = initialItem != null && initialItem.id.isNotBlank()
     val context = LocalContext.current
@@ -219,6 +221,7 @@ fun MediaEditorDialog(
     var moreDetailsExpanded by remember { mutableStateOf(false) }
     var activeDatePicker by remember { mutableStateOf<DatePickerTarget?>(null) }
     var showDiscardDialog by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
 
     var tmdbQuery by remember { mutableStateOf("") }
     var tmdbLoading by remember { mutableStateOf(false) }
@@ -1094,6 +1097,31 @@ fun MediaEditorDialog(
                         }
                     }
 
+                    if (isEdit && onDelete != null) {
+                        HorizontalDivider(color = tokens.outlineSubtle)
+                        GlassSecondaryButton(
+                            onClick = { showDeleteConfirm = true },
+                            accentBorderColor = tokens.dangerAccent,
+                            cornerRadius = radii.md,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("editor_delete_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Delete,
+                                contentDescription = null,
+                                tint = tokens.dangerAccent,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Delete",
+                                color = tokens.dangerAccent,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(8.dp))
                 }
 
@@ -1178,6 +1206,26 @@ fun MediaEditorDialog(
         ) {
             Text(
                 text = "You have unsaved edits for \"${title.ifBlank { "this title" }}\". Leaving now will discard them.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = tokens.textSecondary
+            )
+        }
+    }
+
+    if (showDeleteConfirm && onDelete != null) {
+        NeonGlassDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = "Delete \"${title.ifBlank { "this title" }}\"?",
+            accentColor = tokens.dangerAccent,
+            confirmText = "Delete",
+            confirmDangerous = true,
+            onConfirm = {
+                showDeleteConfirm = false
+                onDelete()
+            }
+        ) {
+            Text(
+                text = "This removes \"${title.ifBlank { "this title" }}\" from your library. You can Undo from the toast for 5 seconds.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = tokens.textSecondary
             )

@@ -608,6 +608,29 @@ fun MediaDetailScreen(
                     }
                 }
 
+                HorizontalDivider(color = tokens.outlineSubtle)
+                GlassSecondaryButton(
+                    onClick = { showDeleteConfirm = true },
+                    accentBorderColor = tokens.dangerAccent,
+                    cornerRadius = radii.md,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("detail_bottom_delete_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Delete,
+                        contentDescription = null,
+                        tint = tokens.dangerAccent,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Delete",
+                        color = tokens.dangerAccent,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(16.dp))
             }
         }

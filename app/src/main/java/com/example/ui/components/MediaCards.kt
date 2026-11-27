@@ -32,18 +32,13 @@ import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Tv
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -335,126 +330,6 @@ fun StatKpiCard(
                 overflow = TextOverflow.Ellipsis
             )
         }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun SwipeableMediaCard(
-    enabled: Boolean = true,
-    isFavourite: Boolean,
-    onToggleFavourite: () -> Unit,
-    onDelete: () -> Unit,
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit
-) {
-    val tokens = LocalZenixTokens.current
-    val radii = LocalZenixRadii.current
-    val haptics = LocalHapticFeedback.current
-    val currentFav by rememberUpdatedState(onToggleFavourite)
-    val currentDel by rememberUpdatedState(onDelete)
-
-    if (!enabled) {
-        Box(modifier = modifier) { content() }
-        return
-    }
-
-    val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = { value ->
-            when (value) {
-                SwipeToDismissBoxValue.StartToEnd -> {
-                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                    currentFav()
-                    false
-                }
-                SwipeToDismissBoxValue.EndToStart -> {
-                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                    currentDel()
-                    false
-                }
-                SwipeToDismissBoxValue.Settled -> false
-            }
-        },
-        positionalThreshold = { totalDistance -> totalDistance * 0.42f }
-    )
-
-    SwipeToDismissBox(
-        state = dismissState,
-        modifier = modifier,
-        enableDismissFromStartToEnd = true,
-        enableDismissFromEndToStart = true,
-        backgroundContent = {
-            val direction = dismissState.dismissDirection
-            val bgColor = when (direction) {
-                SwipeToDismissBoxValue.StartToEnd -> NeonPink.copy(alpha = 0.22f)
-                SwipeToDismissBoxValue.EndToStart -> tokens.dangerAccent.copy(alpha = 0.24f)
-                SwipeToDismissBoxValue.Settled -> Color.Transparent
-            }
-            val borderColor = when (direction) {
-                SwipeToDismissBoxValue.StartToEnd -> NeonPink.copy(alpha = 0.65f)
-                SwipeToDismissBoxValue.EndToStart -> tokens.dangerAccent.copy(alpha = 0.70f)
-                SwipeToDismissBoxValue.Settled -> Color.Transparent
-            }
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(RoundedCornerShape(radii.lg))
-                    .background(bgColor)
-                    .then(
-                        if (direction != SwipeToDismissBoxValue.Settled) {
-                            Modifier.border(1.dp, borderColor, RoundedCornerShape(radii.lg))
-                        } else Modifier
-                    )
-                    .padding(horizontal = 20.dp),
-                contentAlignment = when (direction) {
-                    SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
-                    SwipeToDismissBoxValue.EndToStart -> Alignment.CenterEnd
-                    SwipeToDismissBoxValue.Settled -> Alignment.Center
-                }
-            ) {
-                when (direction) {
-                    SwipeToDismissBoxValue.StartToEnd -> {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (isFavourite) Icons.Outlined.FavoriteBorder else Icons.Filled.Favorite,
-                                contentDescription = null,
-                                tint = NeonPink
-                            )
-                            Text(
-                                text = if (isFavourite) "Unfavourite" else "Favourite",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = NeonPink
-                            )
-                        }
-                    }
-                    SwipeToDismissBoxValue.EndToStart -> {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = "Delete",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = tokens.dangerAccent
-                            )
-                            Icon(
-                                imageVector = Icons.Rounded.Delete,
-                                contentDescription = null,
-                                tint = tokens.dangerAccent
-                            )
-                        }
-                    }
-                    SwipeToDismissBoxValue.Settled -> Unit
-                }
-            }
-        }
-    ) {
-        content()
     }
 }
 

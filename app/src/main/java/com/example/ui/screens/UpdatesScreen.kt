@@ -85,7 +85,7 @@ object ZenixUpdateConfig {
         ),
         UpdateFeatureItem(
             name = "Cloud Backup Sync & Bulk Actions",
-            description = "Account cloud backup controls in Settings, swipe-to-favourite/delete, and long-press multi-select."
+            description = "Account cloud backup controls in Settings and long-press multi-select."
         )
     )
 

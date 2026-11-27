@@ -66,10 +66,10 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Favorite
-import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -93,6 +93,8 @@ import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -112,6 +114,7 @@ import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -393,53 +396,6 @@ fun rememberAnimatedLongCount(target: Long): Long {
 }
 
 /**
- * ZENIX "Z" Gradient Brand Logo
- */
-@Composable
-fun ZenixBrandLogo(
-    size: Dp = 32.dp,
-    modifier: Modifier = Modifier
-) {
-    val tokens = LocalZenixTokens.current
-    val corner = (size.value * 0.31f).dp
-    val shape = RoundedCornerShape(corner)
-    val startCol = tokens.primaryAccent
-    val endCol = if (tokens.mode == AppThemeMode.MINIMAL_DARK) {
-        lerp(tokens.primaryAccent, Color.White, 0.22f)
-    } else {
-        NeonPink
-    }
-
-    Box(
-        modifier = modifier
-            .size(size)
-            .then(
-                if (tokens.useGlow) {
-                    Modifier.neonGlow(color = startCol, cornerRadius = corner, alpha = 0.45f, spread = 6.dp)
-                } else Modifier
-            )
-            .clip(shape)
-            .background(Brush.linearGradient(colors = listOf(startCol, endCol)))
-            .border(
-                width = 1.dp,
-                brush = Brush.verticalGradient(
-                    colors = listOf(Color.White.copy(alpha = 0.55f), Color.White.copy(alpha = 0.14f))
-                ),
-                shape = shape
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "Z",
-            fontFamily = InterFontFamily,
-            fontWeight = FontWeight.Bold,
-            fontSize = (size.value * 0.54f).sp,
-            color = Color.White
-        )
-    }
-}
-
-/**
  * Global themed backdrop
  */
 @Composable
@@ -508,51 +464,58 @@ fun AfterglowBackdrop(
 }
 
 /**
- * Screen Header:
- * Left: Neutral Menu icon button + "Z" gradient logo + "ZENIX"
- * Right: ONE Neutral Search icon button
+ * Global App Header (applied on every screen):
+ * Left: "ZENIX" capsule brand chip (40dp height, 20dp horizontal padding, 20dp radius, 0.5dp border)
+ * Right: Circular Search button + Circular Settings gear button (40dp circles, 8dp visual gap, >=44dp tap targets)
  */
 @Composable
 fun AfterglowTopBar(
-    onOpenMenu: () -> Unit,
     onSearchClick: () -> Unit,
+    onSettingsMenuClick: () -> Unit,
+    settingsMenuExpanded: Boolean,
+    showUpdateBadge: Boolean,
+    settingsButtonFocusRequester: FocusRequester,
     modifier: Modifier = Modifier
 ) {
     val tokens = LocalZenixTokens.current
     val spacing = LocalZenixSpacing.current
 
+    val pillShape = RoundedCornerShape(20.dp)
+    val capsuleBg = when (tokens.mode) {
+        AppThemeMode.NEON_GLOSSY -> tokens.surface.copy(alpha = 0.86f)
+        AppThemeMode.MINIMAL_DARK -> MinimalDarkSurface
+        AppThemeMode.AMOLED_BLACK -> AmoledSurface
+    }
+    val subtleBorderColor = when (tokens.mode) {
+        AppThemeMode.NEON_GLOSSY -> Color.White.copy(alpha = 0.18f)
+        AppThemeMode.MINIMAL_DARK -> MinimalDarkOutline
+        AppThemeMode.AMOLED_BLACK -> AmoledOutline
+    }
+
     Row(
         modifier = modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .padding(horizontal = spacing.space4, vertical = spacing.space1),
+            .padding(horizontal = spacing.space4, vertical = spacing.space3),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(spacing.space3)
+        // Brand label capsule (non-interactive)
+        Box(
+            modifier = Modifier
+                .height(40.dp)
+                .clip(pillShape)
+                .background(capsuleBg)
+                .border(0.5.dp, subtleBorderColor, pillShape)
+                .padding(horizontal = 20.dp),
+            contentAlignment = Alignment.Center
         ) {
-            NeutralIconButton(
-                onClick = onOpenMenu,
-                modifier = Modifier.testTag("open_drawer_button")
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Menu,
-                    contentDescription = "Open navigation menu",
-                    tint = tokens.textPrimary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-
-            ZenixBrandLogo(size = 30.dp)
-
             Text(
                 text = "ZENIX",
                 fontFamily = InterFontFamily,
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp,
-                letterSpacing = 2.4.sp,
+                fontWeight = FontWeight.Medium,
+                fontSize = 15.sp,
+                letterSpacing = 3.sp,
                 color = tokens.textPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -560,16 +523,102 @@ fun AfterglowTopBar(
             )
         }
 
-        NeutralIconButton(
-            onClick = onSearchClick,
-            modifier = Modifier.testTag("topbar_search_button")
+        // Right: Search circle + Settings gear circle (40dp visual, 8dp visual gap, >=44dp tap area)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Icon(
-                imageVector = Icons.Rounded.Search,
-                contentDescription = "Search library",
-                tint = tokens.textPrimary,
-                modifier = Modifier.size(20.dp)
-            )
+            HeaderCircleIconButton(
+                onClick = onSearchClick,
+                active = false,
+                surfaceBg = capsuleBg,
+                subtleBorder = subtleBorderColor,
+                modifier = Modifier.testTag("topbar_search_button")
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Search,
+                    contentDescription = "Search library",
+                    tint = tokens.textPrimary,
+                    modifier = Modifier.size(19.dp)
+                )
+            }
+
+            HeaderCircleIconButton(
+                onClick = onSettingsMenuClick,
+                active = settingsMenuExpanded,
+                showBadgeDot = showUpdateBadge,
+                badgeColor = NeonPink,
+                surfaceBg = capsuleBg,
+                subtleBorder = subtleBorderColor,
+                modifier = Modifier
+                    .focusRequester(settingsButtonFocusRequester)
+                    .semantics {
+                        contentDescription = "Settings and menu"
+                        stateDescription = if (settingsMenuExpanded) "Expanded" else "Collapsed"
+                    }
+                    .testTag("topbar_settings_button")
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Settings,
+                    contentDescription = null,
+                    tint = if (settingsMenuExpanded) tokens.primaryAccent else tokens.textPrimary,
+                    modifier = Modifier.size(19.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HeaderCircleIconButton(
+    onClick: () -> Unit,
+    active: Boolean,
+    surfaceBg: Color,
+    subtleBorder: Color,
+    modifier: Modifier = Modifier,
+    showBadgeDot: Boolean = false,
+    badgeColor: Color = NeonPink,
+    content: @Composable BoxScope.() -> Unit
+) {
+    val tokens = LocalZenixTokens.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val borderWidth = if (active) 1.dp else 0.5.dp
+    val borderColor = if (active) tokens.primaryAccent else subtleBorder
+    val bgColor = if (active) tokens.primaryAccent.copy(alpha = 0.16f) else surfaceBg
+
+    Box(
+        modifier = modifier
+            .size(width = 44.dp, height = 48.dp)
+            .pressScale(interactionSource, 0.96f)
+            .zenixFocusRing(tokens.primaryAccent, 22.dp)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = ripple(bounded = false, radius = 22.dp, color = tokens.primaryAccent),
+                role = Role.Button,
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(bgColor)
+                .border(borderWidth, borderColor, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            content()
+            if (showBadgeDot) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 6.dp, end = 6.dp)
+                        .size(7.dp)
+                        .clip(CircleShape)
+                        .background(badgeColor)
+                        .border(1.dp, tokens.background, CircleShape)
+                )
+            }
         }
     }
 }
