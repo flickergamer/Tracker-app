@@ -60,6 +60,7 @@ service cloud.firestore {
         data.title is string && data.title.size() >= 1 && data.title.size() <= 160 &&
         data.mediaCategory is string && isValidMediaCategory(data.mediaCategory) &&
         data.posterUrl is string && data.posterUrl.size() <= 1000 &&
+        (!('backdropUrl' in data) || (data.backdropUrl is string && data.backdropUrl.size() <= 1000)) &&
         data.genre is string && data.genre.size() <= 160 &&
         data.language is string && data.language.size() <= 60 &&
         data.releaseYear is int && (data.releaseYear == 0 || (data.releaseYear >= 1880 && data.releaseYear <= 2040)) &&
@@ -164,7 +165,7 @@ service cloud.firestore {
             'moodTags', 'createdAt', 'updatedAt'
           ]) &&
           incoming().keys().hasOnly([
-            'userId', 'title', 'mediaCategory', 'posterUrl', 'genre', 'language',
+            'userId', 'title', 'mediaCategory', 'posterUrl', 'backdropUrl', 'genre', 'language',
             'releaseYear', 'streamingPlatform', 'imdbRating', 'personalRating',
             'runtimeMinutes', 'director', 'mainCast', 'country', 'watchStatus',
             'startDate', 'completionDate', 'rewatchCount', 'rewatchFlag',
@@ -182,7 +183,7 @@ service cloud.firestore {
           incoming().userId == existing().userId &&
           incoming().createdAt == existing().createdAt &&
           incoming().diff(existing()).affectedKeys().hasOnly([
-            'title', 'mediaCategory', 'posterUrl', 'genre', 'language',
+            'title', 'mediaCategory', 'posterUrl', 'backdropUrl', 'genre', 'language',
             'releaseYear', 'streamingPlatform', 'imdbRating', 'personalRating',
             'runtimeMinutes', 'director', 'mainCast', 'country', 'watchStatus',
             'startDate', 'completionDate', 'rewatchCount', 'rewatchFlag',

@@ -32,6 +32,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -46,6 +48,7 @@ import com.example.data.model.UserProfile
 import com.example.data.model.WatchStatus
 import com.example.data.model.formatWatchTime
 import com.example.ui.components.FloatingBottomBarClearance
+import com.example.ui.components.GlassSecondaryButton
 import com.example.ui.components.LiquidGlassHeroCard
 import com.example.ui.components.NeonGlassCard
 import com.example.ui.components.NeonGlassChip
@@ -77,7 +80,7 @@ fun DashboardScreen(
     stats: DashboardStats,
     onOpenAddPicker: () -> Unit,
     onSelectItem: (MediaItem) -> Unit,
-    @Suppress("UNUSED_PARAMETER") onStepEpisode: (MediaItem, Int) -> Unit,
+    onStepEpisode: (MediaItem, Int) -> Unit,
     @Suppress("UNUSED_PARAMETER") onToggleFavourite: (MediaItem) -> Unit,
     onOpenWatchlist: () -> Unit,
     onOpenSmartHub: (Int) -> Unit,
@@ -89,6 +92,7 @@ fun DashboardScreen(
     val tokens = LocalZenixTokens.current
     val spacing = LocalZenixSpacing.current
     val radii = LocalZenixRadii.current
+    val haptics = LocalHapticFeedback.current
 
     val spotlightItem = stats.nextUpTitle
     val isContinuing = spotlightItem?.statusEnum == WatchStatus.WATCHING
@@ -205,14 +209,35 @@ fun DashboardScreen(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
-                            NeonPrimaryButton(
-                                onClick = { onSelectItem(spotlightItem) },
-                                accentColor = NeonPurple,
-                                cornerRadius = radii.sm,
-                                contentPadding = PaddingValues(horizontal = spacing.space4, vertical = spacing.space2),
-                                modifier = Modifier.testTag("continue_watching_view_details")
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(spacing.space2),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("View details", fontWeight = FontWeight.Bold)
+                                NeonPrimaryButton(
+                                    onClick = { onSelectItem(spotlightItem) },
+                                    accentColor = NeonPurple,
+                                    cornerRadius = radii.sm,
+                                    contentPadding = PaddingValues(horizontal = spacing.space4, vertical = spacing.space2),
+                                    modifier = Modifier.testTag("continue_watching_view_details")
+                                ) {
+                                    Text("View details", fontWeight = FontWeight.Bold, maxLines = 1)
+                                }
+                                val canStepEp = spotlightItem.categoryEnum.isEpisodic &&
+                                    (spotlightItem.totalEpisodes == 0L || spotlightItem.episodesWatched < spotlightItem.totalEpisodes)
+                                if (canStepEp) {
+                                    GlassSecondaryButton(
+                                        onClick = {
+                                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            onStepEpisode(spotlightItem, 1)
+                                        },
+                                        accentBorderColor = NeonCyan,
+                                        cornerRadius = radii.sm,
+                                        contentPadding = PaddingValues(horizontal = spacing.space3, vertical = spacing.space2),
+                                        modifier = Modifier.testTag("continue_watching_plus_ep")
+                                    ) {
+                                        Text("+1 Ep", fontWeight = FontWeight.Bold, maxLines = 1)
+                                    }
+                                }
                             }
                         }
                     }

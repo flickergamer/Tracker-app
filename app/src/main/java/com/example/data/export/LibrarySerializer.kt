@@ -54,6 +54,7 @@ object LibrarySerializer {
                     put("title", item.title)
                     put("mediaCategory", item.mediaCategory)
                     put("posterUrl", item.posterUrl)
+                    put("backdropUrl", item.backdropUrl)
                     put("genre", normalizeGenres(item.genre))
                     put("language", item.language)
                     put("releaseYear", item.releaseYear)
@@ -169,6 +170,7 @@ object LibrarySerializer {
                     title = title.take(160),
                     mediaCategory = MediaCategory.fromRaw(obj.optString("mediaCategory")).name,
                     posterUrl = obj.optString("posterUrl", ""),
+                    backdropUrl = obj.optString("backdropUrl", "").take(1000),
                     genre = normalizeGenres(obj.optString("genre", "")),
                     language = obj.optString("language", ""),
                     releaseYear = safeYear,

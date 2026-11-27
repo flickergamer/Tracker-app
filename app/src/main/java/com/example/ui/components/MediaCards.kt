@@ -444,7 +444,10 @@ fun MediaGridCard(
                                 if (item.favourite) tokens.dangerAccent.copy(alpha = 0.7f) else overlayBorder,
                                 CircleShape
                             )
-                            .clickable(role = Role.Button, onClick = onToggleFavourite),
+                            .clickable(role = Role.Button) {
+                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onToggleFavourite()
+                            },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -623,7 +626,13 @@ fun SeriesProgressCard(
                                     )
                                 }
                             }
-                            IconButton(onClick = onToggleFavourite, modifier = Modifier.size(36.dp)) {
+                            IconButton(
+                                onClick = {
+                                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onToggleFavourite()
+                                },
+                                modifier = Modifier.size(36.dp)
+                            ) {
                                 Icon(
                                     imageVector = if (item.favourite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                                     contentDescription = "Toggle favourite",
@@ -683,7 +692,12 @@ fun SeriesProgressCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 GlassIconButton(
-                    onClick = { if (item.episodesWatched > 0) onStepEpisode(-1) },
+                    onClick = {
+                        if (item.episodesWatched > 0) {
+                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onStepEpisode(-1)
+                        }
+                    },
                     glowColor = accent,
                     size = 38.dp
                 ) {
@@ -702,6 +716,7 @@ fun SeriesProgressCard(
                 GlassIconButton(
                     onClick = {
                         if (item.totalEpisodes == 0L || item.episodesWatched < item.totalEpisodes) {
+                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             onStepEpisode(1)
                         }
                     },

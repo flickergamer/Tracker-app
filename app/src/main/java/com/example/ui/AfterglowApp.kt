@@ -94,6 +94,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
@@ -297,6 +298,7 @@ private fun AuthenticatedAfterglowShell(
     var smartHubTab by remember { mutableIntStateOf(0) }
     var showGlobalSearch by remember { mutableStateOf(false) }
     var globalSearchInitialCategory by remember { mutableStateOf<MediaCategory?>(null) }
+    var globalSearchInitialWatchlistOnly by remember { mutableStateOf(false) }
     var showYearInReview by remember { mutableStateOf(false) }
     var showWhatsNewDialog by remember { mutableStateOf(false) }
 
@@ -408,8 +410,10 @@ private fun AuthenticatedAfterglowShell(
         val radii = LocalZenixRadii.current
         val reducedMotion = LocalReducedMotion.current
         val isOnline = rememberIsOnline()
-        val slideOffsetPx = with(LocalDensity.current) { 8.dp.roundToPx() }
+        val density = LocalDensity.current
+        val slideOffsetPx = with(density) { 8.dp.roundToPx() }
         val mobileBottomClearance = rememberFloatingBottomBarClearance()
+        var topBarHeightPx by remember { mutableIntStateOf(0) }
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val isExpandedScreen = maxWidth >= 840.dp
             val hazeState = rememberSafeHazeState(
@@ -453,6 +457,7 @@ private fun AuthenticatedAfterglowShell(
                                     AfterglowSection.K_DRAMA -> MediaCategory.K_DRAMA
                                     else -> null
                                 }
+                                globalSearchInitialWatchlistOnly = (currentSection == AfterglowSection.WATCHLIST)
                                 showGlobalSearch = true
                             },
                             onSettingsMenuClick = {
@@ -460,7 +465,18 @@ private fun AuthenticatedAfterglowShell(
                             },
                             settingsMenuExpanded = showSettingsMenu,
                             showUpdateBadge = showUpdateBadge,
-                            settingsButtonFocusRequester = settingsButtonFocusRequester
+                            settingsButtonFocusRequester = settingsButtonFocusRequester,
+                            modifier = Modifier
+                                .onSizeChanged { topBarHeightPx = it.height }
+                                .then(
+                                    if (showSettingsMenu) {
+                                        Modifier.clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null,
+                                            onClick = { showSettingsMenu = false }
+                                        )
+                                    } else Modifier
+                                )
                         )
 
                         AnimatedVisibility(visible = !isOnline) {
@@ -510,6 +526,7 @@ private fun AuthenticatedAfterglowShell(
                                                     onBack = { showGlobalSearch = false },
                                                     onSelectItem = { item -> detailItemId = item.id },
                                                     initialCategory = globalSearchInitialCategory,
+                                                    initialWatchlistOnly = globalSearchInitialWatchlistOnly,
                                                     bottomPadding = mobileBottomClearance
                                                 )
 
@@ -707,9 +724,6 @@ private fun AuthenticatedAfterglowShell(
                                                     onImportBackup = viewModel::importBackup,
                                                     onClearAllData = viewModel::clearAllData,
                                                     onNotify = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } },
-                                                    onSignOut = {
-                                                        showSignOutConfirm = true
-                                                    },
                                                     cloudSyncState = cloudSyncState,
                                                     isOnline = isOnline,
                                                     onSyncNow = { viewModel.requestCloudSync(isOnline) },
@@ -785,7 +799,7 @@ private fun AuthenticatedAfterglowShell(
                         .then(if (isExpandedScreen) Modifier.widthIn(max = 560.dp) else Modifier)
                 )
 
-                // Dimmed backdrop when Settings popup menu is open
+                // Dimmed backdrop below AfterglowTopBar when Settings popup menu is open
                 AnimatedVisibility(
                     visible = showSettingsMenu,
                     enter = if (reducedMotion) EnterTransition.None else fadeIn(tween(150, easing = FastOutSlowInEasing)),
@@ -794,6 +808,7 @@ private fun AuthenticatedAfterglowShell(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
+                            .padding(top = with(density) { topBarHeightPx.toDp() })
                             .background(Color.Black.copy(alpha = 0.45f))
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },

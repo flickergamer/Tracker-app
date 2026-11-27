@@ -228,13 +228,23 @@ test("MediaItem: owner CRUD, partial episode increment update, list query, and s
     })
   );
 
-  // Create item with omitted releaseYear (0) succeeds
+  // Create item with omitted releaseYear (0) and optional backdropUrl succeeds
   await assertSucceeds(
     aliceDb.collection("users").doc(ALICE_UID).collection("media_items").doc("item_no_year").set(
       validMediaItem(ALICE_UID, created, {
         releaseYear: 0,
+        backdropUrl: "https://image.tmdb.org/t/p/w780/backdrop.jpg",
         synopsis: "Mystery series.",
         seasons: [{ seasonNumber: 1, totalEpisodes: 8, episodesWatched: 0 }],
+      })
+    )
+  );
+
+  // Reject oversized backdropUrl (>1000 chars)
+  await assertFails(
+    aliceDb.collection("users").doc(ALICE_UID).collection("media_items").doc("item_bad_backdrop").set(
+      validMediaItem(ALICE_UID, created, {
+        backdropUrl: "https://image.tmdb.org/t/p/w780/" + "a".repeat(1000),
       })
     )
   );

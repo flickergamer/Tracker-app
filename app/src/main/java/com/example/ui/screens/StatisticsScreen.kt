@@ -170,6 +170,23 @@ fun StatisticsScreen(
                 }
             }
 
+            // Yearly Goals (elevated right below Year in Review)
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.space3)) {
+                    Text(
+                        text = "Yearly Goals",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = tokens.textPrimary,
+                        modifier = Modifier.zenixHeading()
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(spacing.space3)) {
+                        GoalRingCard("Movies", stats.completedMoviesThisYear, profile.yearlyMovieGoal.toInt(), tokens.primaryAccent, Modifier.weight(1f))
+                        GoalRingCard("Series", stats.completedSeriesThisYear, profile.yearlySeriesGoal.toInt(), tokens.positiveAccent, Modifier.weight(1f))
+                        GoalRingCard("Episodes", stats.episodesWatchedTotal, profile.yearlyEpisodeGoal.toInt(), tokens.tertiaryAccent, Modifier.weight(1f))
+                    }
+                }
+            }
+
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(spacing.space3)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(spacing.space3)) {
@@ -331,22 +348,6 @@ fun StatisticsScreen(
                             RatingPill(rating = top.personalRating)
                         }
                     }
-                }
-            }
-
-            // Progress Charts (Yearly Goals)
-            item {
-                Text(
-                    text = "Goal Progress",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = tokens.textPrimary,
-                    modifier = Modifier.zenixHeading()
-                )
-                Spacer(modifier = Modifier.height(spacing.space3))
-                Row(horizontalArrangement = Arrangement.spacedBy(spacing.space3)) {
-                    GoalRingCard("Movies", stats.completedMoviesThisYear, profile.yearlyMovieGoal.toInt(), tokens.primaryAccent, Modifier.weight(1f))
-                    GoalRingCard("Web Series", stats.completedSeriesThisYear, profile.yearlySeriesGoal.toInt(), tokens.positiveAccent, Modifier.weight(1f))
-                    GoalRingCard("Episodes", stats.episodesWatchedTotal, profile.yearlyEpisodeGoal.toInt(), tokens.tertiaryAccent, Modifier.weight(1f))
                 }
             }
 

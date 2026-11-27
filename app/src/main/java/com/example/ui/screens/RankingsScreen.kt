@@ -32,6 +32,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -47,19 +49,21 @@ import com.example.ui.components.PosterArtwork
 import com.example.ui.components.RatingPill
 import com.example.ui.components.StaggeredFadeItem
 import com.example.ui.components.ZenixToggleSwitch
+import com.example.ui.components.themedCategoryColor
 import com.example.ui.components.themedPaletteColor
 import com.example.ui.components.zenixHeading
 import com.example.ui.theme.LocalZenixRadii
 import com.example.ui.theme.LocalZenixSpacing
 import com.example.ui.theme.LocalZenixTokens
+import com.example.ui.theme.NeonAmber
+import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.NeonPink
+import com.example.ui.theme.NeonPurple
 
-enum class RankingCategoryTab(val label: String) {
-    TOP_10_MOVIES("Top 10 Movies"),
-    TOP_10_SERIES("Top 10 Series"),
-    TOP_10_ANIME("Top 10 Anime"),
-    FAV_MOVIES("Favourite Movies"),
-    FAV_SERIES("Favourite Series"),
-    ALL_TIME("All-Time Favourites")
+private enum class RankingModeTab(val label: String) {
+    TOP_10("Top 10"),
+    FAVOURITES("Favourites"),
+    ALL_TIME("All-Time")
 }
 
 @Composable
@@ -76,32 +80,44 @@ fun RankingsScreen(
     val tokens = LocalZenixTokens.current
     val spacing = LocalZenixSpacing.current
     val radii = LocalZenixRadii.current
-    var selectedTab by remember { mutableStateOf(RankingCategoryTab.TOP_10_MOVIES) }
+    val haptics = LocalHapticFeedback.current
+
+    var selectedMode by remember { mutableStateOf(RankingModeTab.TOP_10) }
+    var selectedCategory by remember { mutableStateOf<MediaCategory?>(MediaCategory.MOVIE) }
     var autoRankByRating by remember { mutableStateOf(true) }
 
-    val rankedList = remember(allItems, selectedTab, autoRankByRating) {
-        val pool = when (selectedTab) {
-            RankingCategoryTab.TOP_10_MOVIES -> allItems.filter { it.categoryEnum == MediaCategory.MOVIE }
-            RankingCategoryTab.TOP_10_SERIES -> allItems.filter { it.categoryEnum == MediaCategory.WEB_SERIES || it.categoryEnum == MediaCategory.K_DRAMA }
-            RankingCategoryTab.TOP_10_ANIME -> allItems.filter { it.categoryEnum == MediaCategory.ANIME }
-            RankingCategoryTab.FAV_MOVIES -> allItems.filter { it.categoryEnum == MediaCategory.MOVIE && it.favourite }
-            RankingCategoryTab.FAV_SERIES -> allItems.filter { it.categoryEnum.isEpisodic && it.favourite }
-            RankingCategoryTab.ALL_TIME -> allItems.filter { it.allTimeFavourite }
+    val rankedList = remember(allItems, selectedMode, selectedCategory, autoRankByRating) {
+        val categoryFiltered = if (selectedCategory == null) {
+            allItems
+        } else {
+            allItems.filter { it.categoryEnum == selectedCategory }
+        }
+        val pool = when (selectedMode) {
+            RankingModeTab.TOP_10 -> categoryFiltered
+            RankingModeTab.FAVOURITES -> categoryFiltered.filter { it.favourite }
+            RankingModeTab.ALL_TIME -> categoryFiltered.filter { it.allTimeFavourite }
         }
 
         val sorted = if (autoRankByRating) {
-            pool.sortedWith(compareByDescending<MediaItem> { it.personalRating }.thenByDescending { it.imdbRating })
+            pool.sortedWith(
+                compareByDescending<MediaItem> { it.personalRating }
+                    .thenByDescending { it.imdbRating }
+                    .thenBy { it.title.lowercase() }
+            )
         } else {
             pool.sortedWith(
                 compareBy<MediaItem> { if (it.manualRank > 0L) it.manualRank else Long.MAX_VALUE }
                     .thenByDescending { it.personalRating }
+                    .thenBy { it.title.lowercase() }
             )
         }
-        if (selectedTab in listOf(RankingCategoryTab.TOP_10_MOVIES, RankingCategoryTab.TOP_10_SERIES, RankingCategoryTab.TOP_10_ANIME)) {
-            sorted.take(10)
-        } else {
-            sorted
-        }
+        if (selectedMode == RankingModeTab.TOP_10) sorted.take(10) else sorted
+    }
+
+    val emptyScopeLabel = buildString {
+        append(selectedMode.label)
+        append(" ")
+        append(selectedCategory?.label ?: "Titles")
     }
 
     Column(modifier = modifier.fillMaxSize()) {
@@ -118,21 +134,45 @@ fun RankingsScreen(
                 modifier = Modifier.zenixHeading()
             )
 
-            val tabScrollState = rememberScrollState()
+            // 3-mode row: Top 10 / Favourites / All-Time
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(spacing.space2)
+            ) {
+                val modeAccents = listOf(NeonPurple, NeonPink, NeonAmber)
+                RankingModeTab.entries.forEachIndexed { idx, mode ->
+                    NeonGlassChip(
+                        label = mode.label,
+                        selected = selectedMode == mode,
+                        onClick = { selectedMode = mode },
+                        accentColor = modeAccents[idx],
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+            // Category filter row: All / Movie / Web Series / Anime / K-Drama
+            val catScrollState = rememberScrollState()
             HorizontalScrollFadeBox(
-                scrollState = tabScrollState,
+                scrollState = catScrollState,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
-                    modifier = Modifier.horizontalScroll(tabScrollState),
+                    modifier = Modifier.horizontalScroll(catScrollState),
                     horizontalArrangement = Arrangement.spacedBy(spacing.space2)
                 ) {
-                    RankingCategoryTab.entries.forEachIndexed { idx, tab ->
+                    NeonGlassChip(
+                        label = "All",
+                        selected = selectedCategory == null,
+                        onClick = { selectedCategory = null },
+                        accentColor = NeonCyan
+                    )
+                    MediaCategory.entries.forEach { cat ->
                         NeonGlassChip(
-                            label = tab.label,
-                            selected = selectedTab == tab,
-                            onClick = { selectedTab = tab },
-                            accentColor = themedPaletteColor(idx)
+                            label = cat.label,
+                            selected = selectedCategory == cat,
+                            onClick = { selectedCategory = cat },
+                            accentColor = themedCategoryColor(cat)
                         )
                     }
                 }
@@ -178,7 +218,7 @@ fun RankingsScreen(
                     .padding(start = spacing.space4, end = spacing.space4, top = spacing.space2, bottom = bottomPadding)
             ) {
                 EmptyStateView(
-                    title = "No Titles in ${selectedTab.label}",
+                    title = "No Titles in $emptyScopeLabel",
                     subtitle = "Rate titles or mark favourites and all-time favourites in your library to curate this leaderboard.",
                     actionLabel = "Browse Library",
                     onAction = onOpenLibrary,
@@ -248,6 +288,7 @@ fun RankingsScreen(
                                         IconButton(
                                             onClick = {
                                                 if (index > 0) {
+                                                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                                     val prev = rankedList[index - 1]
                                                     onUpdateManualRank(item, index.toLong())
                                                     onUpdateManualRank(prev, (index + 1).toLong())
@@ -261,6 +302,7 @@ fun RankingsScreen(
                                         IconButton(
                                             onClick = {
                                                 if (index < rankedList.lastIndex) {
+                                                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                                     val next = rankedList[index + 1]
                                                     onUpdateManualRank(item, (index + 2).toLong())
                                                     onUpdateManualRank(next, (index + 1).toLong())
@@ -275,7 +317,10 @@ fun RankingsScreen(
                                 } else {
                                     Row {
                                         IconButton(
-                                            onClick = { onToggleFavourite(item) },
+                                            onClick = {
+                                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                onToggleFavourite(item)
+                                            },
                                             modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
                                         ) {
                                             Icon(
@@ -285,7 +330,10 @@ fun RankingsScreen(
                                             )
                                         }
                                         IconButton(
-                                            onClick = { onToggleAllTime(item) },
+                                            onClick = {
+                                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                onToggleAllTime(item)
+                                            },
                                             modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
                                         ) {
                                             Icon(

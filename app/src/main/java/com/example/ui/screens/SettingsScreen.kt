@@ -1,6 +1,5 @@
 package com.example.ui.screens
 
-import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -33,9 +32,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.AddToHomeScreen
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
-import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.Backup
 import androidx.compose.material.icons.rounded.CloudDone
 import androidx.compose.material.icons.rounded.CloudOff
@@ -79,12 +76,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.pm.ShortcutInfoCompat
-import androidx.core.content.pm.ShortcutManagerCompat
-import androidx.core.graphics.drawable.IconCompat
 import com.example.BuildConfig
-import com.example.MainActivity
-import com.example.R
 import com.example.data.export.ImportedBackup
 import com.example.data.export.LibrarySerializer
 import com.example.data.model.MediaItem
@@ -130,7 +122,6 @@ fun SettingsScreen(
     onImportBackup: (ImportedBackup) -> Unit,
     onClearAllData: () -> Unit,
     onNotify: (String) -> Unit,
-    onSignOut: () -> Unit,
     cloudSyncState: CloudSyncUiState = CloudSyncUiState(),
     isOnline: Boolean = true,
     showUpdateBadge: Boolean = false,
@@ -162,16 +153,12 @@ fun SettingsScreen(
     var showRestoreConfirm by remember { mutableStateOf(false) }
 
     var appearanceExpanded by rememberSaveable { mutableStateOf(true) }
-    var updatesExpanded by rememberSaveable { mutableStateOf(false) }
     var profileExpanded by rememberSaveable { mutableStateOf(false) }
     var dataExpanded by rememberSaveable { mutableStateOf(false) }
     var aboutExpanded by rememberSaveable { mutableStateOf(false) }
 
     val dateStamp = remember { SimpleDateFormat("yyyyMMdd", Locale.US).format(Date()) }
     val syncTimeFmt = remember { SimpleDateFormat("MMM d, yyyy · HH:mm", Locale.getDefault()) }
-    val canPinShortcut = remember(context) {
-        runCatching { ShortcutManagerCompat.isRequestPinShortcutSupported(context) }.getOrDefault(false)
-    }
 
     val exportJsonLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
@@ -308,76 +295,79 @@ fun SettingsScreen(
             }
         }
 
-        // 2. Updates
+        // 2. Updates (compact single-row link card)
         item {
             val isUpdateAvailable = ZenixUpdateConfig.isUpdateAvailable()
-            SettingsCard(
-                title = "Updates",
-                icon = Icons.Rounded.SystemUpdate,
+            NeonGlassCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("settings_section_updates"),
                 accentColor = NeonCyan,
-                expanded = updatesExpanded,
-                onToggle = { updatesExpanded = !updatesExpanded },
-                badgeText = if (showUpdateBadge) "NEW" else null,
-                testTag = "settings_section_updates"
+                cornerRadius = radii.lg,
+                onClick = onOpenUpdates,
+                contentPadding = PaddingValues(spacing.space4)
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(
-                        text = if (isUpdateAvailable) {
-                            "Update ${ZenixUpdateConfig.latestVersion} available"
-                        } else {
-                            "You're up to date"
-                        },
-                        style = MaterialTheme.typography.titleSmall,
-                        color = tokens.textPrimary
-                    )
-                    Text(
-                        text = "Installed version v$APP_VERSION",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = tokens.textSecondary
-                    )
-                }
-                GlassSecondaryButton(
-                    onClick = onOpenUpdates,
-                    accentBorderColor = NeonCyan,
-                    cornerRadius = radii.md,
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .testTag("settings_open_updates_button")
+                        .defaultMinSize(minHeight = 48.dp)
+                        .testTag("settings_open_updates_button"),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(spacing.space3)
                 ) {
-                    Text(if (isUpdateAvailable) "View Update" else "Release Notes", fontWeight = FontWeight.SemiBold)
-                }
-                GlassSecondaryButton(
-                    onClick = {
-                        if (canPinShortcut) {
-                            runCatching {
-                                val launchIntent = Intent(context, MainActivity::class.java).apply {
-                                    action = Intent.ACTION_VIEW
+                    Icon(
+                        imageVector = Icons.Rounded.SystemUpdate,
+                        contentDescription = null,
+                        tint = NeonCyan
+                    )
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(spacing.space2)
+                        ) {
+                            Text(
+                                text = "Updates",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = tokens.textPrimary,
+                                modifier = Modifier.zenixHeading()
+                            )
+                            if (showUpdateBadge) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(50))
+                                        .background(NeonPink.copy(alpha = 0.20f))
+                                        .border(1.dp, NeonPink.copy(alpha = 0.85f), RoundedCornerShape(50))
+                                        .padding(horizontal = spacing.space2, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "NEW",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 0.8.sp,
+                                        color = NeonPink
+                                    )
                                 }
-                                val shortcut = ShortcutInfoCompat.Builder(context, "zenix_home_shortcut")
-                                    .setShortLabel("ZENIX")
-                                    .setLongLabel("ZENIX Tracker")
-                                    .setIcon(IconCompat.createWithResource(context, R.mipmap.ic_launcher))
-                                    .setIntent(launchIntent)
-                                    .build()
-                                ShortcutManagerCompat.requestPinShortcut(context, shortcut, null)
-                            }.onSuccess {
-                                onNotify("Home Screen pin prompt opened for ZENIX")
-                            }.onFailure {
-                                onNotify("Unable to pin shortcut on this launcher")
                             }
-                        } else {
-                            onNotify("ZENIX is already installed; pin shortcuts from your launcher if needed.")
                         }
-                    },
-                    accentBorderColor = NeonPurple,
-                    cornerRadius = radii.md,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("settings_install_shortcut_button")
-                ) {
-                    Icon(Icons.AutoMirrored.Rounded.AddToHomeScreen, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(spacing.space2))
-                    Text("Pin ZENIX to Home Screen", fontWeight = FontWeight.SemiBold)
+                        Text(
+                            text = if (isUpdateAvailable) {
+                                "Update ${ZenixUpdateConfig.latestVersion} available · v$APP_VERSION"
+                            } else {
+                                "You're up to date · v$APP_VERSION"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = tokens.textSecondary
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
+                        contentDescription = "Open updates",
+                        tint = tokens.textSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
         }
@@ -680,17 +670,6 @@ fun SettingsScreen(
                         style = MaterialTheme.typography.labelMedium,
                         color = tokens.tertiaryAccent
                     )
-                }
-                GlassSecondaryButton(
-                    onClick = onSignOut,
-                    cornerRadius = radii.md,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("sign_out_button")
-                ) {
-                    Icon(Icons.AutoMirrored.Rounded.Logout, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(spacing.space2))
-                    Text("Sign Out")
                 }
             }
         }

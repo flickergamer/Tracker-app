@@ -42,6 +42,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -74,8 +76,15 @@ import com.example.ui.components.themedPaletteColor
 import com.example.ui.components.zenixHeading
 import com.example.ui.theme.LocalZenixRadii
 import com.example.ui.theme.LocalZenixSpacing
+import com.example.ui.theme.NeonGreen
 import com.example.ui.theme.LocalZenixTokens
 import kotlin.random.Random
+
+private enum class SmartDurationFilter(val label: String) {
+    ALL("Any length"),
+    UNDER_2H("Under 2 hrs"),
+    SHORT_SERIES("Short series (≤12 eps)")
+}
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -97,6 +106,7 @@ fun SmartHubScreen(
     val tokens = LocalZenixTokens.current
     val spacing = LocalZenixSpacing.current
     val radii = LocalZenixRadii.current
+    val haptic = LocalHapticFeedback.current
     val tabs = listOf(
         "Random Picker",
         "Mood Match",
@@ -109,6 +119,7 @@ fun SmartHubScreen(
 
     var randomCategoryFilter by remember { mutableStateOf<MediaCategory?>(null) }
     var randomOnlyUnwatched by remember { mutableStateOf(true) }
+    var randomDurationFilter by remember { mutableStateOf(SmartDurationFilter.ALL) }
     var pickedRandomItem by remember { mutableStateOf<MediaItem?>(null) }
 
     var selectedMood by remember { mutableStateOf(AVAILABLE_MOODS.first()) }
@@ -193,14 +204,45 @@ fun SmartHubScreen(
                                             accentColor = themedCategoryColor(c)
                                         )
                                     }
+                                    SmartDurationFilter.entries
+                                        .filter { it != SmartDurationFilter.ALL }
+                                        .forEach { df ->
+                                            NeonGlassChip(
+                                                label = df.label,
+                                                selected = randomDurationFilter == df,
+                                                onClick = {
+                                                    randomDurationFilter = if (randomDurationFilter == df) {
+                                                        SmartDurationFilter.ALL
+                                                    } else {
+                                                        df
+                                                    }
+                                                },
+                                                accentColor = NeonGreen
+                                            )
+                                        }
                                 }
                                 val pool = allItems.filter { item ->
                                     val matchesCat = randomCategoryFilter == null || item.categoryEnum == randomCategoryFilter
                                     val matchesStatus = !randomOnlyUnwatched || item.statusEnum == WatchStatus.PLAN_TO_WATCH || item.watchlistItem || item.statusEnum == WatchStatus.ON_HOLD
-                                    matchesCat && matchesStatus
+                                    val matchesDuration = when (randomDurationFilter) {
+                                        SmartDurationFilter.ALL -> true
+                                        SmartDurationFilter.UNDER_2H -> {
+                                            val est = if (item.categoryEnum.isEpisodic) {
+                                                item.estimatedTotalSeriesMinutes
+                                            } else {
+                                                item.runtimeMinutes
+                                            }
+                                            est in 1L..120L
+                                        }
+                                        SmartDurationFilter.SHORT_SERIES -> {
+                                            item.categoryEnum.isEpisodic && item.totalEpisodes in 1L..12L
+                                        }
+                                    }
+                                    matchesCat && matchesStatus && matchesDuration
                                 }
                                 NeonPrimaryButton(
                                     onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                         pickedRandomItem = if (pool.isNotEmpty()) pool[Random.nextInt(pool.size)] else null
                                     },
                                     enabled = pool.isNotEmpty(),

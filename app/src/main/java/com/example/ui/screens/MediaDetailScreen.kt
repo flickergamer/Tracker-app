@@ -3,7 +3,9 @@ package com.example.ui.screens
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -19,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -49,12 +52,20 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
 import com.example.data.model.MediaCategory
 import com.example.data.model.MediaItem
 import com.example.data.model.formatWatchTime
@@ -75,6 +86,7 @@ import com.example.ui.components.StatusPill
 import com.example.ui.components.neonGlow
 import com.example.ui.components.themedCategoryColor
 import com.example.ui.components.zenixHeading
+import com.example.ui.theme.LocalReducedMotion
 import com.example.ui.theme.LocalZenixRadii
 import com.example.ui.theme.LocalZenixSpacing
 import com.example.ui.theme.LocalZenixTokens
@@ -100,6 +112,8 @@ fun MediaDetailScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val haptics = LocalHapticFeedback.current
+    val reducedMotion = LocalReducedMotion.current
     val tokens = LocalZenixTokens.current
     val spacing = LocalZenixSpacing.current
     val radii = LocalZenixRadii.current
@@ -205,8 +219,39 @@ fun MediaDetailScreen(
                     .padding(spacing.space4),
                 verticalArrangement = Arrangement.spacedBy(spacing.space4)
             ) {
-                // Hero Poster + Core Metadata Card
+                // Hero Poster + Optional Widescreen Backdrop + Core Metadata Card
                 LiquidGlassHeroCard(accentColor = categoryAccent) {
+                    if (item.backdropUrl.isNotBlank()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(132.dp)
+                                .padding(bottom = spacing.space3)
+                                .clip(RoundedCornerShape(radii.md))
+                        ) {
+                            SubcomposeAsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(item.backdropUrl)
+                                    .crossfade(!reducedMotion)
+                                    .build(),
+                                contentDescription = "${item.title} backdrop",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        Brush.verticalGradient(
+                                            colors = listOf(
+                                                Color.Transparent,
+                                                tokens.surface.copy(alpha = 0.72f)
+                                            )
+                                        )
+                                    )
+                            )
+                        }
+                    }
                     Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                         PosterArtwork(
                             posterUrl = item.posterUrl,
@@ -276,21 +321,30 @@ fun MediaDetailScreen(
                     NeonGlassChip(
                         label = if (item.favourite) "Favourited" else "Favourite",
                         selected = item.favourite,
-                        onClick = onToggleFavourite,
+                        onClick = {
+                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onToggleFavourite()
+                        },
                         accentColor = tokens.dangerAccent,
                         leadingIcon = if (item.favourite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder
                     )
                     NeonGlassChip(
                         label = if (item.allTimeFavourite) "All-Time Fav" else "Mark All-Time",
                         selected = item.allTimeFavourite,
-                        onClick = onToggleAllTimeFavourite,
+                        onClick = {
+                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onToggleAllTimeFavourite()
+                        },
                         accentColor = tokens.ratingGold,
                         leadingIcon = Icons.Filled.Star
                     )
                     NeonGlassChip(
                         label = if (item.hiddenGem) "Hidden Gem" else "Mark Gem",
                         selected = item.hiddenGem,
-                        onClick = onToggleHiddenGem,
+                        onClick = {
+                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onToggleHiddenGem()
+                        },
                         accentColor = tokens.tertiaryAccent,
                         leadingIcon = Icons.Rounded.Diamond
                     )
@@ -458,7 +512,12 @@ fun MediaDetailScreen(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             GlassIconButton(
-                                                onClick = { if (season.episodesWatched > 0L) onStepSeasonEpisode(season.seasonNumber, -1) },
+                                                onClick = {
+                                                    if (season.episodesWatched > 0L) {
+                                                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                        onStepSeasonEpisode(season.seasonNumber, -1)
+                                                    }
+                                                },
                                                 glowColor = categoryAccent,
                                                 size = 38.dp
                                             ) {
@@ -472,6 +531,7 @@ fun MediaDetailScreen(
                                             GlassIconButton(
                                                 onClick = {
                                                     if (season.totalEpisodes == 0L || season.episodesWatched < season.totalEpisodes) {
+                                                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                                         onStepSeasonEpisode(season.seasonNumber, 1)
                                                     }
                                                 },

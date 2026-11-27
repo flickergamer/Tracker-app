@@ -10,6 +10,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
+import org.json.JSONArray
 import java.io.IOException
 
 enum class AppThemeMode(
@@ -68,6 +69,7 @@ object ThemePreferences {
     private val KEY_NOTIFY_UPDATES = booleanPreferencesKey("notify_updates")
     private val KEY_LAST_SEEN_VERSION = stringPreferencesKey("last_seen_update_version")
     private val KEY_LAST_LAUNCHED_VERSION = stringPreferencesKey("last_launched_app_version")
+    private val KEY_RECENT_SEARCHES = stringPreferencesKey("recent_search_queries_json")
 
     private fun safePrefsFlow(context: Context) = context.themeDataStore.data
         .catch { err ->
@@ -172,6 +174,52 @@ object ThemePreferences {
         runCatching {
             context.themeDataStore.edit { prefs ->
                 prefs[key] = sortKey.trim()
+            }
+        }
+    }
+
+    fun observeRecentSearches(context: Context): Flow<List<String>> =
+        safePrefsFlow(context).map { prefs ->
+            val raw = prefs[KEY_RECENT_SEARCHES].orEmpty()
+            if (raw.isBlank()) {
+                emptyList()
+            } else {
+                runCatching {
+                    val arr = JSONArray(raw)
+                    buildList {
+                        for (i in 0 until arr.length()) {
+                            val item = arr.optString(i, "").trim()
+                            if (item.isNotEmpty()) add(item)
+                        }
+                    }
+                }.getOrDefault(emptyList())
+            }
+        }
+
+    suspend fun saveRecentSearch(context: Context, query: String) {
+        val clean = query.trim().take(60)
+        if (clean.length < 2) return
+        runCatching {
+            context.themeDataStore.edit { prefs ->
+                val current = prefs[KEY_RECENT_SEARCHES].orEmpty().let { raw ->
+                    if (raw.isBlank()) emptyList()
+                    else runCatching {
+                        val arr = JSONArray(raw)
+                        (0 until arr.length()).mapNotNull { i ->
+                            arr.optString(i, "").trim().takeIf { it.isNotEmpty() }
+                        }
+                    }.getOrDefault(emptyList())
+                }
+                val updated = listOf(clean) + current.filterNot { it.equals(clean, ignoreCase = true) }
+                prefs[KEY_RECENT_SEARCHES] = JSONArray(updated.take(6)).toString()
+            }
+        }
+    }
+
+    suspend fun clearRecentSearches(context: Context) {
+        runCatching {
+            context.themeDataStore.edit { prefs ->
+                prefs.remove(KEY_RECENT_SEARCHES)
             }
         }
     }

@@ -46,6 +46,7 @@
           "description": "Media category"
         },
         "posterUrl": { "type": "string", "description": "Optional poster URL" },
+        "backdropUrl": { "type": "string", "description": "Optional widescreen backdrop banner URL" },
         "genre": { "type": "string", "description": "Comma-separated normalized genres" },
         "language": { "type": "string", "description": "Primary audio language" },
         "releaseYear": { "type": "integer", "description": "Release year (0 if omitted, or 1880-2040)" },

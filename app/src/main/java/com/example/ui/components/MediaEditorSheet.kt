@@ -143,6 +143,7 @@ fun MediaEditorDialog(
     val initCategory = initialItem?.categoryEnum ?: defaultCategory
     val initStatus = initialItem?.statusEnum ?: if (defaultWatchlist) WatchStatus.PLAN_TO_WATCH else WatchStatus.WATCHING
     val initPosterUrl = initialItem?.posterUrl ?: ""
+    val initBackdropUrl = initialItem?.backdropUrl ?: ""
     val initGenre = initialItem?.normalizedGenre ?: ""
     val initLanguage = initialItem?.language ?: when (defaultCategory) {
         MediaCategory.ANIME -> "Japanese"
@@ -183,6 +184,7 @@ fun MediaEditorDialog(
     var category by remember { mutableStateOf(initCategory) }
     var status by remember { mutableStateOf(initStatus) }
     var posterUrl by remember { mutableStateOf(initPosterUrl) }
+    var backdropUrl by remember { mutableStateOf(initBackdropUrl) }
     var genre by remember { mutableStateOf(initGenre) }
     var language by remember { mutableStateOf(initLanguage) }
     var releaseYear by remember { mutableStateOf(initYear) }
@@ -234,6 +236,7 @@ fun MediaEditorDialog(
         category != initCategory ||
         status != initStatus ||
         posterUrl != initPosterUrl ||
+        backdropUrl != initBackdropUrl ||
         genre != initGenre ||
         language != initLanguage ||
         releaseYear != initYear ||
@@ -327,6 +330,7 @@ fun MediaEditorDialog(
                         title = cleanTitle.take(160),
                         mediaCategory = category.name,
                         posterUrl = posterUrl.trim().take(1000),
+                        backdropUrl = backdropUrl.trim().take(1000),
                         genre = normalizeGenres(genre).take(160),
                         language = language.trim().take(60),
                         releaseYear = parsedYear,
@@ -536,6 +540,7 @@ fun MediaEditorDialog(
                                                     title = d.title
                                                     category = d.category
                                                     posterUrl = d.posterUrl
+                                                    backdropUrl = d.backdropUrl
                                                     genre = d.genre
                                                     language = d.language
                                                     releaseYear = if (d.releaseYear > 0L) d.releaseYear.toString() else ""
@@ -1010,6 +1015,14 @@ fun MediaEditorDialog(
                                         value = mainCast,
                                         onValueChange = { mainCast = it },
                                         label = "Main Cast",
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    NeonGlassTextField(
+                                        value = backdropUrl,
+                                        onValueChange = { backdropUrl = it },
+                                        label = "Backdrop Banner URL (optional)",
+                                        placeholder = "https://...",
+                                        focusNeonColor = tokens.tertiaryAccent,
                                         modifier = Modifier.fillMaxWidth()
                                     )
                                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {

@@ -28,7 +28,6 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -52,6 +51,7 @@ import com.example.data.model.MediaCategory
 import com.example.data.model.MediaItem
 import com.example.data.model.WatchStatus
 import com.example.data.model.WatchlistPriority
+import com.example.data.model.formatWatchTime
 import com.example.ui.components.FloatingBottomBarClearance
 import com.example.ui.components.GlassIconButton
 import com.example.ui.components.GlassSecondaryButton
@@ -59,7 +59,6 @@ import com.example.ui.components.HorizontalScrollFadeBox
 import com.example.ui.components.NeonGlassCard
 import com.example.ui.components.NeonGlassChip
 import com.example.ui.components.NeonGlassDialog
-import com.example.ui.components.NeonGlassTextField
 import com.example.ui.components.NeonPrimaryButton
 import com.example.ui.components.PosterArtwork
 import com.example.ui.components.StaggeredFadeItem
@@ -70,7 +69,14 @@ import com.example.ui.components.zenixHeading
 import com.example.ui.theme.LocalZenixRadii
 import com.example.ui.theme.LocalZenixSpacing
 import com.example.ui.theme.LocalZenixTokens
+import com.example.ui.theme.NeonGreen
 import com.example.ui.theme.NeonPurple
+
+private enum class WatchlistDurationFilter(val label: String) {
+    ALL("Any length"),
+    UNDER_2H("Under 2 hrs"),
+    SHORT_SERIES("Short series (≤12 eps)")
+}
 
 @Composable
 fun WatchlistScreen(
@@ -89,9 +95,9 @@ fun WatchlistScreen(
     val spacing = LocalZenixSpacing.current
     val radii = LocalZenixRadii.current
 
-    var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf<MediaCategory?>(null) }
     var selectedPriority by remember { mutableStateOf<WatchlistPriority?>(null) }
+    var durationFilter by remember { mutableStateOf(WatchlistDurationFilter.ALL) }
     var sortByPriority by remember { mutableStateOf(true) }
     var moveCandidate by remember { mutableStateOf<MediaItem?>(null) }
 
@@ -101,14 +107,21 @@ fun WatchlistScreen(
         allItems.filter { it.watchlistItem || it.statusEnum == WatchStatus.PLAN_TO_WATCH }
     }
 
-    val filtered = remember(watchlistItems, searchQuery, selectedCategory, selectedPriority, sortByPriority) {
-        val q = searchQuery.trim().lowercase()
+    val filtered = remember(watchlistItems, selectedCategory, selectedPriority, durationFilter, sortByPriority) {
         val list = watchlistItems.filter { item ->
-            val matchesQ = q.isBlank() || item.title.lowercase().contains(q) ||
-                item.genre.lowercase().contains(q) || item.streamingPlatform.lowercase().contains(q)
             val matchesCat = selectedCategory == null || item.categoryEnum == selectedCategory
             val matchesPri = selectedPriority == null || item.priorityEnum == selectedPriority
-            matchesQ && matchesCat && matchesPri
+            val matchesDur = when (durationFilter) {
+                WatchlistDurationFilter.ALL -> true
+                WatchlistDurationFilter.UNDER_2H -> {
+                    val est = if (item.categoryEnum.isEpisodic) item.estimatedTotalSeriesMinutes else item.runtimeMinutes
+                    est in 1L..120L
+                }
+                WatchlistDurationFilter.SHORT_SERIES -> {
+                    item.categoryEnum.isEpisodic && item.totalEpisodes in 1L..12L
+                }
+            }
+            matchesCat && matchesPri && matchesDur
         }
         if (sortByPriority) {
             list.sortedWith(compareBy<MediaItem> { it.priorityEnum.sortWeight }.thenByDescending { it.dateAdded })
@@ -177,15 +190,6 @@ fun WatchlistScreen(
             }
 
             if (watchlistItems.isNotEmpty()) {
-                NeonGlassTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = "Search watchlist...",
-                    leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                    focusNeonColor = tokens.tertiaryAccent,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
                 val chipScrollState = rememberScrollState()
                 HorizontalScrollFadeBox(
                     scrollState = chipScrollState,
@@ -209,6 +213,18 @@ fun WatchlistScreen(
                                 accentColor = priorityColor(p)
                             )
                         }
+                        WatchlistDurationFilter.entries
+                            .filter { it != WatchlistDurationFilter.ALL }
+                            .forEach { df ->
+                                NeonGlassChip(
+                                    label = df.label,
+                                    selected = durationFilter == df,
+                                    onClick = {
+                                        durationFilter = if (durationFilter == df) WatchlistDurationFilter.ALL else df
+                                    },
+                                    accentColor = NeonGreen
+                                )
+                            }
                         MediaCategory.entries.forEach { c ->
                             NeonGlassChip(
                                 label = c.label,
@@ -240,13 +256,13 @@ fun WatchlistScreen(
             ZenixEmptyState(
                 icon = Icons.Rounded.SearchOff,
                 title = "No matching titles",
-                subtitle = "Try clearing your search or priority/category filters to view your saved watchlist.",
+                subtitle = "Try clearing your priority, length, or category filters to view your saved watchlist.",
                 accentColor = tokens.tertiaryAccent,
                 primaryActionLabel = "Reset Filters",
                 onPrimaryAction = {
-                    searchQuery = ""
                     selectedCategory = null
                     selectedPriority = null
+                    durationFilter = WatchlistDurationFilter.ALL
                 },
                 modifier = Modifier
                     .fillMaxSize()
@@ -320,11 +336,23 @@ fun WatchlistScreen(
                                             style = MaterialTheme.typography.bodySmall,
                                             color = tokens.textSecondary
                                         )
-                                        if (item.dateAdded.isNotBlank()) {
+                                        val estMeta = when {
+                                            item.categoryEnum.isEpisodic && item.totalEpisodes > 0L ->
+                                                "${item.totalEpisodes} eps · Est. ${formatWatchTime(item.estimatedTotalSeriesMinutes)}"
+                                            item.runtimeMinutes > 0L -> formatWatchTime(item.runtimeMinutes)
+                                            else -> null
+                                        }
+                                        val subMeta = listOfNotNull(
+                                            estMeta,
+                                            if (item.dateAdded.isNotBlank()) "Added ${item.dateAdded}" else null
+                                        ).joinToString(" · ")
+                                        if (subMeta.isNotBlank()) {
                                             Text(
-                                                text = "Added ${item.dateAdded}",
+                                                text = subMeta,
                                                 style = MaterialTheme.typography.labelSmall,
-                                                color = tokens.textSecondary
+                                                color = tokens.textSecondary,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
                                             )
                                         }
                                     }
