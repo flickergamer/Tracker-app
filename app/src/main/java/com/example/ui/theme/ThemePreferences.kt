@@ -143,4 +143,36 @@ object ThemePreferences {
             }
         }
     }
+
+    fun observeLibraryListView(context: Context, pageKey: String): Flow<Boolean> {
+        val key = stringPreferencesKey("library_view_mode_${pageKey.lowercase()}")
+        return safePrefsFlow(context).map { prefs ->
+            prefs[key] == "list"
+        }
+    }
+
+    suspend fun saveLibraryListView(context: Context, pageKey: String, isListView: Boolean) {
+        val key = stringPreferencesKey("library_view_mode_${pageKey.lowercase()}")
+        runCatching {
+            context.themeDataStore.edit { prefs ->
+                prefs[key] = if (isListView) "list" else "grid"
+            }
+        }
+    }
+
+    fun observeLibrarySort(context: Context, pageKey: String): Flow<String> {
+        val key = stringPreferencesKey("library_sort_${pageKey.lowercase()}")
+        return safePrefsFlow(context).map { prefs ->
+            prefs[key] ?: "RECENT"
+        }
+    }
+
+    suspend fun saveLibrarySort(context: Context, pageKey: String, sortKey: String) {
+        val key = stringPreferencesKey("library_sort_${pageKey.lowercase()}")
+        runCatching {
+            context.themeDataStore.edit { prefs ->
+                prefs[key] = sortKey.trim()
+            }
+        }
+    }
 }

@@ -285,6 +285,7 @@ private fun AuthenticatedAfterglowShell(
     var showAppearanceScreen by remember { mutableStateOf(false) }
     var smartHubTab by remember { mutableIntStateOf(0) }
     var showGlobalSearch by remember { mutableStateOf(false) }
+    var globalSearchInitialCategory by remember { mutableStateOf<MediaCategory?>(null) }
     var showYearInReview by remember { mutableStateOf(false) }
     var showWhatsNewDialog by remember { mutableStateOf(false) }
 
@@ -424,7 +425,16 @@ private fun AuthenticatedAfterglowShell(
                             if (!isExpandedScreen && !showGlobalSearch) {
                                 AfterglowTopBar(
                                     onOpenMenu = { scope.launch { drawerState.open() } },
-                                    onSearchClick = { showGlobalSearch = true }
+                                    onSearchClick = {
+                                        globalSearchInitialCategory = when (currentSection) {
+                                            AfterglowSection.MOVIES -> MediaCategory.MOVIE
+                                            AfterglowSection.WEB_SERIES -> MediaCategory.WEB_SERIES
+                                            AfterglowSection.ANIME -> MediaCategory.ANIME
+                                            AfterglowSection.K_DRAMA -> MediaCategory.K_DRAMA
+                                            else -> null
+                                        }
+                                        showGlobalSearch = true
+                                    }
                                 )
                             } else if (isExpandedScreen && !showGlobalSearch) {
                                 Spacer(modifier = Modifier.statusBarsPadding().height(spacing.space2))
@@ -476,6 +486,7 @@ private fun AuthenticatedAfterglowShell(
                                                     allItems = allItems,
                                                     onBack = { showGlobalSearch = false },
                                                     onSelectItem = { item -> detailItemId = item.id },
+                                                    initialCategory = globalSearchInitialCategory,
                                                     bottomPadding = screenBottomPadding
                                                 )
 
@@ -740,6 +751,10 @@ private fun AuthenticatedAfterglowShell(
                         }
                     }
 
+                    val isListSection = currentSection == AfterglowSection.MOVIES ||
+                        currentSection == AfterglowSection.WEB_SERIES ||
+                        currentSection == AfterglowSection.ANIME ||
+                        currentSection == AfterglowSection.K_DRAMA
                     if (!isExpandedScreen) {
                         val selectedIndex = if (showGlobalSearch) -1 else bottomSections.indexOf(currentSection)
                         ZenixBottomBar(
@@ -749,7 +764,7 @@ private fun AuthenticatedAfterglowShell(
                             hazeState = hazeState,
                             modifier = Modifier.align(Alignment.BottomCenter)
                         )
-                    } else {
+                    } else if (!isListSection && !showGlobalSearch) {
                         NeonPrimaryButton(
                             onClick = {
                                 openAddPicker(

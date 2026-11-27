@@ -60,6 +60,7 @@ fun GlobalSearchScreen(
     allItems: List<MediaItem>,
     onBack: () -> Unit,
     onSelectItem: (MediaItem) -> Unit,
+    initialCategory: MediaCategory? = null,
     bottomPadding: Dp = FloatingBottomBarClearance,
     modifier: Modifier = Modifier
 ) {
@@ -68,7 +69,7 @@ fun GlobalSearchScreen(
     val radii = LocalZenixRadii.current
 
     var query by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf<MediaCategory?>(null) }
+    var selectedCategory by remember(initialCategory) { mutableStateOf<MediaCategory?>(initialCategory) }
 
     BackHandler(onBack = onBack)
 

@@ -97,8 +97,10 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
@@ -165,37 +167,39 @@ fun rememberFloatingBottomBarClearance(): Dp {
 fun HorizontalScrollFadeBox(
     scrollState: ScrollState,
     modifier: Modifier = Modifier,
+    fadeLeft: Boolean = true,
+    fadeRight: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    val tokens = LocalZenixTokens.current
-    Box(modifier = modifier) {
+    Box(
+        modifier = modifier
+            .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+            .drawWithContent {
+                drawContent()
+                val fadeWidth = 28.dp.toPx()
+                if (fadeRight && scrollState.canScrollForward && size.width > fadeWidth) {
+                    drawRect(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(Color.Black, Color.Transparent),
+                            startX = size.width - fadeWidth,
+                            endX = size.width
+                        ),
+                        blendMode = BlendMode.DstIn
+                    )
+                }
+                if (fadeLeft && scrollState.canScrollBackward && size.width > fadeWidth) {
+                    drawRect(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(Color.Transparent, Color.Black),
+                            startX = 0f,
+                            endX = fadeWidth
+                        ),
+                        blendMode = BlendMode.DstIn
+                    )
+                }
+            }
+    ) {
         content()
-        if (scrollState.canScrollBackward) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .width(28.dp)
-                    .height(48.dp)
-                    .background(
-                        Brush.horizontalGradient(
-                            colors = listOf(tokens.background, Color.Transparent)
-                        )
-                    )
-            )
-        }
-        if (scrollState.canScrollForward) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .width(28.dp)
-                    .height(48.dp)
-                    .background(
-                        Brush.horizontalGradient(
-                            colors = listOf(Color.Transparent, tokens.background)
-                        )
-                    )
-            )
-        }
     }
 }
 
@@ -505,8 +509,8 @@ fun AfterglowBackdrop(
 
 /**
  * Screen Header:
- * Left: Menu icon button (48dp) + "Z" gradient logo + "ZENIX"
- * Right: Search glass icon button (48dp)
+ * Left: Neutral Menu icon button + "Z" gradient logo + "ZENIX"
+ * Right: ONE Neutral Search icon button
  */
 @Composable
 fun AfterglowTopBar(
@@ -521,7 +525,7 @@ fun AfterglowTopBar(
         modifier = modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .padding(horizontal = spacing.space4, vertical = spacing.space2),
+            .padding(horizontal = spacing.space4, vertical = spacing.space1),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -529,21 +533,19 @@ fun AfterglowTopBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(spacing.space3)
         ) {
-            GlassIconButton(
+            NeutralIconButton(
                 onClick = onOpenMenu,
-                glowColor = tokens.primaryAccent,
-                size = 48.dp,
                 modifier = Modifier.testTag("open_drawer_button")
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Menu,
                     contentDescription = "Open navigation menu",
                     tint = tokens.textPrimary,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
 
-            ZenixBrandLogo(size = 32.dp)
+            ZenixBrandLogo(size = 30.dp)
 
             Text(
                 text = "ZENIX",
@@ -558,18 +560,87 @@ fun AfterglowTopBar(
             )
         }
 
-        GlassIconButton(
+        NeutralIconButton(
             onClick = onSearchClick,
-            glowColor = NeonCyan,
-            size = 48.dp,
             modifier = Modifier.testTag("topbar_search_button")
         ) {
             Icon(
                 imageVector = Icons.Rounded.Search,
                 contentDescription = "Search library",
                 tint = tokens.textPrimary,
-                modifier = Modifier.size(21.dp)
+                modifier = Modifier.size(20.dp)
             )
+        }
+    }
+}
+
+/**
+ * Unified Neutral Icon Button:
+ * 48dp minimum touch target wrapping a 40dp visual box with 12dp corner radius,
+ * neutral border and background across all screens.
+ */
+@Composable
+fun NeutralIconButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    showBadgeDot: Boolean = false,
+    badgeColor: Color = LocalZenixTokens.current.primaryAccent,
+    content: @Composable BoxScope.() -> Unit
+) {
+    val tokens = LocalZenixTokens.current
+    val radii = LocalZenixRadii.current
+    val shape = RoundedCornerShape(radii.sm)
+    val interactionSource = remember { MutableInteractionSource() }
+
+    val visualBoxMod = when (tokens.mode) {
+        AppThemeMode.NEON_GLOSSY -> Modifier
+            .size(40.dp)
+            .clip(shape)
+            .background(Color.White.copy(alpha = 0.08f))
+            .border(1.dp, Color.White.copy(alpha = 0.18f), shape)
+
+        AppThemeMode.MINIMAL_DARK -> Modifier
+            .size(40.dp)
+            .clip(shape)
+            .background(MinimalDarkCard)
+            .border(1.dp, MinimalDarkOutline, shape)
+
+        AppThemeMode.AMOLED_BLACK -> Modifier
+            .size(40.dp)
+            .clip(shape)
+            .background(AmoledCard)
+            .border(1.dp, AmoledOutline, shape)
+    }
+
+    Box(
+        modifier = modifier
+            .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+            .pressScale(interactionSource, 0.96f)
+            .zenixFocusRing(tokens.primaryAccent, radii.sm)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = ripple(bounded = false, radius = 24.dp, color = tokens.textPrimary),
+                role = Role.Button,
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = visualBoxMod,
+            contentAlignment = Alignment.Center
+        ) {
+            content()
+            if (showBadgeDot) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 6.dp, end = 6.dp)
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(badgeColor)
+                        .border(1.dp, tokens.background, CircleShape)
+                )
+            }
         }
     }
 }
@@ -986,7 +1057,8 @@ fun NeonGlassChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     accentColor: Color = LocalZenixTokens.current.primaryAccent,
-    leadingIcon: ImageVector? = null
+    leadingIcon: ImageVector? = null,
+    neutralUnselected: Boolean = false
 ) {
     val tokens = LocalZenixTokens.current
     val reducedMotion = LocalReducedMotion.current
@@ -996,7 +1068,9 @@ fun NeonGlassChip(
     val floatAnimSpec = if (reducedMotion) snap<Float>() else tween<Float>(220)
 
     val glowAlpha by animateFloatAsState(
-        targetValue = if (tokens.useGlow) (if (selected) 0.36f else 0.14f) else 0f,
+        targetValue = if (tokens.useGlow) {
+            if (selected) 0.36f else if (neutralUnselected) 0f else 0.14f
+        } else 0f,
         animationSpec = floatAnimSpec,
         label = "chip_glow"
     )
@@ -1007,7 +1081,7 @@ fun NeonGlassChip(
             Color.White
         }
     } else {
-        tokens.textPrimary
+        if (neutralUnselected) tokens.textSecondary else tokens.textPrimary
     }
     val textColor by animateColorAsState(
         targetValue = targetTextColor,
@@ -1024,6 +1098,11 @@ fun NeonGlassChip(
                     .clip(shape)
                     .background(Brush.horizontalGradient(colors = listOf(accentColor, gradEnd)))
                     .border(1.dp, Color.White.copy(alpha = 0.40f), shape)
+            } else if (neutralUnselected) {
+                Modifier
+                    .clip(shape)
+                    .background(Color.White.copy(alpha = 0.06f))
+                    .border(1.dp, Color.White.copy(alpha = 0.16f), shape)
             } else {
                 Modifier
                     .neonGlow(color = accentColor, cornerRadius = 20.dp, alpha = glowAlpha, spread = 5.dp)
